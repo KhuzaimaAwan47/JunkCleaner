@@ -3,7 +3,6 @@ import React from "react";
 import styledNative, { DefaultTheme } from "styled-components/native";
 import AdPlaceholder from "../../components/AdPlaceholder";
 import AppHeader from "../../components/AppHeader";
-import BottomNavBar from "../../components/BottomNavBar";
 import CircularStorageIndicator from "../../components/CircularStorageIndicator";
 import FeatureCard from "../../components/FeatureCard";
 import ResultStatCard from "../../components/ResultStatCard";
@@ -59,7 +58,6 @@ const HomeScreen = () => {
           <AdPlaceholder />
         </Content>
       </Scroll>
-      <BottomNavBar />
     </Screen>
   );
 };
