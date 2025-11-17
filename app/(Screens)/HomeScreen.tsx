@@ -30,6 +30,7 @@ const {
   RemainingCardWrap,
   ToolsHeader,
   ToolsTitle,
+  ToolsDescription,
   RemainingGridRow,
   RemainingGridItem,
   RemainingIcon,
@@ -101,11 +102,15 @@ const HomeScreen = () => {
           </FeatureGrid>
           <RemainingCardWrap>
             <ToolsHeader>
-              <ToolsTitle>tools</ToolsTitle>
+              <ToolsTitle>targeted cleanups</ToolsTitle>
               <MoreButton onPress={() => router.push(appRoutes.storageDashboard)}>
-                <MoreButtonText>more</MoreButtonText>
+                <MoreButtonText>view all</MoreButtonText>
               </MoreButton>
             </ToolsHeader>
+            <ToolsDescription>
+              handle the remaining clutter like large downloads, unused apks, duplicates, and cached files in just a
+              few taps.
+            </ToolsDescription>
             <NeumorphicContainer style={{ paddingBottom: theme.spacing.lg }}>
               {remainingRows.map((row, rowIndex) => (
                 <RemainingGridRow key={`remaining-row-${rowIndex}`}>

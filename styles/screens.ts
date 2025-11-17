@@ -82,6 +82,12 @@ export const homeScreenStyles = {
     justify-content: space-between;
     margin-bottom: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.md}px;
   `,
+  ToolsDescription: styled.Text`
+    color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.textMuted};
+    font-size: 13px;
+    line-height: 18px;
+    margin-bottom: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.md}px;
+  `,
   ToolsTitle: styled.Text`
     color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.text};
     font-size: 16px;
