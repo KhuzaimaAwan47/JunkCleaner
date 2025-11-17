@@ -49,7 +49,7 @@ export const featureCards: Feature[] = [
     id: 'large',
     title: 'Large Files',
     subtitle: '> 512 MB',
-    icon: 'file-size',
+    icon: 'file-search-outline',
     route: '/(Screens)/LargeFilesScreen',
     accent: '#FFB347',
     progress: 0.57,

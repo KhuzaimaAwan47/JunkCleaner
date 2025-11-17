@@ -2,10 +2,11 @@
 import { router } from "expo-router";
 import { MotiView } from "moti";
 import React, { useEffect } from "react";
+import { SafeAreaView } from "react-native-safe-area-context";
 import styledNative, { DefaultTheme } from "styled-components/native";
 import { appRoutes } from "../../routes";
 
-const Container = styledNative.SafeAreaView`
+const Container = styledNative(SafeAreaView)`
   flex: 1;
   align-items: center;
   justify-content: center;
