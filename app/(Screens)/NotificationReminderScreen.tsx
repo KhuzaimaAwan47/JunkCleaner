@@ -1,17 +1,9 @@
 ﻿import React, { useState } from "react";
-import styled, { DefaultTheme } from "styled-components/native";
 import AppHeader from "../../components/AppHeader";
 import ToggleRow from "../../components/ToggleRow";
+import { notificationReminderStyles } from "../../styles/screens";
 
-const Container = styled.SafeAreaView`
-  flex: 1;
-  background-color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.background};
-`;
-
-const Screen = styled.ScrollView`
-  flex: 1;
-  padding: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.lg}px;
-`;
+const { Container, Screen } = notificationReminderStyles;
 
 const NotificationReminderScreen = () => {
   const [daily, setDaily] = useState(true);
