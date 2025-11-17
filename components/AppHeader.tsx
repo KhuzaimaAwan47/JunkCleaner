@@ -51,13 +51,11 @@ const AppHeader: React.FC<Props> = ({
   const theme = useTheme();
   const router = useRouter();
 
-  const fallbackPress = React.useCallback(() => {
-    if (router.canGoBack()) {
-      router.back();
-    }
-  }, [router]);
+  const onbackPress = () => {
+      router.back();    
+  };
 
-  const pressHandler = onRightPress ?? (router.canGoBack() ? fallbackPress : undefined);
+  const pressHandler = onRightPress ?? (router.canGoBack() ? onbackPress : undefined);
   const isInteractive = Boolean(pressHandler);
 
   return (
