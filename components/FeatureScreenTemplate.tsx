@@ -1,39 +1,41 @@
-﻿import React from "react";
-import styled from "styled-components/native";
-import { MotiView } from "moti";
+﻿import { MotiView } from "moti";
+import React from "react";
+import styledNative, { DefaultTheme } from "styled-components/native";
+import AdPlaceholder from "./AdPlaceholder";
 import AppHeader from "./AppHeader";
 import NeumorphicContainer from "./NeumorphicContainer";
 import ResultStatCard from "./ResultStatCard";
 import ScanButton from "./ScanButton";
-import AdPlaceholder from "./AdPlaceholder";
 
-const Wrapper = styled.SafeAreaView`
+type ThemedProps = { theme: DefaultTheme };
+
+const Wrapper = styledNative.SafeAreaView`
   flex: 1;
-  background-color: ${({ theme }) => theme.colors.background};
+  background-color: ${({ theme }: ThemedProps) => theme.colors.background};
 `;
 
-const Screen = styled.ScrollView`
+const Screen = styledNative.ScrollView`
   flex: 1;
-  padding: ${({ theme }) => theme.spacing.lg}px;
+  padding: ${({ theme }: ThemedProps) => theme.spacing.lg}px;
 `;
 
-const ProgressWrap = styled.View`
-  margin-top: ${({ theme }) => theme.spacing.lg}px;
+const ProgressWrap = styledNative.View`
+  margin-top: ${({ theme }: ThemedProps) => theme.spacing.lg}px;
 `;
 
-const ProgressBar = styled.View<{ accent: string }>`
+const ProgressBar = styledNative.View<{ accent: string }>`
   height: 18px;
   border-radius: 20px;
-  background-color: ${({ theme }) => `${theme.colors.surfaceAlt}66`};
+  background-color: ${({ theme }: ThemedProps) => `${theme.colors.surfaceAlt}66`};
   overflow: hidden;
 `;
 
-const PlaceholderList = styled.View`
-  margin-top: ${({ theme }) => theme.spacing.lg}px;
+const PlaceholderList = styledNative.View`
+  margin-top: ${({ theme }: ThemedProps) => theme.spacing.lg}px;
 `;
 
-const PlaceholderRow = styled(NeumorphicContainer)`
-  margin-bottom: ${({ theme }) => theme.spacing.md}px;
+const PlaceholderRow = styledNative(NeumorphicContainer)`
+  margin-bottom: ${({ theme }: ThemedProps) => theme.spacing.md}px;
 `;
 
 type Props = {
@@ -87,14 +89,14 @@ const FeatureScreenTemplate: React.FC<Props> = ({
   </Wrapper>
 );
 
-const AppText = styled.Text`
-  color: ${({ theme }) => theme.colors.text};
+const AppText = styledNative.Text`
+  color: ${({ theme }: ThemedProps) => theme.colors.text};
 `;
 
-const SummaryText = styled.Text`
-  color: ${({ theme }) => theme.colors.textMuted};
-  margin-top: ${({ theme }) => theme.spacing.md}px;
-  margin-bottom: ${({ theme }) => theme.spacing.md}px;
+const SummaryText = styledNative.Text`
+  color: ${({ theme }: ThemedProps) => theme.colors.textMuted};
+  margin-top: ${({ theme }: ThemedProps) => theme.spacing.md}px;
+  margin-bottom: ${({ theme }: ThemedProps) => theme.spacing.md}px;
 `;
 
 export default FeatureScreenTemplate;
