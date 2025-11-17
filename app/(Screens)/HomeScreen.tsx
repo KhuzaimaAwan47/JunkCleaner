@@ -152,11 +152,6 @@ const HomeScreen = () => {
     <Screen>
       <Scroll showsVerticalScrollIndicator={false}>
         <Content>
-          <AppHeader
-            title="ai junk cleaner"
-            subtitle="boost device freshness"
-            onRightPress={() => router.push(appRoutes.reminder)}
-          />
           <IndicatorSection>
             <CircularStorageIndicator total={storageStats.total} used={storageStats.used} />
             <ScoreLabel>your system is in good condition</ScoreLabel>
