@@ -1,9 +1,11 @@
+import type { AppRoute } from "../routes";
+
 export type Feature = {
   id: string;
   title: string;
   subtitle: string;
   icon: string;
-  route: string;
+  route: AppRoute;
   accent: string;
   progress: number;
 };

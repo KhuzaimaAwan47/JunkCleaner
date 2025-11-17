@@ -55,6 +55,12 @@ const HomeScreen = () => {
     return rows;
   }, [remainingFeatures]);
   const isDarkMode = mode === "dark";
+  const handleNavigate = React.useCallback(
+    (route: Feature["route"]) => {
+      router.push(route);
+    },
+    [router],
+  );
 
   return (
     <Screen>
@@ -89,7 +95,7 @@ const HomeScreen = () => {
           <FeatureGrid>
             {topFeatures.map((feature) => (
               <FeatureGridItem key={feature.id}>
-                <FeatureCard feature={feature} onPress={() => router.push(feature.route as any)} />
+                <FeatureCard feature={feature} onPress={() => handleNavigate(feature.route)} />
               </FeatureGridItem>
             ))}
           </FeatureGrid>
@@ -104,7 +110,13 @@ const HomeScreen = () => {
               {remainingRows.map((row, rowIndex) => (
                 <RemainingGridRow key={`remaining-row-${rowIndex}`}>
                   {row.map((feature) => (
-                    <RemainingGridItem key={feature.id}>
+                    <RemainingGridItem
+                      key={feature.id}
+                      accessibilityRole="button"
+                      accessibilityLabel={`open ${feature.title}`}
+                      activeOpacity={0.8}
+                      onPress={() => handleNavigate(feature.route)}
+                    >
                       <RemainingIcon accent={feature.accent}>
                         <MaterialCommunityIcons
                           name={feature.icon as any}

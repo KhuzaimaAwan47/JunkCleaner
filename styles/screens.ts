@@ -1,5 +1,7 @@
 import { SafeAreaView as SafeAreaContextView } from "react-native-safe-area-context";
-import styled, { DefaultTheme } from "styled-components/native";
+import styledNative, { DefaultTheme } from "styled-components/native";
+
+const styled = styledNative;
 
 const BaseSafeArea = styled(SafeAreaContextView)`
   flex: 1;
@@ -90,9 +92,10 @@ export const homeScreenStyles = {
     justify-content: space-between;
     margin-bottom: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.md}px;
   `,
-  RemainingGridItem: styled.View`
+  RemainingGridItem: styled.TouchableOpacity`
     width: 30%;
     align-items: center;
+    padding-vertical: ${({ theme }: { theme: DefaultTheme }) => `${theme.spacing.xs}px`};
   `,
   RemainingIcon: styled.View<{ accent: string }>`
     width: 40px;
