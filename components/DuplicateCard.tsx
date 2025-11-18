@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { DuplicateGroup } from '../../lib/utils/fileScanner';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { DuplicateGroup } from '../utils/fileScanner';
 
 interface DuplicateCardProps {
   group: DuplicateGroup;
