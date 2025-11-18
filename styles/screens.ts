@@ -298,9 +298,15 @@ export const storageDashboardStyles = {
 
 export const resultAnimationStyles = {
   Screen: styled(BaseSafeArea)`
-    justify-content: center;
-    align-items: center;
+    flex: 1;
+  `,
+  Scroll: styled(BaseScroll)`
+    flex: 1;
+  `,
+  Content: styled.View`
     padding: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.lg}px;
+    padding-top: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.xl}px;
+    gap: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.lg}px;
   `,
   AnimationShell: styled.View`
     width: 220px;
@@ -309,11 +315,108 @@ export const resultAnimationStyles = {
     align-items: center;
     justify-content: center;
     background-color: ${({ theme }: { theme: DefaultTheme }) => `${theme.colors.surface}aa`};
-    margin-bottom: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.lg}px;
+    align-self: center;
+    position: relative;
+  `,
+  StatusBadge: styled.View`
+    position: absolute;
+    bottom: 18px;
+    right: 18px;
+    width: 52px;
+    height: 52px;
+    border-radius: 26px;
+    align-items: center;
+    justify-content: center;
+    background-color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.surface};
+    shadow-color: #000;
+    shadow-opacity: 0.15;
+    shadow-radius: 16px;
+    elevation: 8;
+  `,
+  Header: styled.View`
+    align-items: center;
+    gap: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.xs}px;
+  `,
+  Title: styled.Text`
+    font-size: 22px;
+    font-weight: 700;
+    color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.text};
+    text-transform: capitalize;
+  `,
+  Subtitle: styled.Text`
+    color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.textMuted};
+    text-align: center;
+  `,
+  StatsGrid: styled.View`
+    width: 100%;
+    gap: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.md}px;
+  `,
+  Highlights: styled.View`
+    width: 100%;
+    gap: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.sm}px;
+  `,
+  HighlightCard: styled.View`
+    flex-direction: row;
+    align-items: center;
+    padding: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.md}px;
+    border-radius: ${({ theme }: { theme: DefaultTheme }) => theme.radii.lg}px;
+    background-color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.surface};
+    border-width: 1px;
+    border-color: ${({ theme }: { theme: DefaultTheme }) => `${theme.colors.surfaceAlt}66`};
+  `,
+  HighlightIcon: styled.View<{ accent: string }>`
+    width: 48px;
+    height: 48px;
+    border-radius: 24px;
+    align-items: center;
+    justify-content: center;
+    margin-right: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.md}px;
+    background-color: ${({ accent }: { accent: string }) => `${accent}22`};
+  `,
+  HighlightTextWrap: styled.View`
+    flex: 1;
+  `,
+  HighlightLabel: styled.Text`
+    color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.text};
+    font-weight: 600;
+  `,
+  HighlightMeta: styled.Text`
+    color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.textMuted};
+    font-size: 12px;
+    margin-top: 2px;
+    text-transform: capitalize;
+  `,
+  HighlightValue: styled.Text<{ accent: string }>`
+    color: ${({ accent }: { accent: string }) => accent};
+    font-weight: 700;
+    font-size: 16px;
+  `,
+  InsightRow: styled.View`
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.sm}px;
+  `,
+  InsightPill: styled.View<{ accent: string }>`
+    padding-horizontal: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.md}px;
+    padding-vertical: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.xs}px;
+    border-radius: 999px;
+    background-color: ${({ accent }: { accent: string }) => `${accent}22`};
+  `,
+  InsightLabel: styled.Text`
+    color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.textMuted};
+    font-size: 11px;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+  `,
+  InsightValue: styled.Text`
+    color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.text};
+    font-weight: 600;
+    margin-top: 2px;
   `,
   Label: styled.Text`
     color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.textMuted};
-    margin-top: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.md}px;
+    text-align: center;
   `,
 };
 
