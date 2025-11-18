@@ -1,5 +1,6 @@
 ﻿import { MotiView } from "moti";
 import React from "react";
+import { SafeAreaView } from "react-native-safe-area-context";
 import styledNative, { DefaultTheme } from "styled-components/native";
 import AdPlaceholder from "./AdPlaceholder";
 import AppHeader from "./AppHeader";
@@ -9,7 +10,7 @@ import ScanButton from "./ScanButton";
 
 type ThemedProps = { theme: DefaultTheme };
 
-const Wrapper = styledNative.SafeAreaView`
+const Wrapper = styledNative(SafeAreaView)`
   flex: 1;
   background-color: ${({ theme }: ThemedProps) => theme.colors.background};
 `;
