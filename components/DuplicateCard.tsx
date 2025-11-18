@@ -1,16 +1,79 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import styled, { DefaultTheme, useTheme } from 'styled-components/native';
 import { DuplicateGroup } from '../utils/fileScanner';
+import NeumorphicContainer from './NeumorphicContainer';
 
 interface DuplicateCardProps {
   group: DuplicateGroup;
 }
 
-const neumorphicStyles = {
-  shadowColorLight: 'rgba(255, 255, 255, 0.1)',
-  shadowColorDark: 'rgba(0, 0, 0, 0.5)',
-  backgroundColor: '#2d2d2d',
-};
+type WithTheme = { theme: DefaultTheme };
+
+const CardWrapper = styled.View<WithTheme>`
+  margin-vertical: ${({ theme }: WithTheme) => theme.spacing.xs}px;
+  margin-horizontal: ${({ theme }: WithTheme) => theme.spacing.xs}px;
+`;
+
+const Header = styled.Pressable`
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+`;
+
+const HeaderContent = styled.View`
+  flex: 1;
+`;
+
+const CountText = styled.Text<WithTheme>`
+  color: ${({ theme }: WithTheme) => theme.colors.text};
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: ${({ theme }: WithTheme) => theme.spacing.xs / 2}px;
+`;
+
+const SizeText = styled.Text<WithTheme>`
+  color: ${({ theme }: WithTheme) => theme.colors.textMuted};
+  font-size: 14px;
+  font-weight: 500;
+`;
+
+const ExpandIcon = styled(MaterialCommunityIcons)<WithTheme>`
+  color: ${({ theme }: WithTheme) => theme.colors.textMuted};
+  margin-left: ${({ theme }: WithTheme) => theme.spacing.md}px;
+`;
+
+const FileList = styled.View<WithTheme>`
+  margin-top: ${({ theme }: WithTheme) => theme.spacing.md}px;
+  padding-top: ${({ theme }: WithTheme) => theme.spacing.md}px;
+  border-top-width: 1px;
+  border-top-color: ${({ theme }: WithTheme) => `${theme.colors.surfaceAlt}66`};
+`;
+
+const FileItem = styled.View<WithTheme>`
+  padding-vertical: ${({ theme }: WithTheme) => theme.spacing.sm}px;
+  border-bottom-width: 1px;
+  border-bottom-color: ${({ theme }: WithTheme) => `${theme.colors.surfaceAlt}33`};
+`;
+
+const FileName = styled.Text<WithTheme>`
+  color: ${({ theme }: WithTheme) => theme.colors.text};
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: ${({ theme }: WithTheme) => theme.spacing.xs / 2}px;
+`;
+
+const FilePath = styled.Text<WithTheme>`
+  color: ${({ theme }: WithTheme) => theme.colors.textMuted};
+  font-size: 12px;
+  margin-bottom: ${({ theme }: WithTheme) => theme.spacing.xs / 2}px;
+`;
+
+const FileSize = styled.Text<WithTheme>`
+  color: ${({ theme }: WithTheme) => theme.colors.textMuted};
+  font-size: 12px;
+  font-weight: 500;
+`;
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 Bytes';
@@ -26,113 +89,37 @@ function getFileName(path: string): string {
 
 export default function DuplicateCard({ group }: DuplicateCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const theme = useTheme();
 
   return (
-    <View style={styles.card}>
-      <TouchableOpacity
-        onPress={() => setExpanded(!expanded)}
-        activeOpacity={0.7}
-      >
-        <View style={styles.header}>
-          <View style={styles.headerContent}>
-            <Text style={styles.countText}>
+    <CardWrapper>
+      <NeumorphicContainer padding={theme.spacing.md}>
+        <Header onPress={() => setExpanded(!expanded)}>
+          <HeaderContent>
+            <CountText>
               {group.files.length} duplicate{group.files.length > 1 ? 's' : ''}
-            </Text>
-            <Text style={styles.sizeText}>
-              {formatBytes(group.totalSize)} total
-            </Text>
-          </View>
-          <Text style={styles.expandIcon}>
-            {expanded ? '▼' : '▶'}
-          </Text>
-        </View>
-      </TouchableOpacity>
+            </CountText>
+            <SizeText>{formatBytes(group.totalSize)} total</SizeText>
+          </HeaderContent>
+          <ExpandIcon
+            name={expanded ? 'chevron-down' : 'chevron-right'}
+            size={24}
+          />
+        </Header>
 
-      {expanded && (
-        <View style={styles.fileList}>
-          {group.files.map((file, index) => (
-            <View key={index} style={styles.fileItem}>
-              <Text style={styles.fileName} numberOfLines={1}>
-                {getFileName(file.path)}
-              </Text>
-              <Text style={styles.filePath} numberOfLines={1}>
-                {file.path}
-              </Text>
-              <Text style={styles.fileSize}>
-                {formatBytes(file.size)}
-              </Text>
-            </View>
-          ))}
-        </View>
-      )}
-    </View>
+        {expanded && (
+          <FileList>
+            {group.files.map((file, index) => (
+              <FileItem key={index}>
+                <FileName numberOfLines={1}>{getFileName(file.path)}</FileName>
+                <FilePath numberOfLines={1}>{file.path}</FilePath>
+                <FileSize>{formatBytes(file.size)}</FileSize>
+              </FileItem>
+            ))}
+          </FileList>
+        )}
+      </NeumorphicContainer>
+    </CardWrapper>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: neumorphicStyles.backgroundColor,
-    borderRadius: 16,
-    padding: 16,
-    marginVertical: 8,
-    marginHorizontal: 16,
-    shadowColor: neumorphicStyles.shadowColorDark,
-    shadowOffset: { width: 4, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
-    elevation: 5,
-    // Neumorphic inset effect
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  headerContent: {
-    flex: 1,
-  },
-  countText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  sizeText: {
-    color: '#aaaaaa',
-    fontSize: 14,
-  },
-  expandIcon: {
-    color: '#888888',
-    fontSize: 12,
-    marginLeft: 16,
-  },
-  fileList: {
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  fileItem: {
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  fileName: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  filePath: {
-    color: '#888888',
-    fontSize: 12,
-    marginBottom: 4,
-  },
-  fileSize: {
-    color: '#aaaaaa',
-    fontSize: 12,
-  },
-});
 

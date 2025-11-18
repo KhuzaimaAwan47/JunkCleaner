@@ -442,6 +442,17 @@ export const duplicateImagesScreenStyles = {
     font-weight: 600;
     text-align: center;
   `,
+  ResultsContainer: styled.View`
+    width: 100%;
+    margin-top: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.xl}px;
+  `,
+  ResultsTitle: styled.Text`
+    font-size: 20px;
+    font-weight: 700;
+    color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.text};
+    margin-bottom: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.md}px;
+    padding-horizontal: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.xs}px;
+  `,
 };
 
 export const resultAnimationStyles = {

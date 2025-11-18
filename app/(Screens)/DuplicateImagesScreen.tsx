@@ -1,5 +1,4 @@
-﻿import { useRouter } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+﻿import React, { useEffect, useRef, useState } from 'react';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -8,10 +7,9 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import AppHeader from '../../components/AppHeader';
+import DuplicateCard from '../../components/DuplicateCard';
 import ProgressBar from '../../components/ProgressBar';
-import ScanButton from '../../components/ScanButton';
 import { useScanner } from '../../context/ScannerContext';
-import { appRoutes } from '../../routes';
 import { duplicateImagesScreenStyles } from '../../styles/screens';
 import { DuplicateGroup } from '../../utils/fileScanner';
 
@@ -34,6 +32,8 @@ const {
   RescanButtonText,
   StopButton,
   StopButtonText,
+  ResultsContainer,
+  ResultsTitle,
 } = duplicateImagesScreenStyles;
 
 function formatTime(seconds: number): string {
@@ -43,7 +43,6 @@ function formatTime(seconds: number): string {
 }
 
 export default function DuplicateImagesScreen() {
-  const router = useRouter();
   const { isScanning, progress, duplicates, error, startScan, stopScan } = useScanner();
   const pulseScale = useSharedValue(1);
   const [elapsedTime, setElapsedTime] = useState(0);
@@ -85,14 +84,6 @@ export default function DuplicateImagesScreen() {
     };
   }, [isScanning, pulseScale]);
 
-  useEffect(() => {
-    if (!isScanning && duplicates.length > 0) {
-      // Navigate to results after a short delay
-      setTimeout(() => {
-        router.push(appRoutes.resultAnimation as any);
-      }, 500);
-    }
-  }, [isScanning, duplicates.length, router]);
 
   const buttonAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pulseScale.value }],
@@ -150,23 +141,27 @@ export default function DuplicateImagesScreen() {
           )}
 
           {!isScanning && (duplicates.length > 0 || totalDuplicates > 0) && (
-            <SummaryCard>
-              <SummaryTitle>Scan Complete</SummaryTitle>
-              <SummaryText>
-                Scanned {progress.total || 0} files
-              </SummaryText>
-              <SummaryText>
-                Found {totalDuplicates} duplicate{totalDuplicates !== 1 ? 's' : ''} in {duplicates.length} group{duplicates.length !== 1 ? 's' : ''}
-              </SummaryText>
-              <ScanButton
-                label="View Results"
-                onPress={() => router.push(appRoutes.resultAnimation as any)}
-                style={{ marginTop: 16, width: '100%' }}
-              />
-              <RescanButton onPress={startScan} activeOpacity={0.8}>
-                <RescanButtonText>Rescan</RescanButtonText>
-              </RescanButton>
-            </SummaryCard>
+            <>
+              <SummaryCard>
+                <SummaryTitle>Scan Complete</SummaryTitle>
+                <SummaryText>
+                  Scanned {progress.total || 0} files
+                </SummaryText>
+                <SummaryText>
+                  Found {totalDuplicates} duplicate{totalDuplicates !== 1 ? 's' : ''} in {duplicates.length} group{duplicates.length !== 1 ? 's' : ''}
+                </SummaryText>
+                <RescanButton onPress={startScan} activeOpacity={0.8}>
+                  <RescanButtonText>Rescan</RescanButtonText>
+                </RescanButton>
+              </SummaryCard>
+
+              <ResultsContainer>
+                <ResultsTitle>Duplicate Groups</ResultsTitle>
+                {duplicates.map((group: DuplicateGroup, index: number) => (
+                  <DuplicateCard key={`${group.hash}-${index}`} group={group} />
+                ))}
+              </ResultsContainer>
+            </>
           )}
 
           {!isScanning && duplicates.length === 0 && !error && progress.total > 0 && (
