@@ -2,13 +2,19 @@
   "name": "junkcleaner",
   "main": "expo-router/entry",
   "version": "1.0.0",
-  "scripts": {
-    "start": "expo start",
-    "reset-project": "node ./scripts/reset-project.js",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+ "scripts": {
+    "start": "expo start --dev-client",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "test": "jest --watchAll",
+    "lint": "expo lint",
+    "eas-prod-android": "eas build --profile production --platform android",
+    "prebuild-android": "expo prebuild --platform android",
+    "prebuild-ios": "expo prebuild --platform ios",
+    "assemble-release": "expo prebuild --clean && cd android && ./gradlew clean && ./gradlew assembleRelease --stacktrace",
+    "bundle-release-mac": "expo prebuild --clean && bash signing-config.sh && cd android && ./gradlew clean && ./gradlew bundleRelease --stacktrace",
+    "bundle-release-windows": "expo prebuild --clean && powershell -ExecutionPolicy Bypass -File signing-config.ps1 && cd android && ./gradlew clean && ./gradlew bundleRelease --stacktrace"
   },
   "dependencies": {
     "@emotion/unitless": "0.7.5",

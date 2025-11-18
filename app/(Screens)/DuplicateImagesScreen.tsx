@@ -1,12 +1,5 @@
 ﻿import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
-import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -14,18 +7,34 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import AppHeader from '../../components/AppHeader';
 import ProgressBar from '../../components/ProgressBar';
+import ScanButton from '../../components/ScanButton';
 import { useScanner } from '../../context/ScannerContext';
 import { appRoutes } from '../../routes';
+import { duplicateImagesScreenStyles } from '../../styles/screens';
 import { DuplicateGroup } from '../../utils/fileScanner';
 
-const neumorphicStyles = {
-  shadowColorLight: 'rgba(255, 255, 255, 0.1)',
-  shadowColorDark: 'rgba(0, 0, 0, 0.5)',
-  backgroundColor: '#1a1a1a',
-  cardBackground: '#2d2d2d',
-};
+const {
+  Screen,
+  Scroll,
+  Content,
+  StartButton,
+  StartButtonText,
+  ProgressContainer,
+  TimerContainer,
+  TimerText,
+  FileCountText,
+  ErrorContainer,
+  ErrorText,
+  SummaryCard,
+  SummaryTitle,
+  SummaryText,
+  RescanButton,
+  RescanButtonText,
+  StopButton,
+  StopButtonText,
+} = duplicateImagesScreenStyles;
 
 function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
@@ -100,279 +109,97 @@ export default function DuplicateImagesScreen() {
   const totalFiles = progress.totalFiles ?? progress.total;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.content}>
-          <Text style={styles.title}>Duplicate Images Finder</Text>
-          <Text style={styles.subtitle}>
-            Find and manage duplicate image files on your device
-          </Text>
+    <Screen>
+      <Scroll showsVerticalScrollIndicator={false}>
+        <Content>
+          <AppHeader title="Duplicate Images Finder" subtitle="Find and manage duplicate image files on your device" />
 
           {!isScanning && duplicates.length === 0 && (
             <Animated.View style={buttonAnimatedStyle}>
-              <TouchableOpacity
-                style={styles.startButton}
-                onPress={startScan}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.startButtonText}>Start Scan</Text>
-              </TouchableOpacity>
+              <StartButton onPress={startScan} activeOpacity={0.8}>
+                <StartButtonText>Start Scan</StartButtonText>
+              </StartButton>
             </Animated.View>
           )}
 
           {isScanning && (
-            <View style={styles.progressContainer}>
-              <View style={styles.timerContainer}>
-                <Text style={styles.timerText}>⏱️ {formatTime(elapsedTime)}</Text>
+            <ProgressContainer>
+              <TimerContainer>
+                <TimerText>⏱️ {formatTime(elapsedTime)}</TimerText>
                 {scannedFiles > 0 && (
-                  <Text style={styles.fileCountText}>
+                  <FileCountText>
                     {scannedFiles.toLocaleString()} / {totalFiles > 0 ? totalFiles.toLocaleString() : '?'} files
-                  </Text>
+                  </FileCountText>
                 )}
-              </View>
+              </TimerContainer>
               <ProgressBar
                 progress={progressPercent}
                 currentFile={progress.currentFile}
                 stage={progress.stage}
               />
-              <TouchableOpacity
-                style={styles.stopButton}
-                onPress={stopScan}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.stopButtonText}>Stop</Text>
-              </TouchableOpacity>
-            </View>
+              <StopButton onPress={stopScan} activeOpacity={0.8}>
+                <StopButtonText>Stop</StopButtonText>
+              </StopButton>
+            </ProgressContainer>
           )}
 
           {error && (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
+            <ErrorContainer>
+              <ErrorText>{error}</ErrorText>
+            </ErrorContainer>
           )}
 
           {!isScanning && (duplicates.length > 0 || totalDuplicates > 0) && (
-            <View style={styles.summaryCard}>
-              <Text style={styles.summaryTitle}>Scan Complete</Text>
-              <Text style={styles.summaryText}>
+            <SummaryCard>
+              <SummaryTitle>Scan Complete</SummaryTitle>
+              <SummaryText>
                 Scanned {progress.total || 0} files
-              </Text>
-              <Text style={styles.summaryText}>
+              </SummaryText>
+              <SummaryText>
                 Found {totalDuplicates} duplicate{totalDuplicates !== 1 ? 's' : ''} in {duplicates.length} group{duplicates.length !== 1 ? 's' : ''}
-              </Text>
-              <TouchableOpacity
-                style={styles.viewResultsButton}
+              </SummaryText>
+              <ScanButton
+                label="View Results"
                 onPress={() => router.push(appRoutes.resultAnimation as any)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.viewResultsButtonText}>View Results</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.rescanButton}
-                onPress={startScan}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.rescanButtonText}>Rescan</Text>
-              </TouchableOpacity>
-            </View>
+                style={{ marginTop: 16, width: '100%' }}
+              />
+              <RescanButton onPress={startScan} activeOpacity={0.8}>
+                <RescanButtonText>Rescan</RescanButtonText>
+              </RescanButton>
+            </SummaryCard>
           )}
 
           {!isScanning && duplicates.length === 0 && !error && progress.total > 0 && (
-            <View style={styles.summaryCard}>
+            <SummaryCard>
               {progress.currentFile === 'Cancelled' ? (
                 <>
-                  <Text style={styles.summaryTitle}>Scan Cancelled</Text>
-                  <Text style={styles.summaryText}>
+                  <SummaryTitle>Scan Cancelled</SummaryTitle>
+                  <SummaryText>
                     Scanned {progress.scannedFiles || progress.current || 0} files before cancellation
-                  </Text>
-                  <Text style={styles.summaryText}>
+                  </SummaryText>
+                  <SummaryText>
                     Scan was stopped before completion
-                  </Text>
+                  </SummaryText>
                 </>
               ) : (
                 <>
-                  <Text style={styles.summaryTitle}>No Duplicates Found</Text>
-                  <Text style={styles.summaryText}>
+                  <SummaryTitle>No Duplicates Found</SummaryTitle>
+                  <SummaryText>
                     Scanned {progress.total} files
-                  </Text>
-                  <Text style={styles.summaryText}>
+                  </SummaryText>
+                  <SummaryText>
                     All files are unique
-                  </Text>
+                  </SummaryText>
                 </>
               )}
-              <TouchableOpacity
-                style={styles.rescanButton}
-                onPress={startScan}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.rescanButtonText}>Rescan</Text>
-              </TouchableOpacity>
-            </View>
+              <RescanButton onPress={startScan} activeOpacity={0.8}>
+                <RescanButtonText>Rescan</RescanButtonText>
+              </RescanButton>
+            </SummaryCard>
           )}
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+        </Content>
+      </Scroll>
+    </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: neumorphicStyles.backgroundColor,
-  },
-  scrollContent: {
-    flexGrow: 1,
-  },
-  content: {
-    flex: 1,
-    padding: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#ffffff',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#aaaaaa',
-    marginBottom: 48,
-    textAlign: 'center',
-  },
-  startButton: {
-    backgroundColor: neumorphicStyles.cardBackground,
-    paddingVertical: 20,
-    paddingHorizontal: 48,
-    borderRadius: 20,
-    shadowColor: neumorphicStyles.shadowColorDark,
-    shadowOffset: { width: 6, height: 6 },
-    shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  startButtonText: {
-    color: '#4a9eff',
-    fontSize: 18,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  progressContainer: {
-    width: '100%',
-    marginTop: 32,
-  },
-  timerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-    paddingHorizontal: 8,
-  },
-  timerText: {
-    color: '#4a9eff',
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  fileCountText: {
-    color: '#aaaaaa',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  errorContainer: {
-    backgroundColor: '#3a1a1a',
-    padding: 16,
-    borderRadius: 12,
-    marginTop: 24,
-    borderWidth: 1,
-    borderColor: '#ff4444',
-  },
-  errorText: {
-    color: '#ff6666',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  summaryCard: {
-    backgroundColor: neumorphicStyles.cardBackground,
-    padding: 24,
-    borderRadius: 16,
-    marginTop: 32,
-    width: '100%',
-    shadowColor: neumorphicStyles.shadowColorDark,
-    shadowOffset: { width: 4, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
-    elevation: 5,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  summaryTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#ffffff',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  summaryText: {
-    fontSize: 14,
-    color: '#aaaaaa',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  viewResultsButton: {
-    backgroundColor: '#4a9eff',
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    borderRadius: 12,
-    marginTop: 16,
-    shadowColor: neumorphicStyles.shadowColorDark,
-    shadowOffset: { width: 2, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  viewResultsButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  rescanButton: {
-    marginTop: 12,
-    backgroundColor: 'transparent',
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#4a9eff',
-  },
-  rescanButtonText: {
-    color: '#4a9eff',
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  stopButton: {
-    marginTop: 16,
-    backgroundColor: '#ff4d4d',
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    borderRadius: 12,
-    shadowColor: 'rgba(0, 0, 0, 0.6)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.8,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  stopButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-});
