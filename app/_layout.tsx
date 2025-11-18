@@ -5,6 +5,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { ThemeModeProvider, useThemeMode } from "../context/ThemeContext";
+import { ScannerProvider } from "../context/ScannerContext";
 
 const LayoutContent = () => {
   const { theme, mode } = useThemeMode();
@@ -28,7 +29,9 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeModeProvider initialMode={scheme === "dark" ? "dark" : "light"}>
-        <LayoutContent />
+        <ScannerProvider>
+          <LayoutContent />
+        </ScannerProvider>
       </ThemeModeProvider>
     </GestureHandlerRootView>
   );

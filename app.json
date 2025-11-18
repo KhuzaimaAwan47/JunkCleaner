@@ -38,7 +38,21 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "expo-file-system",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "App needs access to scan photos and files for duplicates.",
+          "savePhotosPermission": "App needs access to scan photos and files for duplicates.",
+          "isAccessMediaLocationEnabled": true,
+          "androidPermissions": [
+            "READ_MEDIA_IMAGES",
+            "READ_MEDIA_VIDEO"
+          ]
+        }
+      ],
+      "expo-sqlite"
     ],
     "experiments": {
       "typedRoutes": true,
