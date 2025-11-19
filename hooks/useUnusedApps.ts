@@ -73,61 +73,26 @@ const StorageStatsModule = {
   },
 };
 
-async function detectUnusedApps(): Promise<{ packageName: string; score: number }[]> {
-  const now = Date.now();
+async function findUnusedApps() {
+  const allApps = await AppInfoModule.getInstalledApps();
+
   const usage = await UsageStatsModule.getUsageStats();
-  const foreground = await UsageStatsModuleWithDuration.getUsageStatsWithDuration();
-  const installs = await AppInfoModule.getInstalledApps();
-  const notifs = await NotificationStatsModule.getNotificationStats();
-  const storage = await StorageStatsModule.getAppStorageInfo();
+  const duration = await UsageStatsModuleWithDuration.getUsageStatsWithDuration();
 
-  const scoreMap: Record<string, { packageName: string; score: number }> = {};
+  const used = new Set();
 
-  // Initialize mapping
-  installs.forEach((app) => {
-    scoreMap[app.packageName] = { packageName: app.packageName, score: 0 };
+  // Apps opened at least once
+  usage.forEach(u => {
+    if (u.lastTimeUsed > 0) used.add(u.packageName);
   });
 
-  // 1. last-time-used
-  usage.forEach((app) => {
-    const days = (now - app.lastTimeUsed) / 86400000;
-    if (days > 30 && scoreMap[app.packageName]) {
-      scoreMap[app.packageName].score += 20;
-    }
+  // Apps used for > 0 seconds
+  duration.forEach(f => {
+    if (f.totalTimeForeground > 0) used.add(f.packageName);
   });
 
-  // 2. foreground duration
-  foreground.forEach((app) => {
-    if (app.totalTimeForeground < 60 * 1000 && scoreMap[app.packageName]) {
-      scoreMap[app.packageName].score += 20;
-    }
-  });
-
-  // 3. install date heuristic
-  installs.forEach((app) => {
-    const days = (now - app.firstInstallTime) / 86400000;
-    if (days > 30 && (!app.lastTimeUsed || app.lastTimeUsed === 0) && scoreMap[app.packageName]) {
-      scoreMap[app.packageName].score += 20;
-    }
-  });
-
-  // 4. notification activity
-  notifs.forEach((app) => {
-    if (app.notifCount === 0 && scoreMap[app.packageName]) {
-      scoreMap[app.packageName].score += 20;
-    }
-  });
-
-  // 5. storage changes
-  storage.forEach((app) => {
-    const days = (now - app.lastModified) / 86400000;
-    if (days > 60 && scoreMap[app.packageName]) {
-      scoreMap[app.packageName].score += 20;
-    }
-  });
-
-  // Return apps that seem unused (score >= 60)
-  return Object.values(scoreMap).filter((a) => a.score >= 60);
+  // Unused = installed - used
+  return allApps.filter(app => !used.has(app.packageName));
 }
 
 export function useUnusedApps(): UseUnusedAppsResult {
@@ -170,14 +135,14 @@ export function useUnusedApps(): UseUnusedAppsResult {
       setIsLoading(true);
 
       try {
-        const [installedApps, unusedAppScores] = await Promise.all([
+        const [installedApps, unusedApps] = await Promise.all([
           AppInfoModule.getInstalledApps(),
-          detectUnusedApps(),
+          findUnusedApps(),
         ]);
 
-        const scoreMap = new Map<string, number>();
-        unusedAppScores.forEach((app) => {
-          scoreMap.set(app.packageName, app.score);
+        const unusedPackageNames = new Set<string>();
+        unusedApps.forEach((app) => {
+          unusedPackageNames.add(app.packageName);
         });
 
         const uniqueApps = new Map<string, typeof installedApps[0]>();
@@ -212,7 +177,8 @@ export function useUnusedApps(): UseUnusedAppsResult {
               daysIdle = null;
             }
 
-            const score = scoreMap.get(app.packageName);
+            // Mark as unused if in the unused set
+            const isUnused = unusedPackageNames.has(app.packageName);
 
             return {
               id: appId,
@@ -222,7 +188,7 @@ export function useUnusedApps(): UseUnusedAppsResult {
               daysIdle,
               icon,
               requiresPermission: false,
-              score,
+              score: isUnused ? 100 : undefined,
             } satisfies InstalledApp;
           })
           .sort((a, b) => a.name.localeCompare(b.name));

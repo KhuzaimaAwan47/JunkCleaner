@@ -1,9 +1,8 @@
-﻿import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { Image } from "expo-image";
+﻿import { Image } from "expo-image";
 import React, { useCallback, useMemo } from "react";
 import { ActivityIndicator, FlatList, ListRenderItem, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import styledNative, { DefaultTheme, useTheme } from "styled-components/native";
+import styledNative, { useTheme } from "styled-components/native";
 
 import AdPlaceholder from "../../components/AdPlaceholder";
 import AppHeader from "../../components/AppHeader";
@@ -23,9 +22,6 @@ export default function UnusedAppsScreen() {
   const renderAppItem: ListRenderItem<InstalledApp> = useCallback(
     ({ item }) => {
       const iconSource = getAppIconSource(item.icon);
-      const hasScore = typeof item.score === "number";
-      const scoreLabel = hasScore ? `${Math.min(item.score as number, 100)}% relevance` : null;
-      const impactMeta = hasScore ? getImpactMeta(item.score as number, theme) : null;
 
       return (
         <AppCard accessible accessibilityRole="button">
@@ -41,25 +37,11 @@ export default function UnusedAppsScreen() {
           <AppInfo>
             <AppName numberOfLines={1}>{item.name}</AppName>
             <PackageName numberOfLines={1}>{item.packageName}</PackageName>
-            {(scoreLabel || impactMeta) && (
-                <MetaRow>
-                  {scoreLabel ? <ScoreLabel>{scoreLabel}</ScoreLabel> : null}
-                  {impactMeta ? (
-                    <ImpactBadge background={impactMeta.background}>
-                      <ImpactDot color={impactMeta.dot} />
-                      <ImpactText color={impactMeta.text}>{impactMeta.label}</ImpactText>
-                    </ImpactBadge>
-                  ) : null}
-                </MetaRow>
-              )}
           </AppInfo>
-          <ChevronIcon>
-            <MaterialCommunityIcons name="chevron-right" size={20} color={theme.colors.textMuted} />
-          </ChevronIcon>
         </AppCard>
       );
     },
-    [theme]
+    []
   );
 
   const headerComponent = useMemo(
@@ -146,37 +128,6 @@ const getAppIconSource = (icon?: InstalledApp["icon"]) => {
   return { uri: `data:image/png;base64,${trimmedIcon}` };
 };
 
-const getImpactMeta = (score: number | undefined, theme: DefaultTheme) => {
-  if (typeof score !== "number") {
-    return null;
-  }
-
-  if (score >= 80) {
-    return {
-      label: "high impact",
-      background: `${theme.colors.secondary}25`,
-      dot: theme.colors.secondary,
-      text: theme.colors.secondary,
-    };
-  }
-
-  if (score >= 60) {
-    return {
-      label: "moderate impact",
-      background: `${theme.colors.warning}1f`,
-      dot: theme.colors.warning,
-      text: theme.colors.warning,
-    };
-  }
-
-  return {
-    label: "low impact",
-    background: `${theme.colors.accent}1f`,
-    dot: theme.colors.accent,
-    text: theme.colors.accent,
-  };
-};
-
 const Screen = styled(SafeAreaView)`
   flex: 1;
   background-color: ${({ theme }) => theme.colors.background};
@@ -240,46 +191,6 @@ const PackageName = styled.Text`
   color: ${({ theme }) => theme.colors.textMuted};
   font-size: 12px;
   margin-top: 2px;
-`;
-
-const MetaRow = styled.View`
-  flex-direction: row;
-  align-items: center;
-  margin-top: ${({ theme }) => theme.spacing.sm}px;
-  gap: ${({ theme }) => theme.spacing.sm}px;
-`;
-
-const ScoreLabel = styled.Text`
-  color: ${({ theme }) => theme.colors.textMuted};
-  font-size: 12px;
-`;
-
-const ImpactBadge = styled.View<{ background: string }>`
-  flex-direction: row;
-  align-items: center;
-  border-radius: 999px;
-  padding: 4px 10px;
-  background-color: ${({ background }) => background};
-`;
-
-const ImpactDot = styled.View<{ color: string }>`
-  width: 8px;
-  height: 8px;
-  border-radius: 4px;
-  background-color: ${({ color }) => color};
-  margin-right: 6px;
-`;
-
-const ImpactText = styled.Text<{ color: string }>`
-  color: ${({ color }) => color};
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: lowercase;
-`;
-
-const ChevronIcon = styled.View`
-  width: 32px;
-  align-items: flex-end;
 `;
 
 const EmptyState = styled.View`
