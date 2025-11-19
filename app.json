@@ -30,6 +30,7 @@
         "android.permission.READ_MEDIA_VIDEO",
         "android.permission.READ_MEDIA_AUDIO",
         "android.permission.PACKAGE_USAGE_STATS",
+        "android.permission.BIND_NOTIFICATION_LISTENER_SERVICE",
         "android.permission.QUERY_ALL_PACKAGES"
       ],
       "package": "com.khuzaima47.JunkCleaner"
