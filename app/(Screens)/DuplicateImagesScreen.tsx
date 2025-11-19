@@ -85,7 +85,7 @@ export default function DuplicateImagesScreen() {
   const pulseScale = useSharedValue(1);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [sortBy, setSortBy] = useState<'size' | 'name' | 'recent'>('size');
-  const [smartFiltering, setSmartFiltering] = useState(true);
+  const [smartFiltering, setSmartFiltering] = useState(false);
   const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(() => new Set());
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<number | null>(null);
