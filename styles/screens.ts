@@ -301,7 +301,72 @@ export const duplicateImagesScreenStyles = {
   Scroll: BaseScroll,
   Content: styled.View`
     padding: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.lg}px;
+    width: 100%;
+    gap: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.lg}px;
+  `,
+  FilterRow: styled.View`
+    width: 100%;
+    flex-direction: row;
     align-items: center;
+    justify-content: space-between;
+    gap: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.md}px;
+  `,
+  FilterButton: styled.Pressable`
+    flex-direction: row;
+    align-items: center;
+    padding: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.md}px;
+    border-radius: ${({ theme }: { theme: DefaultTheme }) => theme.radii.lg}px;
+    background-color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.surface};
+    border-width: 1px;
+    border-color: ${({ theme }: { theme: DefaultTheme }) => `${theme.colors.surfaceAlt}55`};
+    flex: 1;
+  `,
+  FilterButtonText: styled.Text`
+    color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.text};
+    font-size: 15px;
+    font-weight: 600;
+    flex: 1;
+  `,
+  FilterButtonIcon: styled.View`
+    width: 28px;
+    height: 28px;
+    border-radius: 14px;
+    align-items: center;
+    justify-content: center;
+    background-color: ${({ theme }: { theme: DefaultTheme }) => `${theme.colors.surfaceAlt}44`};
+  `,
+  SmartFilterControl: styled.View`
+    flex-direction: row;
+    align-items: center;
+    flex: 1;
+    gap: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.sm}px;
+    padding: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.md}px;
+    border-radius: ${({ theme }: { theme: DefaultTheme }) => theme.radii.lg}px;
+    background-color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.surface};
+    border-width: 1px;
+    border-color: ${({ theme }: { theme: DefaultTheme }) => `${theme.colors.surfaceAlt}55`};
+  `,
+  SmartFilterTextWrap: styled.View`
+    flex: 1;
+  `,
+  SmartFilterLabel: styled.Text`
+    color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.text};
+    font-size: 14px;
+    font-weight: 600;
+  `,
+  SmartFilterCaption: styled.Text`
+    color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.textMuted};
+    font-size: 12px;
+    margin-top: 2px;
+  `,
+  SmartFilterSwitch: styled.Switch.attrs(({ theme }: { theme: DefaultTheme }) => ({
+    trackColor: {
+      false: `${theme.colors.surfaceAlt}55`,
+      true: `${theme.colors.primary}55`,
+    },
+    thumbColor: theme.colors.primary,
+  }))`
+    transform: scale(0.9);
   `,
   Title: styled.Text`
     font-size: 32px;
@@ -381,6 +446,19 @@ export const duplicateImagesScreenStyles = {
     shadow-radius: 8px;
     elevation: 5;
   `,
+  SummaryRow: styled.View`
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding-horizontal: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.xs}px;
+  `,
+  SummaryMeta: styled.Text<{ accent?: boolean }>`
+    color: ${({ accent, theme }: { accent?: boolean; theme: DefaultTheme }) =>
+      accent ? theme.colors.primary : theme.colors.textMuted};
+    font-size: ${({ accent }: { accent?: boolean }) => (accent ? 16 : 14)}px;
+    font-weight: ${({ accent }: { accent?: boolean }) => (accent ? 700 : 500)};
+  `,
   SummaryTitle: styled.Text`
     font-size: 20px;
     font-weight: 700;
@@ -442,9 +520,56 @@ export const duplicateImagesScreenStyles = {
     font-weight: 600;
     text-align: center;
   `,
+  SelectRow: styled.View`
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding-horizontal: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.xs}px;
+    margin-top: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.sm}px;
+  `,
+  SelectAllButton: styled.Pressable`
+    flex-direction: row;
+    align-items: center;
+    gap: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.xs}px;
+  `,
+  SelectAllIndicator: styled.View<{ selected: boolean }>`
+    width: 26px;
+    height: 26px;
+    border-radius: 13px;
+    border-width: 2px;
+    border-color: ${({ selected, theme }: { selected: boolean; theme: DefaultTheme }) =>
+      selected ? theme.colors.primary : `${theme.colors.surfaceAlt}dd`};
+    background-color: ${({ selected, theme }: { selected: boolean; theme: DefaultTheme }) =>
+      selected ? theme.colors.primary : theme.colors.surface};
+    align-items: center;
+    justify-content: center;
+    shadow-color: rgba(0, 0, 0, 0.15);
+    shadow-opacity: 0.2;
+    shadow-radius: 6px;
+    elevation: 4;
+  `,
+  SelectAllIndicatorInner: styled.View<{ selected: boolean }>`
+    width: ${({ selected }: { selected: boolean }) => (selected ? 12 : 6)}px;
+    height: ${({ selected }: { selected: boolean }) => (selected ? 12 : 6)}px;
+    border-radius: 12px;
+    background-color: ${({ selected, theme }: { selected: boolean; theme: DefaultTheme }) =>
+      selected ? '#ffffff' : `${theme.colors.surfaceAlt}aa`};
+  `,
+  SelectAllText: styled.Text`
+    color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.text};
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: capitalize;
+  `,
+  SelectAllHint: styled.Text`
+    color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.textMuted};
+    font-size: 13px;
+  `,
   ResultsContainer: styled.View`
     width: 100%;
     margin-top: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.xl}px;
+    gap: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.sm}px;
   `,
   ResultsTitle: styled.Text`
     font-size: 20px;
@@ -452,6 +577,53 @@ export const duplicateImagesScreenStyles = {
     color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.text};
     margin-bottom: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.md}px;
     padding-horizontal: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.xs}px;
+  `,
+  ListEmptyState: styled.View`
+    width: 100%;
+    padding: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.xl}px;
+    align-items: center;
+    justify-content: center;
+    gap: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.sm}px;
+    background-color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.surface};
+    border-radius: ${({ theme }: { theme: DefaultTheme }) => theme.radii.xl}px;
+    border-width: 1px;
+    border-color: ${({ theme }: { theme: DefaultTheme }) => `${theme.colors.surfaceAlt}55`};
+  `,
+  EmptyTitle: styled.Text`
+    color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.text};
+    font-size: 18px;
+    font-weight: 600;
+  `,
+  EmptySubtitle: styled.Text`
+    color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.textMuted};
+    font-size: 14px;
+    text-align: center;
+  `,
+  FooterAction: styled.View`
+    width: 100%;
+    padding-vertical: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.md}px;
+  `,
+  FooterActionButton: styled.TouchableOpacity<{ disabled: boolean }>`
+    width: 100%;
+    padding: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.lg}px;
+    border-radius: ${({ theme }: { theme: DefaultTheme }) => theme.radii.xl}px;
+    background-color: ${({ disabled, theme }: { disabled: boolean; theme: DefaultTheme }) =>
+      disabled ? `${theme.colors.surfaceAlt}55` : theme.colors.secondary};
+    opacity: ${({ disabled }: { disabled: boolean }) => (disabled ? 0.6 : 1)};
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  `,
+  FooterActionText: styled.Text`
+    color: #fff;
+    font-size: 16px;
+    font-weight: 700;
+    text-transform: capitalize;
+  `,
+  FooterActionSubtext: styled.Text`
+    color: #fff;
+    font-size: 13px;
+    opacity: 0.9;
   `,
 };
 

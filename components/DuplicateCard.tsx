@@ -1,123 +1,172 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import React, { useState } from 'react';
-import styled, { DefaultTheme, useTheme } from 'styled-components/native';
-import { DuplicateGroup } from '../utils/fileScanner';
+import React from 'react';
+import styledNative, { DefaultTheme, useTheme } from 'styled-components/native';
 import NeumorphicContainer from './NeumorphicContainer';
 
-interface DuplicateCardProps {
-  group: DuplicateGroup;
+const styled = styledNative;
+
+export interface DuplicateFileItem {
+  id: string;
+  path: string;
+  size: number;
+  modifiedDate: number;
+  groupHash: string;
 }
 
-type WithTheme = { theme: DefaultTheme };
+interface DuplicateCardProps {
+  file: DuplicateFileItem;
+  isSelected: boolean;
+  onToggleSelect: () => void;
+}
 
-const CardWrapper = styled.View<WithTheme>`
-  margin-vertical: ${({ theme }: WithTheme) => theme.spacing.xs}px;
-  margin-horizontal: ${({ theme }: WithTheme) => theme.spacing.xs}px;
+const CardWrapper = styled.View<{ theme: DefaultTheme }>`
+  margin-vertical: ${({ theme }) => theme.spacing.xs}px;
 `;
 
-const Header = styled.Pressable`
+const CardInner = styled.View<{ theme: DefaultTheme }>`
+  width: 100%;
   flex-direction: row;
-  justify-content: space-between;
   align-items: center;
+  gap: ${({ theme }) => theme.spacing.sm}px;
 `;
 
-const HeaderContent = styled.View`
+const IconBubble = styled.View<{ theme: DefaultTheme }>`
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  align-items: center;
+  justify-content: center;
+  background-color: ${({ theme }) => `${theme.colors.primary}18`};
+`;
+
+const InfoColumn = styled.View<{ theme: DefaultTheme }>`
   flex: 1;
+  gap: ${({ theme }) => theme.spacing.xs / 2}px;
 `;
 
-const CountText = styled.Text<WithTheme>`
-  color: ${({ theme }: WithTheme) => theme.colors.text};
+const Title = styled.Text<{ theme: DefaultTheme }>`
+  color: ${({ theme }) => theme.colors.text};
   font-size: 16px;
   font-weight: 700;
-  margin-bottom: ${({ theme }: WithTheme) => theme.spacing.xs / 2}px;
 `;
 
-const SizeText = styled.Text<WithTheme>`
-  color: ${({ theme }: WithTheme) => theme.colors.textMuted};
-  font-size: 14px;
-  font-weight: 500;
+const MetaRow = styled.View<{ theme: DefaultTheme }>`
+  flex-direction: row;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.xs}px;
 `;
 
-const ExpandIcon = styled(MaterialCommunityIcons)<WithTheme>`
-  color: ${({ theme }: WithTheme) => theme.colors.textMuted};
-  margin-left: ${({ theme }: WithTheme) => theme.spacing.md}px;
+const MetaText = styled.Text<{ theme: DefaultTheme }>`
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-size: 13px;
 `;
 
-const FileList = styled.View<WithTheme>`
-  margin-top: ${({ theme }: WithTheme) => theme.spacing.md}px;
-  padding-top: ${({ theme }: WithTheme) => theme.spacing.md}px;
-  border-top-width: 1px;
-  border-top-color: ${({ theme }: WithTheme) => `${theme.colors.surfaceAlt}66`};
-`;
-
-const FileItem = styled.View<WithTheme>`
-  padding-vertical: ${({ theme }: WithTheme) => theme.spacing.sm}px;
-  border-bottom-width: 1px;
-  border-bottom-color: ${({ theme }: WithTheme) => `${theme.colors.surfaceAlt}33`};
-`;
-
-const FileName = styled.Text<WithTheme>`
-  color: ${({ theme }: WithTheme) => theme.colors.text};
-  font-size: 14px;
-  font-weight: 600;
-  margin-bottom: ${({ theme }: WithTheme) => theme.spacing.xs / 2}px;
-`;
-
-const FilePath = styled.Text<WithTheme>`
-  color: ${({ theme }: WithTheme) => theme.colors.textMuted};
+const PathText = styled.Text<{ theme: DefaultTheme }>`
+  color: ${({ theme }) => theme.colors.textMuted};
   font-size: 12px;
-  margin-bottom: ${({ theme }: WithTheme) => theme.spacing.xs / 2}px;
 `;
 
-const FileSize = styled.Text<WithTheme>`
-  color: ${({ theme }: WithTheme) => theme.colors.textMuted};
-  font-size: 12px;
-  font-weight: 500;
+const SelectButton = styled.Pressable<{ theme: DefaultTheme }>`
+  width: 32px;
+  align-items: center;
+  justify-content: center;
+`;
+
+const SelectIndicator = styled.View<{ selected: boolean; theme: DefaultTheme }>`
+  width: 26px;
+  height: 26px;
+  border-radius: 13px;
+  border-width: 2px;
+  border-color: ${({ selected, theme }) =>
+    selected ? theme.colors.primary : `${theme.colors.surfaceAlt}dd`};
+  background-color: ${({ selected, theme }) =>
+    selected ? theme.colors.primary : theme.colors.surface};
+  align-items: center;
+  justify-content: center;
+  shadow-color: rgba(0, 0, 0, 0.15);
+  shadow-opacity: 0.2;
+  shadow-radius: 6px;
+  elevation: 4;
+`;
+
+const SelectIndicatorInner = styled.View<{ selected: boolean; theme: DefaultTheme }>`
+  width: ${({ selected }) => (selected ? 12 : 6)}px;
+  height: ${({ selected }) => (selected ? 12 : 6)}px;
+  border-radius: 12px;
+  background-color: ${({ selected, theme }) =>
+    selected ? '#ffffff' : `${theme.colors.surfaceAlt}aa`};
 `;
 
 function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 Bytes';
+  if (bytes === 0) return '0 B';
   const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
 }
 
 function getFileName(path: string): string {
   return path.split('/').pop() || path.split('\\').pop() || path;
 }
 
-export default function DuplicateCard({ group }: DuplicateCardProps) {
-  const [expanded, setExpanded] = useState(false);
+function formatDateLabel(timestamp?: number): string {
+  if (!timestamp) return 'unknown date';
+  const date = new Date(timestamp);
+  return date.toLocaleDateString();
+}
+
+function getLocationLabel(path: string): string {
+  const normalized = path.toLowerCase();
+  if (normalized.includes('sdcard')) return 'sdcard';
+  if (normalized.includes('download')) return 'downloads';
+  if (normalized.includes('whatsapp')) return 'whatsapp';
+  if (normalized.includes('dcim') || normalized.includes('camera')) return 'camera roll';
+  if (normalized.includes('android')) return 'android';
+  return 'local storage';
+}
+
+export default function DuplicateCard({ file, isSelected, onToggleSelect }: DuplicateCardProps) {
   const theme = useTheme();
 
   return (
     <CardWrapper>
       <NeumorphicContainer padding={theme.spacing.md}>
-        <Header onPress={() => setExpanded(!expanded)}>
-          <HeaderContent>
-            <CountText>
-              {group.files.length} duplicate{group.files.length > 1 ? 's' : ''}
-            </CountText>
-            <SizeText>{formatBytes(group.totalSize)} total</SizeText>
-          </HeaderContent>
-          <ExpandIcon
-            name={expanded ? 'chevron-down' : 'chevron-right'}
-            size={24}
-          />
-        </Header>
+        <CardInner>
+          <IconBubble>
+            <MaterialCommunityIcons
+              name="file-document-outline"
+              size={24}
+              color={theme.colors.primary}
+            />
+          </IconBubble>
 
-        {expanded && (
-          <FileList>
-            {group.files.map((file, index) => (
-              <FileItem key={index}>
-                <FileName numberOfLines={1}>{getFileName(file.path)}</FileName>
-                <FilePath numberOfLines={1}>{file.path}</FilePath>
-                <FileSize>{formatBytes(file.size)}</FileSize>
-              </FileItem>
-            ))}
-          </FileList>
-        )}
+          <InfoColumn>
+            <Title numberOfLines={1}>{getFileName(file.path)}</Title>
+            <MetaRow>
+              <MetaText>{formatBytes(file.size)}</MetaText>
+              <MetaText>•</MetaText>
+              <MetaText>{formatDateLabel(file.modifiedDate)}</MetaText>
+            </MetaRow>
+            <MetaText>
+              From: {getLocationLabel(file.path)}
+            </MetaText>
+            <PathText numberOfLines={1}>{file.path}</PathText>
+          </InfoColumn>
+
+          <SelectButton
+            onPress={onToggleSelect}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: isSelected }}
+          >
+            <SelectIndicator selected={isSelected}>
+              {isSelected ? (
+                <MaterialCommunityIcons name="check" size={16} color="#ffffff" />
+              ) : (
+                <SelectIndicatorInner selected={isSelected} />
+              )}
+            </SelectIndicator>
+          </SelectButton>
+        </CardInner>
       </NeumorphicContainer>
     </CardWrapper>
   );
