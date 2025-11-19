@@ -533,29 +533,33 @@ export const duplicateImagesScreenStyles = {
     align-items: center;
     gap: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.xs}px;
   `,
-  SelectAllIndicator: styled.View<{ selected: boolean }>`
+  SelectAllIndicator: styled.View<{ state: 'all' | 'partial' | 'none' }>`
     width: 26px;
     height: 26px;
     border-radius: 13px;
     border-width: 2px;
-    border-color: ${({ selected, theme }: { selected: boolean; theme: DefaultTheme }) =>
-      selected ? theme.colors.primary : `${theme.colors.primary}66`};
-    background-color: ${({ selected, theme }: { selected: boolean; theme: DefaultTheme }) =>
-      selected ? theme.colors.primary : theme.colors.surface};
+    border-color: ${({ state, theme }: { state: 'all' | 'partial' | 'none'; theme: DefaultTheme }) =>
+      state === 'all'
+        ? theme.colors.primary
+        : state === 'partial'
+        ? `${theme.colors.primary}aa`
+        : `${theme.colors.primary}66`};
+    background-color: ${({ state, theme }: { state: 'all' | 'partial' | 'none'; theme: DefaultTheme }) =>
+      state === 'all' ? theme.colors.primary : theme.colors.surface};
     align-items: center;
     justify-content: center;
-    shadow-color: ${({ selected, theme }: { selected: boolean; theme: DefaultTheme }) =>
-      selected ? 'rgba(0, 0, 0, 0.15)' : `${theme.colors.primary}aa`};
-    shadow-opacity: ${({ selected }: { selected: boolean }) => (selected ? 0.2 : 0.45)};
-    shadow-radius: ${({ selected }: { selected: boolean }) => (selected ? 6 : 10)}px;
-    elevation: ${({ selected }: { selected: boolean }) => (selected ? 4 : 8)};
+    shadow-color: ${({ state, theme }: { state: 'all' | 'partial' | 'none'; theme: DefaultTheme }) =>
+      state === 'all' ? 'rgba(0, 0, 0, 0.15)' : `${theme.colors.primary}aa`};
+    shadow-opacity: ${({ state }: { state: 'all' | 'partial' | 'none' }) => (state === 'all' ? 0.2 : 0.45)};
+    shadow-radius: ${({ state }: { state: 'all' | 'partial' | 'none' }) => (state === 'all' ? 6 : 10)}px;
+    elevation: ${({ state }: { state: 'all' | 'partial' | 'none' }) => (state === 'all' ? 4 : 8)};
   `,
-  SelectAllIndicatorInner: styled.View<{ selected: boolean }>`
-    width: ${({ selected }: { selected: boolean }) => (selected ? 12 : 6)}px;
-    height: ${({ selected }: { selected: boolean }) => (selected ? 12 : 6)}px;
-    border-radius: 12px;
-    background-color: ${({ selected, theme }: { selected: boolean; theme: DefaultTheme }) =>
-      selected ? '#ffffff' : `${theme.colors.surfaceAlt}aa`};
+  SelectAllIndicatorInner: styled.View<{ state: 'all' | 'partial' | 'none' }>`
+    width: ${({ state }: { state: 'all' | 'partial' | 'none' }) => (state === 'partial' ? 12 : 6)}px;
+    height: ${({ state }: { state: 'all' | 'partial' | 'none' }) => (state === 'partial' ? 3 : 6)}px;
+    border-radius: ${({ state }: { state: 'all' | 'partial' | 'none' }) => (state === 'partial' ? 2 : 12)}px;
+    background-color: ${({ state, theme }: { state: 'all' | 'partial' | 'none'; theme: DefaultTheme }) =>
+      state === 'partial' ? theme.colors.primary : `${theme.colors.surfaceAlt}aa`};
   `,
   SelectAllText: styled.Text`
     color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.text};

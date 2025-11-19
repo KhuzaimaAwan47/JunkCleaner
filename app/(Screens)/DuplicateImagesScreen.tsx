@@ -24,6 +24,7 @@ const {
   SmartFilterControl,
   SmartFilterTextWrap,
   SmartFilterLabel,
+  SmartFilterCaption,
   SmartFilterSwitch,
   StartButton,
   StartButtonText,
@@ -89,6 +90,8 @@ export default function DuplicateImagesScreen() {
   const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(() => new Set());
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<number | null>(null);
+  const smartFilterMemoryRef = useRef<Set<string>>(new Set());
+  const selectAllMemoryRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (isScanning) {
@@ -173,19 +176,22 @@ export default function DuplicateImagesScreen() {
     });
   }, [duplicateFiles]);
 
+  const smartFilteredIds = useMemo(() => {
+    const autoSelected = new Set<string>();
+    duplicateFiles.forEach((file) => {
+      if (!originalFileIds.has(file.id)) {
+        autoSelected.add(file.id);
+      }
+    });
+    return autoSelected;
+  }, [duplicateFiles, originalFileIds]);
+
   useEffect(() => {
-    if (smartFiltering) {
-      const autoSelected = new Set<string>();
-      duplicateFiles.forEach((file) => {
-        if (!originalFileIds.has(file.id)) {
-          autoSelected.add(file.id);
-        }
-      });
-      setSelectedFileIds(autoSelected);
-    } else {
-      setSelectedFileIds(new Set());
+    if (!smartFiltering) {
+      return;
     }
-  }, [smartFiltering, duplicateFiles, originalFileIds]);
+    setSelectedFileIds(new Set(smartFilteredIds));
+  }, [smartFiltering, smartFilteredIds]);
 
   const buttonAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pulseScale.value }],
@@ -255,17 +261,43 @@ export default function DuplicateImagesScreen() {
     });
   };
 
+  const handleSmartFilteringToggle = (value: boolean) => {
+    if (value) {
+      smartFilterMemoryRef.current = new Set(selectedFileIds);
+    } else {
+      const previous = smartFilterMemoryRef.current;
+      setSelectedFileIds(previous.size ? new Set(previous) : new Set());
+      smartFilterMemoryRef.current = new Set();
+    }
+    selectAllMemoryRef.current = new Set();
+    setSmartFiltering(value);
+  };
+
   const handleSelectAll = () => {
-    setSelectedFileIds((prev) => {
-      if (prev.size === duplicateFiles.length) {
-        return new Set();
-      }
-      return new Set(duplicateFiles.map((file) => file.id));
-    });
+    if (!duplicateFiles.length) {
+      return;
+    }
+
+    if (selectedFileIds.size === duplicateFiles.length) {
+      const previous = selectAllMemoryRef.current;
+      setSelectedFileIds(previous.size ? new Set(previous) : new Set());
+      selectAllMemoryRef.current = new Set();
+      return;
+    }
+
+    selectAllMemoryRef.current = new Set(selectedFileIds);
+    setSelectedFileIds(new Set(duplicateFiles.map((file) => file.id)));
   };
 
   const sortLabel = sortBy === 'size' ? 'size' : sortBy === 'name' ? 'name' : 'date';
   const deleteDisabled = selectedStats.items === 0;
+  const allSelected = duplicateFiles.length > 0 && selectedFileIds.size === duplicateFiles.length;
+  const noneSelected = selectedFileIds.size === 0;
+  const selectionState: 'all' | 'partial' | 'none' = allSelected ? 'all' : noneSelected ? 'none' : 'partial';
+  const selectAllActionLabel = allSelected ? 'restore selection' : 'select all';
+  const selectionHint = smartFiltering
+    ? `smart filtering chose ${selectedStats.items} item${selectedStats.items !== 1 ? 's' : ''}`
+    : `${selectedStats.items} item${selectedStats.items !== 1 ? 's' : ''} selected`;
 
   return (
     <Screen>
@@ -283,8 +315,11 @@ export default function DuplicateImagesScreen() {
             <SmartFilterControl>
               <SmartFilterTextWrap>
                 <SmartFilterLabel>smart filtering</SmartFilterLabel>
+                <SmartFilterCaption>
+                  {smartFiltering ? 'auto-picks the safest copies' : 'keeps one original per group'}
+                </SmartFilterCaption>
               </SmartFilterTextWrap>
-              <SmartFilterSwitch value={smartFiltering} onValueChange={setSmartFiltering} />
+              <SmartFilterSwitch value={smartFiltering} onValueChange={handleSmartFilteringToggle} />
             </SmartFilterControl>
           </FilterRow>
 
@@ -336,20 +371,16 @@ export default function DuplicateImagesScreen() {
             <>
               <SelectRow>
                 <SelectAllButton onPress={handleSelectAll}>
-                  <SelectAllIndicator selected={selectedFileIds.size === duplicateFiles.length}>
-                    {selectedFileIds.size === duplicateFiles.length ? (
+                  <SelectAllIndicator state={selectionState}>
+                    {selectionState === 'all' ? (
                       <MaterialCommunityIcons name="check" size={16} color="#ffffff" />
                     ) : (
-                      <SelectAllIndicatorInner selected={false} />
+                      <SelectAllIndicatorInner state={selectionState} />
                     )}
                   </SelectAllIndicator>
-                  <SelectAllText>
-                    {selectedFileIds.size === duplicateFiles.length ? 'clear selection' : 'select all'}
-                  </SelectAllText>
+                  <SelectAllText>{selectAllActionLabel}</SelectAllText>
                 </SelectAllButton>
-                <SelectAllHint>
-                  {selectedStats.items} item{selectedStats.items !== 1 ? 's' : ''} selected
-                </SelectAllHint>
+                <SelectAllHint>{selectionHint}</SelectAllHint>
               </SelectRow>
 
               <SummaryCard>
