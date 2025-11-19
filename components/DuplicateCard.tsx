@@ -78,15 +78,16 @@ const SelectIndicator = styled.View<{ selected: boolean; theme: DefaultTheme }>`
   border-radius: 13px;
   border-width: 2px;
   border-color: ${({ selected, theme }) =>
-    selected ? theme.colors.primary : `${theme.colors.surfaceAlt}dd`};
+    selected ? theme.colors.primary : `${theme.colors.primary}66`};
   background-color: ${({ selected, theme }) =>
     selected ? theme.colors.primary : theme.colors.surface};
   align-items: center;
   justify-content: center;
-  shadow-color: rgba(0, 0, 0, 0.15);
-  shadow-opacity: 0.2;
-  shadow-radius: 6px;
-  elevation: 4;
+  shadow-color: ${({ selected, theme }) =>
+    selected ? 'rgba(0, 0, 0, 0.15)' : `${theme.colors.primary}aa`};
+  shadow-opacity: ${({ selected }) => (selected ? 0.2 : 0.45)};
+  shadow-radius: ${({ selected }) => (selected ? 6 : 10)}px;
+  elevation: ${({ selected }) => (selected ? 4 : 8)};
 `;
 
 const SelectIndicatorInner = styled.View<{ selected: boolean; theme: DefaultTheme }>`

@@ -24,7 +24,6 @@ const {
   SmartFilterControl,
   SmartFilterTextWrap,
   SmartFilterLabel,
-  SmartFilterCaption,
   SmartFilterSwitch,
   StartButton,
   StartButtonText,
@@ -183,6 +182,8 @@ export default function DuplicateImagesScreen() {
         }
       });
       setSelectedFileIds(autoSelected);
+    } else {
+      setSelectedFileIds(new Set());
     }
   }, [smartFiltering, duplicateFiles, originalFileIds]);
 
@@ -282,9 +283,6 @@ export default function DuplicateImagesScreen() {
             <SmartFilterControl>
               <SmartFilterTextWrap>
                 <SmartFilterLabel>smart filtering</SmartFilterLabel>
-                <SmartFilterCaption>
-                  {smartFiltering ? 'hiding look-alike thumbnails' : 'showing every match'}
-                </SmartFilterCaption>
               </SmartFilterTextWrap>
               <SmartFilterSwitch value={smartFiltering} onValueChange={setSmartFiltering} />
             </SmartFilterControl>
