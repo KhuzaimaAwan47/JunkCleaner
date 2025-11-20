@@ -1,7 +1,7 @@
 ﻿import React, { useState } from "react";
-import AppHeader from "../../components/AppHeader";
-import ToggleRow from "../../components/ToggleRow";
-import { notificationReminderStyles } from "../../styles/screens";
+import AppHeader from "../../../components/AppHeader";
+import ToggleRow from "../../../components/ToggleRow";
+import { notificationReminderStyles } from "../../../styles/screens";
 
 const { Container, Screen } = notificationReminderStyles;
 

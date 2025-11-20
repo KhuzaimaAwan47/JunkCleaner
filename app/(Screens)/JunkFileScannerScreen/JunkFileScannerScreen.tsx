@@ -1,6 +1,6 @@
 ﻿import React from "react";
-import FeatureScreenTemplate from "../../components/FeatureScreenTemplate";
-import { appRoutes } from "../../routes";
+import FeatureScreenTemplate from "../../../components/FeatureScreenTemplate";
+import { appRoutes } from "../../../routes";
 import { router } from "expo-router";
 
 const JunkFileScannerScreen = () => (

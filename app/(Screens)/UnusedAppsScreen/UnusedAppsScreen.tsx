@@ -4,9 +4,9 @@ import { ActivityIndicator, FlatList, ListRenderItem, RefreshControl } from "rea
 import { SafeAreaView } from "react-native-safe-area-context";
 import styledNative, { useTheme } from "styled-components/native";
 
-import AdPlaceholder from "../../components/AdPlaceholder";
-import AppHeader from "../../components/AppHeader";
-import { InstalledApp, useUnusedApps } from "../../hooks/useUnusedApps";
+import AdPlaceholder from "../../../components/AdPlaceholder";
+import AppHeader from "../../../components/AppHeader";
+import { InstalledApp, useUnusedApps } from "../../../hooks/useUnusedApps";
 
 const styled = styledNative;
 

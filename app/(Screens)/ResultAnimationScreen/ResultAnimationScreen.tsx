@@ -4,15 +4,15 @@ import { MotiView } from "moti";
 import type { ComponentProps } from "react";
 import React from "react";
 import { useTheme } from "styled-components/native";
-import ResultStatCard from "../../components/ResultStatCard";
-import ScanButton from "../../components/ScanButton";
+import ResultStatCard from "../../../components/ResultStatCard";
+import ScanButton from "../../../components/ScanButton";
 import {
   cleanResultBreakdown,
   cleanResultInsights,
   cleanResultStats,
-} from "../../dummydata/cleanResults";
-import { appRoutes } from "../../routes";
-import { resultAnimationStyles } from "../../styles/screens";
+} from "../../../dummydata/cleanResults";
+import { appRoutes } from "../../../routes";
+import { resultAnimationStyles } from "../../../styles/screens";
 
 type IconName = ComponentProps<typeof MaterialCommunityIcons>["name"];
 

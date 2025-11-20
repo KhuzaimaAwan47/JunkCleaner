@@ -3,16 +3,16 @@ import { useRouter } from "expo-router";
 import React from "react";
 import { Switch } from "react-native";
 import { useTheme } from "styled-components/native";
-import AdPlaceholder from "../../components/AdPlaceholder";
-import CircularStorageIndicator from "../../components/CircularStorageIndicator";
-import FeatureCard from "../../components/FeatureCard";
-import NeumorphicContainer from "../../components/NeumorphicContainer";
-import ScanButton from "../../components/ScanButton";
-import { useThemeMode } from "../../context/ThemeContext";
-import type { Feature } from "../../dummydata/features";
-import { featureCards, storageStats } from "../../dummydata/features";
-import { appRoutes } from "../../routes";
-import { homeScreenStyles } from "../../styles/screens";
+import AdPlaceholder from "../../../components/AdPlaceholder";
+import CircularStorageIndicator from "../../../components/CircularStorageIndicator";
+import FeatureCard from "../../../components/FeatureCard";
+import NeumorphicContainer from "../../../components/NeumorphicContainer";
+import ScanButton from "../../../components/ScanButton";
+import { useThemeMode } from "../../../context/ThemeContext";
+import type { Feature } from "../../../dummydata/features";
+import { featureCards, storageStats } from "../../../dummydata/features";
+import { appRoutes } from "../../../routes";
+import { homeScreenStyles } from "../../../styles/screens";
 
 const {
   Screen,
