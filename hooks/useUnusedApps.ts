@@ -1,3 +1,4 @@
+import * as FileSystem from "expo-file-system/legacy";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, Platform } from "react-native";
 
@@ -41,12 +42,19 @@ const AppInfoModule = {
     const installedApps = await getInstalledApps();
     return installedApps.map((app: any) => {
       const packageName = app.bundleIdentifier || app.packageName || app.id || app.appName || app.label;
+      const iconSource =
+        app.icon ||
+        app.iconBase64 ||
+        app.iconUri ||
+        app.iconPath ||
+        app.iconUrl ||
+        (typeof app.icon === "object" && app.icon !== null ? app.icon?.uri : undefined);
       return {
         packageName,
         appName: app.appName || app.name || app.label || packageName,
         firstInstallTime: app.firstInstallTime || app.installTime || 0,
         lastTimeUsed: app.lastUsedTime || app.lastTimeUsed || 0,
-        icon: app.icon || app.iconBase64 || app.iconUri || app.iconPath || app.iconUrl || undefined,
+        icon: normalizeIconValue(iconSource),
       };
     });
   },
@@ -59,6 +67,7 @@ const UsageStatsModuleWithDuration = {
   },
 };
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const NotificationStatsModule = {
   getNotificationStats: async (): Promise<{ packageName: string; notifCount: number }[]> => {
     // TODO: Replace with actual NotificationStatsModule implementation
@@ -66,12 +75,110 @@ const NotificationStatsModule = {
   },
 };
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const StorageStatsModule = {
   getAppStorageInfo: async (): Promise<{ packageName: string; lastModified: number }[]> => {
     // TODO: Replace with actual StorageStatsModule implementation
     return [];
   },
 };
+
+const ICON_CACHE_DIR = FileSystem.cacheDirectory ? `${FileSystem.cacheDirectory}app-icons/` : null;
+let didEnsureIconDir = false;
+
+async function ensureIconCacheDir() {
+  if (!ICON_CACHE_DIR || didEnsureIconDir) {
+    return;
+  }
+
+  try {
+    const info = await FileSystem.getInfoAsync(ICON_CACHE_DIR);
+    if (!info.exists) {
+      await FileSystem.makeDirectoryAsync(ICON_CACHE_DIR, { intermediates: true });
+    }
+    didEnsureIconDir = true;
+  } catch (error) {
+    console.warn("failed to prepare icon cache directory", error);
+  }
+}
+
+function sanitizePackageForFilename(packageName: string) {
+  return packageName.replace(/[^a-zA-Z0-9._-]/g, "_");
+}
+
+async function cacheDataUriIcon(dataUri: string, packageName: string) {
+  if (!ICON_CACHE_DIR) {
+    return dataUri;
+  }
+
+  try {
+    const [, payload] = dataUri.split(",", 2);
+    if (!payload) {
+      return dataUri;
+    }
+
+    await ensureIconCacheDir();
+
+    const mimeMatch = dataUri.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,/);
+    const extension = mimeMatch?.[1]?.split("/")?.[1] ?? "png";
+    const cachePath = `${ICON_CACHE_DIR}${sanitizePackageForFilename(packageName)}.${extension}`;
+
+    await FileSystem.writeAsStringAsync(cachePath, payload, { encoding: FileSystem.EncodingType.Base64 });
+    return cachePath;
+  } catch (error) {
+    console.warn(`failed to cache icon for ${packageName}`, error);
+    return dataUri;
+  }
+}
+
+async function resolveIconValue(iconValue: unknown, packageName: string) {
+  const normalized = normalizeIconValue(iconValue);
+  if (!normalized) {
+    return undefined;
+  }
+
+  if (normalized.startsWith("data:")) {
+    return cacheDataUriIcon(normalized, packageName);
+  }
+
+  return normalized;
+}
+
+function normalizeIconValue(iconValue: unknown): string | undefined {
+  if (!iconValue) {
+    return undefined;
+  }
+
+  if (typeof iconValue === "string") {
+    const trimmed = iconValue.trim();
+
+    if (
+      trimmed.startsWith("data:") ||
+      trimmed.startsWith("file://") ||
+      trimmed.startsWith("content://") ||
+      trimmed.startsWith("http://") ||
+      trimmed.startsWith("https://")
+    ) {
+      return trimmed;
+    }
+
+    const base64Regex = /^[A-Za-z0-9+/=]+$/;
+    if (base64Regex.test(trimmed)) {
+      return `data:image/png;base64,${trimmed}`;
+    }
+
+    return undefined;
+  }
+
+  if (typeof iconValue === "object") {
+    const possibleUri = (iconValue as { uri?: string | null })?.uri;
+    if (possibleUri) {
+      return normalizeIconValue(possibleUri);
+    }
+  }
+
+  return undefined;
+}
 
 async function findUnusedApps() {
   const allApps = await AppInfoModule.getInstalledApps();
@@ -153,11 +260,11 @@ export function useUnusedApps(): UseUnusedAppsResult {
           }
         }
 
-        const baseApps: InstalledApp[] = Array.from(uniqueApps.values())
-          .map((app) => {
+        const appsWithIcons = await Promise.all(
+          Array.from(uniqueApps.values()).map(async (app) => {
             const appId = app.packageName;
             const appName = app.appName;
-            const icon = app.icon;
+            const icon = await resolveIconValue(app.icon, app.packageName);
 
             // Try to get lastUsed timestamp if available
             let lastUsed: number | null = null;
@@ -191,7 +298,9 @@ export function useUnusedApps(): UseUnusedAppsResult {
               score: isUnused ? 100 : undefined,
             } satisfies InstalledApp;
           })
-          .sort((a, b) => a.name.localeCompare(b.name));
+        );
+
+        const baseApps: InstalledApp[] = appsWithIcons.sort((a, b) => a.name.localeCompare(b.name));
 
         if (!cancelled) {
           setApps(baseApps);
