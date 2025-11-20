@@ -1,6 +1,6 @@
-﻿import React from "react";
+﻿import { router } from "expo-router";
+import React from "react";
 import FeatureScreenTemplate from "../../../components/FeatureScreenTemplate";
-import { router } from "expo-router";
 import { appRoutes } from "../../../routes";
 
 const CacheLogsScreen = () => (

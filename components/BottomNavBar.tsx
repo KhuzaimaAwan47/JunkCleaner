@@ -1,9 +1,10 @@
-﻿import React from "react";
-import styled, { useTheme } from "styled-components/native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+﻿import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { router, usePathname } from "expo-router";
+import React from "react";
+import styledNative, { useTheme } from "styled-components/native";
+import { appRoutes } from "../routes";
 
-const Container = styled.View`
+const Container = styledNative.View`
   flex-direction: row;
   justify-content: space-around;
   align-items: center;
@@ -13,7 +14,7 @@ const Container = styled.View`
   background-color: ${({ theme }) => theme.colors.surface};
 `;
 
-const NavButton = styled.Pressable<{ active: boolean }>`
+const NavButton = styledNative.Pressable<{ active: boolean }>`
   align-items: center;
   justify-content: center;
   padding: 8px 12px;
@@ -21,17 +22,17 @@ const NavButton = styled.Pressable<{ active: boolean }>`
   background-color: ${({ active, theme }) => (active ? `${theme.colors.primary}12` : "transparent")};
 `;
 
-const Label = styled.Text<{ active: boolean }>`
+const Label = styledNative.Text<{ active: boolean }>`
   margin-top: 4px;
   font-size: 12px;
   color: ${({ active, theme }) => (active ? theme.colors.primary : theme.colors.textMuted)};
 `;
 
 const items = [
-  { label: "Home", icon: "home-variant", href: "/(Screens)/HomeScreen" },
-  { label: "Scanner", icon: "radar", href: "/(Screens)/JunkFileScannerScreen" },
-  { label: "Storage", icon: "chart-pie", href: "/(Screens)/StorageDashboardScreen" },
-  { label: "Smart", icon: "lightning-bolt", href: "/(Screens)/SmartCleanScreen" },
+  { label: "Home", icon: "home-variant", href: appRoutes.home },
+  { label: "Scanner", icon: "radar", href: appRoutes.junkScanner },
+  { label: "Storage", icon: "chart-pie", href: appRoutes.storageDashboard },
+  { label: "Smart", icon: "lightning-bolt", href: appRoutes.smartClean },
 ];
 
 const BottomNavBar: React.FC = () => {
@@ -44,7 +45,7 @@ const BottomNavBar: React.FC = () => {
         const screenName = item.href.split("/").pop() ?? "";
         const active = pathname?.endsWith(screenName);
         return (
-          <NavButton key={item.href} active={!!active} onPress={() => router.push(item.href as any)}>
+          <NavButton key={item.href} active={!!active} onPress={() => router.push(item.href)}>
             <MaterialCommunityIcons
               name={item.icon as any}
               size={22}
