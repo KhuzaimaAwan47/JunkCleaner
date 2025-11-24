@@ -1,9 +1,9 @@
-﻿import React from "react";
-import { Stack } from "expo-router";
-import { useColorScheme } from "react-native";
-import { SafeAreaProvider } from "react-native-safe-area-context";
+﻿import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import React from "react";
+import { useColorScheme } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ThemeModeProvider, useThemeMode } from "../context/ThemeContext";
 import { ScannerProvider } from "./(Screens)/DuplicateImagesScreen/DuplicateImageScanner";
 
