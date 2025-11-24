@@ -296,7 +296,7 @@ export default function DuplicateImagesScreen() {
     <Screen>
       <Scroll showsVerticalScrollIndicator={false}>
         <Content>
-          <AppHeader title="Duplicate files" subtitle="Review and clean identical photos quickly" />
+          <AppHeader title="Duplicate Images" subtitle="Review and clean identical photos quickly" />
 
           <FilterRow>
             <FilterButton onPress={handleToggleSort}>
@@ -387,7 +387,6 @@ export default function DuplicateImagesScreen() {
               </SummaryCard>
 
               <ResultsContainer>
-                <ResultsTitle>Duplicate Files</ResultsTitle>
                 {sortedFiles.map((file: DuplicateFileItem) => (
                   <DuplicateCard
                     key={file.id}

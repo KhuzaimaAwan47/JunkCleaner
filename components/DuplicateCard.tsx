@@ -77,10 +77,6 @@ const MetaText = styled.Text<{ theme: DefaultTheme }>`
   font-size: 13px;
 `;
 
-const PathText = styled.Text<{ theme: DefaultTheme }>`
-  color: ${({ theme }) => theme.colors.textMuted};
-  font-size: 12px;
-`;
 
 const SelectButton = styled.Pressable<{ theme: DefaultTheme }>`
   width: 32px;
@@ -132,15 +128,6 @@ function formatDateLabel(timestamp?: number): string {
   return date.toLocaleDateString();
 }
 
-function getLocationLabel(path: string): string {
-  const normalized = path.toLowerCase();
-  if (normalized.includes('sdcard')) return 'sdcard';
-  if (normalized.includes('download')) return 'downloads';
-  if (normalized.includes('whatsapp')) return 'whatsapp';
-  if (normalized.includes('dcim') || normalized.includes('camera')) return 'camera roll';
-  if (normalized.includes('android')) return 'android';
-  return 'local storage';
-}
 
 function ensureFileUri(path: string): string | null {
   if (!path) {
