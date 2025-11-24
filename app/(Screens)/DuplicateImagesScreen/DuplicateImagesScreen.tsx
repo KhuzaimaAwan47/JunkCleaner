@@ -11,7 +11,7 @@ import AppHeader from '../../../components/AppHeader';
 import DuplicateCard, { DuplicateFileItem } from '../../../components/DuplicateCard';
 import ProgressBar from '../../../components/ProgressBar';
 import { useScanner } from '../../../context/ScannerContext';
-import { duplicateImagesScreenStyles } from '../../../styles/screens';
+import { duplicateImagesScreenStyles } from '../../../styles/GlobalStyles';
 
 const {
   Screen,

@@ -12,7 +12,7 @@ import { useThemeMode } from "../../../context/ThemeContext";
 import type { Feature } from "../../../dummydata/features";
 import { featureCards, storageStats } from "../../../dummydata/features";
 import { appRoutes } from "../../../routes";
-import { homeScreenStyles } from "../../../styles/screens";
+import { homeScreenStyles } from "../../../styles/GlobalStyles";
 
 const {
   Screen,

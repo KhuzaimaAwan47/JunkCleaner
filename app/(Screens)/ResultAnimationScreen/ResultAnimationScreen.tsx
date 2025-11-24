@@ -12,7 +12,7 @@ import {
   cleanResultStats,
 } from "../../../dummydata/cleanResults";
 import { appRoutes } from "../../../routes";
-import { resultAnimationStyles } from "../../../styles/screens";
+import { resultAnimationStyles } from "../../../styles/GlobalStyles";
 
 type IconName = ComponentProps<typeof MaterialCommunityIcons>["name"];
 

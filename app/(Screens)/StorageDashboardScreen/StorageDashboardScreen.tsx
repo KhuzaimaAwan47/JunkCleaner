@@ -3,7 +3,7 @@ import AppHeader from "../../../components/AppHeader";
 import NeumorphicContainer from "../../../components/NeumorphicContainer";
 import ResultStatCard from "../../../components/ResultStatCard";
 import { storageStats } from "../../../dummydata/features";
-import { storageDashboardStyles } from "../../../styles/screens";
+import { storageDashboardStyles } from "../../../styles/GlobalStyles";
 
 const { Container, Screen, Bars, Bar, Recommendations, Recommendation, Grid, Half } =
   storageDashboardStyles;

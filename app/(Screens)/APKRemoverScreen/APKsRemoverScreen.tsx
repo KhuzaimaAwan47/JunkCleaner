@@ -13,7 +13,7 @@ import AdPlaceholder from "../../../components/AdPlaceholder";
 import AppHeader from "../../../components/AppHeader";
 import NeumorphicContainer from "../../../components/NeumorphicContainer";
 import ProgressBar from "../../../components/ProgressBar";
-import { duplicateImagesScreenStyles } from "../../../styles/screens";
+import { duplicateImagesScreenStyles } from "../../../styles/GlobalStyles";
 import { ApkFile, useAPKScanner } from "./APKScanner";
 
 const {

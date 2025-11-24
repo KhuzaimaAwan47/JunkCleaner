@@ -1,5 +1,8 @@
+import { StyleSheet } from "react-native";
 import { SafeAreaView as SafeAreaContextView } from "react-native-safe-area-context";
 import styledNative, { DefaultTheme } from "styled-components/native";
+
+import { spacing } from "../theme/spacing";
 
 const styled = styledNative;
 
@@ -755,4 +758,25 @@ export const resultAnimationStyles = {
     text-align: center;
   `,
 };
+
+export const spacingX = {
+  _20: spacing.lg,
+};
+
+export const spacingY = {
+  _20: spacing.lg,
+};
+
+export const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: spacingX._20,
+    paddingVertical: spacingY._20,
+  },
+});
 

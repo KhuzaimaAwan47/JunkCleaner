@@ -4,7 +4,7 @@ import React, { useRef, useState } from "react";
 import { FlatList, NativeScrollEvent, NativeSyntheticEvent, useWindowDimensions } from "react-native";
 import { useTheme } from "styled-components/native";
 import { appRoutes } from "../../../routes";
-import { onboardingScreenStyles } from "../../../styles/screens";
+import { onboardingScreenStyles } from "../../../styles/GlobalStyles";
 
 const {
   Container,

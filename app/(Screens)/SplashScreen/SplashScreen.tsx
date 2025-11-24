@@ -3,7 +3,7 @@ import { router } from "expo-router";
 import { MotiView } from "moti";
 import React, { useEffect } from "react";
 import { appRoutes } from "../../../routes";
-import { splashScreenStyles } from "../../../styles/screens";
+import { splashScreenStyles } from "../../../styles/GlobalStyles";
 
 const { Container, Title, Subtitle, IconRing } = splashScreenStyles;
 
