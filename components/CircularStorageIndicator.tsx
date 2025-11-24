@@ -1,5 +1,5 @@
 ﻿import React from "react";
-import Svg, { Circle, Defs, LinearGradient as SvgGradient, Stop } from "react-native-svg";
+import Svg, { Circle, Defs, Stop, LinearGradient as SvgGradient } from "react-native-svg";
 import styled, { useTheme } from "styled-components/native";
 
 type Props = {

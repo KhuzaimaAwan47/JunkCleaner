@@ -1,7 +1,7 @@
-﻿import React from "react";
+﻿import { router } from "expo-router";
+import React from "react";
 import { useTheme } from "styled-components/native";
 import FeatureScreenTemplate from "../../../components/FeatureScreenTemplate";
-import { router } from "expo-router";
 import { appRoutes } from "../../../routes";
 
 const SmartCleanScreen = () => {

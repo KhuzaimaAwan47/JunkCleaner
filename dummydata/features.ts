@@ -1,5 +1,5 @@
-import { appRoutes } from "../routes";
 import type { AppRoute } from "../routes";
+import { appRoutes } from "../routes";
 import { lightPalette } from "../theme/theme";
 
 export type Feature = {
