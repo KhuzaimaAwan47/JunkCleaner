@@ -18,7 +18,6 @@ const {
   SmartFilterControl,
   SmartFilterTextWrap,
   SmartFilterLabel,
-  SmartFilterCaption,
   SmartFilterSwitch,
   StartButton,
   StartButtonText,
@@ -309,9 +308,6 @@ export default function DuplicateImagesScreen() {
             <SmartFilterControl>
               <SmartFilterTextWrap>
                 <SmartFilterLabel>smart filtering</SmartFilterLabel>
-                <SmartFilterCaption>
-                  {smartFiltering ? 'auto-picks the safest copies' : 'keeps one original per group'}
-                </SmartFilterCaption>
               </SmartFilterTextWrap>
               <SmartFilterSwitch value={smartFiltering} onValueChange={handleSmartFilteringToggle} />
             </SmartFilterControl>
