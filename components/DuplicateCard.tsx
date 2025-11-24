@@ -1,5 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React from 'react';
+import { Image } from 'react-native';
 import styledNative, { DefaultTheme, useTheme } from 'styled-components/native';
 import NeumorphicContainer from './NeumorphicContainer';
 
@@ -30,10 +31,25 @@ const CardInner = styled.View<{ theme: DefaultTheme }>`
   gap: ${({ theme }) => theme.spacing.sm}px;
 `;
 
+const ThumbnailWrapper = styled.View<{ theme: DefaultTheme }>`
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  overflow: hidden;
+  align-items: center;
+  justify-content: center;
+  background-color: ${({ theme }) => `${theme.colors.surfaceAlt}cc`};
+`;
+
+const ThumbnailImage = styled(Image)`
+  width: 100%;
+  height: 100%;
+`;
+
 const IconBubble = styled.View<{ theme: DefaultTheme }>`
-  width: 48px;
-  height: 48px;
-  border-radius: 16px;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
   align-items: center;
   justify-content: center;
   background-color: ${({ theme }) => `${theme.colors.primary}18`};
@@ -126,20 +142,43 @@ function getLocationLabel(path: string): string {
   return 'local storage';
 }
 
+function ensureFileUri(path: string): string | null {
+  if (!path) {
+    return null;
+  }
+  if (path.startsWith('file://') || path.startsWith('content://') || path.startsWith('data:')) {
+    return path;
+  }
+  return `file://${path}`;
+}
+
 export default function DuplicateCard({ file, isSelected, onToggleSelect }: DuplicateCardProps) {
   const theme = useTheme();
+  const [loadError, setLoadError] = React.useState(false);
+  const imageUri = React.useMemo(() => ensureFileUri(file.path), [file.path]);
+  const showImage = !!imageUri && !loadError;
 
   return (
     <CardWrapper>
       <NeumorphicContainer padding={theme.spacing.md}>
         <CardInner>
-          <IconBubble>
-            <MaterialCommunityIcons
-              name="file-document-outline"
-              size={24}
-              color={theme.colors.primary}
-            />
-          </IconBubble>
+          {showImage ? (
+            <ThumbnailWrapper>
+              <ThumbnailImage
+                source={{ uri: imageUri }}
+                resizeMode="cover"
+                onError={() => setLoadError(true)}
+              />
+            </ThumbnailWrapper>
+          ) : (
+            <IconBubble>
+              <MaterialCommunityIcons
+                name="file-document-outline"
+                size={28}
+                color={theme.colors.primary}
+              />
+            </IconBubble>
+          )}
 
           <InfoColumn>
             <Title numberOfLines={1}>{getFileName(file.path)}</Title>
@@ -148,10 +187,7 @@ export default function DuplicateCard({ file, isSelected, onToggleSelect }: Dupl
               <MetaText>•</MetaText>
               <MetaText>{formatDateLabel(file.modifiedDate)}</MetaText>
             </MetaRow>
-            <MetaText>
-              From: {getLocationLabel(file.path)}
-            </MetaText>
-            <PathText numberOfLines={1}>{file.path}</PathText>
+            
           </InfoColumn>
 
           <SelectButton
