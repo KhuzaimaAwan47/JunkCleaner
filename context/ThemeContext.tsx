@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
 import type { DefaultTheme } from "styled-components/native";
 import { ThemeProvider } from "styled-components/native";
-import { darkTheme, lightTheme } from "../theme";
+import { darkTheme, lightTheme } from "../theme/theme";
 
 type ThemeMode = "light" | "dark";
 

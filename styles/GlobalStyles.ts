@@ -3,7 +3,7 @@ import { SafeAreaView as SafeAreaContextView } from "react-native-safe-area-cont
 import styledNative, { DefaultTheme } from "styled-components/native";
 
 import NeumorphicContainer from "../components/NeumorphicContainer";
-import { spacing } from "../theme/spacing";
+import { spacing } from "../theme/theme";
 
 const styled = styledNative;
 
