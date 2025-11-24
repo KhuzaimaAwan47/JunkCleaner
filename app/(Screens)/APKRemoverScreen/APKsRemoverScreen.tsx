@@ -6,6 +6,8 @@ import { useTheme } from "styled-components/native";
 import AdPlaceholder from "../../../components/AdPlaceholder";
 import AppHeader from "../../../components/AppHeader";
 import ProgressBar from "../../../components/ProgressBar";
+import formatBytes from "../../../constants/formatBytes";
+import formatTime from "../../../constants/formatTime";
 import { apkRemoverScreenStyles } from "../../../styles/GlobalStyles";
 import { ApkFile, useAPKScanner } from "./APKScanner";
 
@@ -50,20 +52,6 @@ const {
   SignatureBadgeText,
   Separator,
 } = apkRemoverScreenStyles;
-
-const formatBytes = (bytes: number): string => {
-  if (!bytes) return "0 B";
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-  const value = bytes / Math.pow(1024, exponent);
-  return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[exponent]}`;
-};
-
-const formatTime = (seconds: number): string => {
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, "0")}`;
-};
 
 const APKsRemoverScreen = () => {
   const { startScan, stopScan, isScanning, progress, results, error } = useAPKScanner();
