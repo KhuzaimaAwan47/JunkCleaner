@@ -1,7 +1,7 @@
-﻿import React, { ReactNode, useMemo } from "react";
+﻿import { LinearGradient } from "expo-linear-gradient";
+import React, { ReactNode, useMemo } from "react";
 import { StyleProp, ViewStyle } from "react-native";
 import styled, { useTheme } from "styled-components/native";
-import { LinearGradient } from "expo-linear-gradient";
 
 type Props = {
   children: ReactNode;
@@ -15,9 +15,9 @@ const Base = styled.Pressable<{ glass?: boolean; padding?: number }>`
   border-radius: ${({ theme }) => theme.radii.xl}px;
   padding: ${({ padding, theme }) => padding ?? theme.spacing.lg}px;
   background-color: ${({ glass, theme }) =>
-    glass ? 'rgba(255,255,255,0.08)' : theme.colors.surface};
+    glass ? `${theme.colors.surface}11` : theme.colors.surface};
   border-width: ${({ glass }) => (glass ? 1 : 0)}px;
-  border-color: rgba(255, 255, 255, 0.14);
+  border-color: ${({ theme }) => `${theme.colors.surfaceAlt}66`};
   overflow: hidden;
 `;
 
@@ -40,7 +40,7 @@ const NeumorphicContainer: React.FC<Props> = ({
   const theme = useTheme();
   const shadowStyle = useMemo(
     () => ({
-      shadowColor: theme.mode === 'dark' ? '#05070E' : '#AAB6DA',
+      shadowColor: theme.mode === 'dark' ? '#05070E' : `${theme.colors.surfaceAlt}aa`,
       shadowOffset: { width: 6, height: 6 },
       shadowOpacity: glass ? 0.3 : 0.45,
       shadowRadius: glass ? 18 : 24,

@@ -1,5 +1,6 @@
 import { appRoutes } from "../routes";
 import type { AppRoute } from "../routes";
+import { lightPalette } from "../theme/theme";
 
 export type Feature = {
   id: string;
@@ -18,7 +19,7 @@ export const featureCards: Feature[] = [
     subtitle: 'Temporary leftovers',
     icon: 'delete-empty-outline',
     route: appRoutes.junkScanner,
-    accent: '#FF7A80',
+    accent: lightPalette.accent,
     progress: 0.62,
   },
   {
@@ -27,7 +28,7 @@ export const featureCards: Feature[] = [
     subtitle: '1-tap optimizer',
     icon: 'magic-staff',
     route: appRoutes.smartClean,
-    accent: '#6C63FF',
+    accent: lightPalette.primary,
     progress: 0.48,
   },
   {
@@ -36,7 +37,7 @@ export const featureCards: Feature[] = [
     subtitle: 'Hidden cache',
     icon: 'file-cabinet',
     route: appRoutes.cacheLogs,
-    accent: '#00BFA6',
+    accent: lightPalette.secondary,
     progress: 0.44,
   },
   {

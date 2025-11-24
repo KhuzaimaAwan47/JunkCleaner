@@ -1,6 +1,6 @@
 ﻿import React from "react";
 import Svg, { Circle, Defs, LinearGradient as SvgGradient, Stop } from "react-native-svg";
-import styled from "styled-components/native";
+import styled, { useTheme } from "styled-components/native";
 
 type Props = {
   total: number;
@@ -39,18 +39,21 @@ const CircularStorageIndicator: React.FC<Props> = ({ total, used, size = 200, la
   const circumference = 2 * Math.PI * radius;
   const progress = Math.min(1, used / total);
   const remaining = total - used;
+  const theme = useTheme();
+  const gradientId = React.useMemo(() => `usageGradient-${Math.random().toString(36).slice(2, 9)}`, []);
+  const trackColor = `${theme.colors.surfaceAlt}55`;
 
   return (
     <Wrapper size={size}>
       <Svg width={size} height={size}>
         <Defs>
-          <SvgGradient id="usageGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <Stop offset="0%" stopColor="#6C63FF" stopOpacity="0.9" />
-            <Stop offset="100%" stopColor="#00BFA6" stopOpacity="0.9" />
+          <SvgGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+            <Stop offset="0%" stopColor={theme.colors.primary} stopOpacity={0.95} />
+            <Stop offset="100%" stopColor={theme.colors.secondary} stopOpacity={0.9} />
           </SvgGradient>
         </Defs>
         <Circle
-          stroke="rgba(255,255,255,0.08)"
+          stroke={trackColor}
           fill="none"
           cx={size / 2}
           cy={size / 2}
@@ -58,7 +61,7 @@ const CircularStorageIndicator: React.FC<Props> = ({ total, used, size = 200, la
           strokeWidth={strokeWidth}
         />
         <Circle
-          stroke="url(#usageGradient)"
+          stroke={`url(#${gradientId})`}
           fill="none"
           cx={size / 2}
           cy={size / 2}

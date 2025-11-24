@@ -2,12 +2,14 @@
 import { router } from "expo-router";
 import { MotiView } from "moti";
 import React, { useEffect } from "react";
+import { useTheme } from "styled-components/native";
 import { appRoutes } from "../../../routes";
 import { splashScreenStyles } from "../../../styles/GlobalStyles";
 
 const { Container, Title, Subtitle, IconRing } = splashScreenStyles;
 
 const SplashScreen = () => {
+  const theme = useTheme();
   useEffect(() => {
     const timer = setTimeout(() => router.replace(appRoutes.onboarding), 1800);
     return () => clearTimeout(timer);
@@ -21,7 +23,7 @@ const SplashScreen = () => {
         transition={{ loop: true, type: 'timing', duration: 1400 }}
       >
         <IconRing>
-          <MaterialCommunityIcons name="robot-excited-outline" size={88} color="#6C63FF" />
+          <MaterialCommunityIcons name="robot-excited-outline" size={88} color={theme.colors.primary} />
         </IconRing>
       </MotiView>
       <Title>ai junk cleaner</Title>

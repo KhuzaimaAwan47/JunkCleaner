@@ -17,16 +17,16 @@ export type Palette = {
 };
 
 export const lightPalette: Palette = {
-  primary: "#6C63FF",
-  secondary: "#00BFA6",
-  accent: "#FF7A80",
-  background: "#F4F7FB",
+  primary: "#5D5BFF",
+  secondary: "#00C7B1",
+  accent: "#FF8A7A",
+  background: "#F8FAFF",
   surface: "#FFFFFF",
-  surfaceAlt: "#E8ECF5",
-  text: "#1E1E2F",
-  textMuted: "#7B7F9E",
-  success: "#5AD678",
-  warning: "#FFC75F",
+  surfaceAlt: "#E4E9FB",
+  text: "#1A1D33",
+  textMuted: "#73789D",
+  success: "#3CCF8E",
+  warning: "#FFBE5E",
 };
 
 export const darkPalette: Palette = {
@@ -103,13 +103,13 @@ type ShadowSet = {
 
 export const neumorphicShadows = (isDark: boolean): ShadowSet => {
   const highlight = isDark ? "#1F2435" : "#FFFFFF";
-  const lowlight = isDark ? "#060812" : "#C7CFDE";
+  const lowlight = isDark ? "#060812" : "#C0C8EB";
 
   return {
     soft: {
       shadowColor: lowlight,
       shadowOffset: { width: 8, height: 8 },
-      shadowOpacity: 0.35,
+      shadowOpacity: isDark ? 0.4 : 0.3,
       shadowRadius: 18,
       elevation: 12,
     },
