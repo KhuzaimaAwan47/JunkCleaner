@@ -5,7 +5,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { ThemeModeProvider, useThemeMode } from "../context/ThemeContext";
-import { ScannerProvider } from "../context/ScannerContext";
+import { ScannerProvider } from "./(Screens)/DuplicateImagesScreen/DuplicateImageScanner";
 
 const LayoutContent = () => {
   const { theme, mode } = useThemeMode();

@@ -1,17 +1,11 @@
 ﻿import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withSequence,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming, } from 'react-native-reanimated';
 import AppHeader from '../../../components/AppHeader';
 import DuplicateCard, { DuplicateFileItem } from '../../../components/DuplicateCard';
 import ProgressBar from '../../../components/ProgressBar';
-import { useScanner } from '../../../context/ScannerContext';
 import { duplicateImagesScreenStyles } from '../../../styles/GlobalStyles';
+import { useScanner } from './DuplicateImageScanner';
 
 const {
   Screen,
