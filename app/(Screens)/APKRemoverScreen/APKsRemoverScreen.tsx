@@ -14,7 +14,7 @@ import AppHeader from "../../../components/AppHeader";
 import NeumorphicContainer from "../../../components/NeumorphicContainer";
 import ProgressBar from "../../../components/ProgressBar";
 import { duplicateImagesScreenStyles } from "../../../styles/screens";
-import { ApkFile, useAPKScanner } from "../APKRemoverScreen/APKScanner";
+import { ApkFile, useAPKScanner } from "./APKScanner";
 
 const {
   Screen,

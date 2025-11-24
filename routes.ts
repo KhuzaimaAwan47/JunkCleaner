@@ -7,7 +7,7 @@
   cacheLogs: "/(Screens)/CacheLogsScreen/CacheLogsScreen",
   oldFiles: "/(Screens)/OldFilesScreen/OldFilesScreen",
   largeFiles: "/(Screens)/LargeFilesScreen/LargeFilesScreen",
-  apks: "/(Screens)/APKsRemoverScreen/APKsRemoverScreen",
+  apks: "/(Screens)/APKRemoverScreen/APKsRemoverScreen",
   unusedApps: "/(Screens)/UnusedAppsScreen/UnusedAppsScreen",
   whatsapp: "/(Screens)/WhatsAppRemoverScreen/WhatsAppRemoverScreen",
   duplicates: "/(Screens)/DuplicateImagesScreen/DuplicateImagesScreen",
