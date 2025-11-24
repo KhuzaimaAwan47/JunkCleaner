@@ -1,4 +1,5 @@
 import * as SQLite from 'expo-sqlite';
+import type { ApkFile } from '../app/(Screens)/APKRemoverScreen/APKScanner';
 import type { DuplicateGroup } from '../app/(Screens)/DuplicateImagesScreen/DuplicateImageScanner';
 
 export interface FileCacheEntry {
@@ -33,6 +34,12 @@ export async function initDatabase(): Promise<void> {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       saved_at INTEGER NOT NULL,
       groups_data TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS apk_scan_results (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      saved_at INTEGER NOT NULL,
+      results_data TEXT NOT NULL
     );
   `);
 }
@@ -128,4 +135,44 @@ export async function clearDuplicateGroups(): Promise<void> {
   if (!db) await initDatabase();
 
   await db!.runAsync('DELETE FROM duplicate_groups');
+}
+
+export async function saveApkScanResults(results: ApkFile[]): Promise<void> {
+  if (!db) await initDatabase();
+
+  try {
+    await db!.runAsync('DELETE FROM apk_scan_results');
+    await db!.runAsync(
+      'INSERT INTO apk_scan_results (saved_at, results_data) VALUES (?, ?)',
+      [Date.now(), JSON.stringify(results)]
+    );
+  } catch (error) {
+    console.error('Failed to persist APK scan results:', error);
+    throw error;
+  }
+}
+
+export async function loadApkScanResults(): Promise<ApkFile[]> {
+  if (!db) await initDatabase();
+
+  const result = await db!.getFirstAsync<{ results_data: string }>(
+    'SELECT results_data FROM apk_scan_results ORDER BY saved_at DESC LIMIT 1'
+  );
+
+  if (!result) {
+    return [];
+  }
+
+  try {
+    return JSON.parse(result.results_data) as ApkFile[];
+  } catch (error) {
+    console.error('Failed to parse cached APK scan results:', error);
+    return [];
+  }
+}
+
+export async function clearApkScanResults(): Promise<void> {
+  if (!db) await initDatabase();
+
+  await db!.runAsync('DELETE FROM apk_scan_results');
 }

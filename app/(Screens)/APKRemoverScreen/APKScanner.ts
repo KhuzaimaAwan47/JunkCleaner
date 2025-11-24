@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Permission } from 'react-native';
 import { Alert, PermissionsAndroid, Platform } from 'react-native';
 import * as RNFS from 'react-native-fs';
+import { loadApkScanResults, saveApkScanResults } from '../../../utils/db';
 
 // ============================================================================
 // Types
@@ -815,6 +816,7 @@ export function useAPKScanner() {
   const abortControllerRef = useRef<AbortController | null>(null);
   const isCancelledRef = useRef(false);
   const lastProgressUpdateRef = useRef(0);
+  const hasLoadedCachedResults = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -822,6 +824,40 @@ export function useAPKScanner() {
         abortControllerRef.current.abort();
       }
     };
+  }, []);
+
+  useEffect(() => {
+    if (hasLoadedCachedResults.current) {
+      return;
+    }
+
+    const hydrateCachedResults = async () => {
+      try {
+        const cachedResults = await loadApkScanResults();
+        if (cachedResults.length > 0) {
+          setState(prev => ({
+            ...prev,
+            results: cachedResults,
+            progress: {
+              ...prev.progress,
+              current: cachedResults.length,
+              total: cachedResults.length,
+              currentFile: 'cached installers',
+              stage: 'hashing',
+              scannedFiles: cachedResults.length,
+              totalFiles: cachedResults.length,
+            },
+            error: null,
+          }));
+        }
+      } catch (error) {
+        console.error('Failed to load cached APK scan results:', error);
+      } finally {
+        hasLoadedCachedResults.current = true;
+      }
+    };
+
+    void hydrateCachedResults();
   }, []);
 
   const ensurePermissions = useCallback(async (): Promise<boolean> => {
@@ -938,6 +974,12 @@ export function useAPKScanner() {
         },
         error: null,
       }));
+
+      try {
+        await saveApkScanResults(apkFiles);
+      } catch (error) {
+        console.error('Failed to save APK scan results:', error);
+      }
     } catch (error) {
       if ((error as Error).name === 'SCAN_CANCELLED') {
         setState(prev => ({
