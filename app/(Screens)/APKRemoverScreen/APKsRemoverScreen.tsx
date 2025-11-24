@@ -39,56 +39,10 @@ const {
   StopButtonText,
   ResultsContainer,
   ResultsTitle,
-  ListEmptyState,
-  EmptyTitle,
-  EmptySubtitle,
 } = duplicateImagesScreenStyles;
 
 const styled = styledNative;
 
-const MetricsRow = styled.View`
-  flex-direction: row;
-  align-items: flex-start;
-  margin-top: ${({ theme }) => theme.spacing.lg}px;
-`;
-
-const MetricsCard = styled(NeumorphicContainer).attrs({
-  padding: 18,
-  glass: true,
-})`
-  flex: 1;
-`;
-
-const MetricsLabel = styled.Text`
-  color: ${({ theme }) => theme.colors.textMuted};
-  text-transform: uppercase;
-  font-size: 11px;
-  letter-spacing: 0.5px;
-`;
-
-const MetricsValue = styled.Text`
-  margin-top: ${({ theme }) => theme.spacing.xs}px;
-  font-size: 22px;
-  font-weight: 700;
-  color: ${({ theme }) => theme.colors.text};
-`;
-
-const MetricsMeta = styled.Text`
-  margin-top: ${({ theme }) => theme.spacing.xs}px;
-  color: ${({ theme }) => theme.colors.textMuted};
-`;
-
-const InfoCard = styled(NeumorphicContainer).attrs({
-  padding: 18,
-  glass: true,
-})`
-  margin-top: ${({ theme }) => theme.spacing.md}px;
-`;
-
-const InfoText = styled.Text`
-  color: ${({ theme }) => theme.colors.textMuted};
-  line-height: 20px;
-`;
 
 const ListHeader = styled.View`
   margin-top: ${({ theme }) => theme.spacing.lg}px;
@@ -274,7 +228,7 @@ const APKsRemoverScreen = () => {
 
   const progressPercent = useMemo(
     () => (progress.total > 0 ? Math.min(100, (progress.current / progress.total) * 100) : 0),
-    [progress.current, progress.total],
+    [progress],
   );
 
   const scannedFilesCount = progress.scannedFiles ?? progress.current;
@@ -353,23 +307,10 @@ const APKsRemoverScreen = () => {
             </SummaryMeta>
           </SummaryRow>
 
-          <MetricsRow>
-            <MetricsCard style={{ marginRight: theme.spacing.md }}>
-              <MetricsLabel>apk stash</MetricsLabel>
-              <MetricsValue>{totalInstallers}</MetricsValue>
-              <MetricsMeta>{signatureMatches} signature verified</MetricsMeta>
-            </MetricsCard>
-            <MetricsCard>
-              <MetricsLabel>total size</MetricsLabel>
-              <MetricsValue>{formatBytes(apkSizeTotal)}</MetricsValue>
-              <MetricsMeta>avg {formatBytes(averageFileSize)}</MetricsMeta>
-            </MetricsCard>
-          </MetricsRow>
-
           {showStarterCallout && (
             <Animated.View style={buttonAnimatedStyle}>
               <StartButton onPress={handleScan} activeOpacity={0.85}>
-                <StartButtonText>scan storage</StartButtonText>
+                <StartButtonText>Scan APKs Installers</StartButtonText>
               </StartButton>
             </Animated.View>
           )}
@@ -435,12 +376,6 @@ const APKsRemoverScreen = () => {
             </SummaryCard>
           )}
 
-          {!isScanning && totalInstallers === 0 && progress.total === 0 && !error && (
-            <ListEmptyState>
-              <EmptyTitle>No residual installers yet</EmptyTitle>
-              <EmptySubtitle>Run a scan to surface APK leftovers from downloads, bluetooth, and documents.</EmptySubtitle>
-            </ListEmptyState>
-          )}
 
           {totalInstallers > 0 && (
             <ResultsContainer>
@@ -463,14 +398,8 @@ const APKsRemoverScreen = () => {
             </ResultsContainer>
           )}
 
-          <InfoCard>
-            <InfoText>
-              apk scans look at downloads, bluetooth, and other folders to surface leftover installers.
-              tap scan anytime to refresh these results.
-            </InfoText>
-          </InfoCard>
-
           <AdPlaceholder />
+
         </Content>
       </Scroll>
     </Screen>

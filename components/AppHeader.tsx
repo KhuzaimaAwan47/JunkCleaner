@@ -6,7 +6,6 @@ import styled, { DefaultTheme, useTheme } from "styled-components/native";
 
 const Container = styled.View`
   width: 100%;
-  padding-top: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.lg}px;
   padding-bottom: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.sm}px;
 `;
 
@@ -61,6 +60,7 @@ const AppHeader: React.FC<Props> = ({
   return (
     <Container>
       <TitleRow>
+        
         <IconButton
           onPress={pressHandler}
           disabled={!isInteractive}
@@ -76,9 +76,11 @@ const AppHeader: React.FC<Props> = ({
             color={theme.mode === "dark" ? theme.colors.text : theme.colors.primary}
           />
         </IconButton>
+
         <TitleContent>
           <Heading>{title}</Heading>
         </TitleContent>
+
       </TitleRow>
     </Container>
   );

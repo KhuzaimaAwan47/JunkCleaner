@@ -63,7 +63,7 @@ const NeumorphicContainer: React.FC<Props> = ({
       style={[shadowStyle, style]}
     >
       {glass ? (
-        <GlassOverlay colors={gradientColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+        <GlassOverlay colors={gradientColors as [string, string]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
           <Content>{children}</Content>
         </GlassOverlay>
       ) : (
