@@ -1,6 +1,6 @@
 ﻿import React from "react";
 import Svg, { Circle, Defs, Stop, LinearGradient as SvgGradient } from "react-native-svg";
-import styled, { useTheme } from "styled-components/native";
+import styledNative, { useTheme } from "styled-components/native";
 
 type Props = {
   total: number;
@@ -9,26 +9,26 @@ type Props = {
   label?: string;
 };
 
-const Wrapper = styled.View<{ size: number }>`
+const Wrapper = styledNative.View<{ size: number }>`
   width: ${({ size }) => size}px;
   height: ${({ size }) => size}px;
   align-items: center;
   justify-content: center;
 `;
 
-const Inner = styled.View`
+const Inner = styledNative.View`
   position: absolute;
   align-items: center;
   justify-content: center;
 `;
 
-const Value = styled.Text`
+const Value = styledNative.Text`
   font-size: 24px;
   font-weight: 700;
   color: ${({ theme }) => theme.colors.text};
 `;
 
-const Caption = styled.Text`
+const Caption = styledNative.Text`
   font-size: 13px;
   color: ${({ theme }) => theme.colors.textMuted};
 `;

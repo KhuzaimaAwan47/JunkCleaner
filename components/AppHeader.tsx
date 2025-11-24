@@ -2,30 +2,30 @@
 import { useRouter } from "expo-router";
 import React from "react";
 import { PressableProps } from "react-native";
-import styled, { DefaultTheme, useTheme } from "styled-components/native";
+import styledNative, { DefaultTheme, useTheme } from "styled-components/native";
 
-const Container = styled.View`
+const Container = styledNative.View`
   width: 100%;
   padding-bottom: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.sm}px;
 `;
 
-const TitleRow = styled.View`
+const TitleRow = styledNative.View`
   flex-direction: row;
   align-items: center;
 `;
 
-const TitleContent = styled.View`
+const TitleContent = styledNative.View`
   flex: 1;
   margin-left: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.md}px;
 `;
 
-const Heading = styled.Text`
+const Heading = styledNative.Text`
   color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.text};
   font-size: 20px;
   font-weight: 700;
 `;
 
-const IconButton = styled.Pressable`
+const IconButton = styledNative.Pressable`
   width: 48px;
   height: 48px;
   border-radius: 16px;

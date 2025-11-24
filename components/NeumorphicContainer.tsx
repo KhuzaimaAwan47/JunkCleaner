@@ -1,7 +1,7 @@
 ﻿import { LinearGradient } from "expo-linear-gradient";
 import React, { ReactNode, useMemo } from "react";
 import { StyleProp, ViewStyle } from "react-native";
-import styled, { useTheme } from "styled-components/native";
+import styledNative, { useTheme } from "styled-components/native";
 
 type Props = {
   children: ReactNode;
@@ -11,7 +11,7 @@ type Props = {
   style?: StyleProp<ViewStyle>;
 };
 
-const Base = styled.Pressable<{ glass?: boolean; padding?: number }>`
+const Base = styledNative.Pressable<{ glass?: boolean; padding?: number }>`
   border-radius: ${({ theme }) => theme.radii.xl}px;
   padding: ${({ padding, theme }) => padding ?? theme.spacing.lg}px;
   background-color: ${({ glass, theme }) =>
@@ -21,12 +21,12 @@ const Base = styled.Pressable<{ glass?: boolean; padding?: number }>`
   overflow: hidden;
 `;
 
-const GlassOverlay = styled(LinearGradient)`
+const GlassOverlay = styledNative(LinearGradient)`
   flex: 1;
   border-radius: ${({ theme }) => theme.radii.xl}px;
 `;
 
-const Content = styled.View`
+const Content = styledNative.View`
   flex: 1;
 `;
 
@@ -46,7 +46,7 @@ const NeumorphicContainer: React.FC<Props> = ({
       shadowRadius: glass ? 18 : 24,
       elevation: glass ? 8 : 14,
     }),
-    [glass, theme.mode],
+    [glass, theme.colors.surfaceAlt, theme.mode],
   );
 
   const gradientColors =
