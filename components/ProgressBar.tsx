@@ -45,7 +45,7 @@ export default function ProgressBar({ progress, currentFile, stage }: ProgressBa
         </Text>
         {stage && (
           <Text style={styles.stageText}>
-            {stage === 'scanning' ? '📁 Scanning files...' : '🔍 Analyzing duplicates...'}
+            {stage === 'scanning' ? '📁 Scanning files...' : '🔍 Analyzing items...'}
           </Text>
         )}
       </View>
