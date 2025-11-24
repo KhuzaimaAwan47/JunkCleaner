@@ -2,6 +2,7 @@ import { StyleSheet } from "react-native";
 import { SafeAreaView as SafeAreaContextView } from "react-native-safe-area-context";
 import styledNative, { DefaultTheme } from "styled-components/native";
 
+import NeumorphicContainer from "../components/NeumorphicContainer";
 import { spacing } from "../theme/spacing";
 
 const styled = styledNative;
@@ -756,6 +757,152 @@ export const resultAnimationStyles = {
   Label: styled.Text`
     color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.textMuted};
     text-align: center;
+  `,
+};
+
+const {
+  Screen: ApkScreen,
+  Scroll: ApkScroll,
+  Content: ApkContent,
+  SummaryRow: ApkSummaryRow,
+  SummaryMeta: ApkSummaryMeta,
+  StartButton: ApkStartButton,
+  StartButtonText: ApkStartButtonText,
+  ProgressContainer: ApkProgressContainer,
+  TimerContainer: ApkTimerContainer,
+  TimerText: ApkTimerText,
+  FileCountText: ApkFileCountText,
+  ErrorContainer: ApkErrorContainer,
+  ErrorText: ApkErrorText,
+  SummaryCard: ApkSummaryCard,
+  SummaryTitle: ApkSummaryTitle,
+  SummaryText: ApkSummaryText,
+  RescanButton: ApkRescanButton,
+  RescanButtonText: ApkRescanButtonText,
+  StopButton: ApkStopButton,
+  StopButtonText: ApkStopButtonText,
+  ResultsContainer: ApkResultsContainer,
+  ResultsTitle: ApkResultsTitle,
+} = duplicateImagesScreenStyles;
+
+export const apkRemoverScreenStyles = {
+  Screen: ApkScreen,
+  Scroll: ApkScroll,
+  Content: ApkContent,
+  SummaryRow: ApkSummaryRow,
+  SummaryMeta: ApkSummaryMeta,
+  StartButton: ApkStartButton,
+  StartButtonText: ApkStartButtonText,
+  ProgressContainer: ApkProgressContainer,
+  TimerContainer: ApkTimerContainer,
+  TimerText: ApkTimerText,
+  FileCountText: ApkFileCountText,
+  ErrorContainer: ApkErrorContainer,
+  ErrorText: ApkErrorText,
+  SummaryCard: ApkSummaryCard,
+  SummaryTitle: ApkSummaryTitle,
+  SummaryText: ApkSummaryText,
+  RescanButton: ApkRescanButton,
+  RescanButtonText: ApkRescanButtonText,
+  StopButton: ApkStopButton,
+  StopButtonText: ApkStopButtonText,
+  ResultsContainer: ApkResultsContainer,
+  ResultsTitle: ApkResultsTitle,
+  ListHeader: styled.View`
+    margin-top: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.lg}px;
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+  `,
+  ListHeaderTitle: styled.Text`
+    color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.text};
+    font-weight: 700;
+    font-size: 16px;
+  `,
+  ListHeaderMeta: styled.Text`
+    color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.textMuted};
+    font-size: 12px;
+  `,
+  ListShell: styled(NeumorphicContainer).attrs({
+    padding: 0,
+  })`
+    margin-top: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.md}px;
+  `,
+  ApkItem: styled.View`
+    padding: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.md}px;
+    border-bottom-width: 1px;
+    border-bottom-color: ${({ theme }: { theme: DefaultTheme }) => `${theme.colors.surfaceAlt}55`};
+  `,
+  ApkItemContent: styled.View`
+    flex-direction: row;
+    align-items: flex-start;
+  `,
+  ApkIconContainer: styled.View`
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    align-items: center;
+    justify-content: center;
+    background-color: ${({ theme }: { theme: DefaultTheme }) => `${theme.colors.surfaceAlt}66`};
+    margin-right: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.md}px;
+  `,
+  ApkInfoContainer: styled.View`
+    flex: 1;
+    min-width: 0;
+  `,
+  ListItemHeader: styled.View`
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.xs}px;
+  `,
+  ApkNameContainer: styled.View`
+    flex: 1;
+    margin-right: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.sm}px;
+  `,
+  ApkName: styled.Text`
+    color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.text};
+    font-weight: 600;
+    font-size: 15px;
+    line-height: 20px;
+  `,
+  ApkSize: styled.Text`
+    color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.textMuted};
+    font-size: 13px;
+    font-weight: 500;
+    margin-top: 2px;
+  `,
+  ApkMetaRow: styled.View`
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.xs}px;
+  `,
+  ApkPath: styled.Text`
+    color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.textMuted};
+    font-size: 12px;
+    flex: 1;
+    min-width: 0;
+  `,
+  SignatureBadge: styled.View`
+    flex-direction: row;
+    align-items: center;
+    margin-left: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.sm}px;
+    padding: 4px ${({ theme }: { theme: DefaultTheme }) => theme.spacing.sm}px;
+    border-radius: 8px;
+    background-color: ${({ theme }: { theme: DefaultTheme }) => `${theme.colors.primary}22`};
+  `,
+  SignatureBadgeText: styled.Text`
+    color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.primary};
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-left: 4px;
+  `,
+  Separator: styled.View`
+    height: 1px;
+    background-color: ${({ theme }: { theme: DefaultTheme }) => `${theme.colors.surfaceAlt}33`};
   `,
 };
 

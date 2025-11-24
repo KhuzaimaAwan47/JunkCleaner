@@ -1,19 +1,12 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, ListRenderItem } from "react-native";
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withSequence,
-  withTiming,
-} from "react-native-reanimated";
-import styledNative, { useTheme } from "styled-components/native";
+import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming, } from "react-native-reanimated";
+import { useTheme } from "styled-components/native";
 import AdPlaceholder from "../../../components/AdPlaceholder";
 import AppHeader from "../../../components/AppHeader";
-import NeumorphicContainer from "../../../components/NeumorphicContainer";
 import ProgressBar from "../../../components/ProgressBar";
-import { duplicateImagesScreenStyles } from "../../../styles/GlobalStyles";
+import { apkRemoverScreenStyles } from "../../../styles/GlobalStyles";
 import { ApkFile, useAPKScanner } from "./APKScanner";
 
 const {
@@ -39,123 +32,24 @@ const {
   StopButtonText,
   ResultsContainer,
   ResultsTitle,
-} = duplicateImagesScreenStyles;
-
-const styled = styledNative;
-
-
-const ListHeader = styled.View`
-  margin-top: ${({ theme }) => theme.spacing.lg}px;
-  flex-direction: row;
-  align-items: flex-end;
-  justify-content: space-between;
-`;
-
-const ListHeaderTitle = styled.Text`
-  color: ${({ theme }) => theme.colors.text};
-  font-weight: 700;
-  font-size: 16px;
-`;
-
-const ListHeaderMeta = styled.Text`
-  color: ${({ theme }) => theme.colors.textMuted};
-  font-size: 12px;
-`;
-
-const ListShell = styled(NeumorphicContainer).attrs({
-  padding: 0,
-})`
-  margin-top: ${({ theme }) => theme.spacing.md}px;
-`;
-
-const ApkItem = styled.View`
-  padding: ${({ theme }) => theme.spacing.md}px;
-  border-bottom-width: 1px;
-  border-bottom-color: ${({ theme }) => `${theme.colors.surfaceAlt}55`};
-`;
-
-const ApkItemContent = styled.View`
-  flex-direction: row;
-  align-items: flex-start;
-`;
-
-const ApkIconContainer = styled.View`
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  align-items: center;
-  justify-content: center;
-  background-color: ${({ theme }) => `${theme.colors.surfaceAlt}66`};
-  margin-right: ${({ theme }) => theme.spacing.md}px;
-`;
-
-const ApkInfoContainer = styled.View`
-  flex: 1;
-  min-width: 0;
-`;
-
-const ListItemHeader = styled.View`
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: ${({ theme }) => theme.spacing.xs}px;
-`;
-
-const ApkNameContainer = styled.View`
-  flex: 1;
-  margin-right: ${({ theme }) => theme.spacing.sm}px;
-`;
-
-const ApkName = styled.Text`
-  color: ${({ theme }) => theme.colors.text};
-  font-weight: 600;
-  font-size: 15px;
-  line-height: 20px;
-`;
-
-const ApkSize = styled.Text`
-  color: ${({ theme }) => theme.colors.textMuted};
-  font-size: 13px;
-  font-weight: 500;
-  margin-top: 2px;
-`;
-
-const ApkMetaRow = styled.View`
-  flex-direction: row;
-  align-items: center;
-  flex-wrap: wrap;
-  margin-top: ${({ theme }) => theme.spacing.xs}px;
-`;
-
-const ApkPath = styled.Text`
-  color: ${({ theme }) => theme.colors.textMuted};
-  font-size: 12px;
-  flex: 1;
-  min-width: 0;
-`;
-
-const SignatureBadge = styled.View`
-  flex-direction: row;
-  align-items: center;
-  margin-left: ${({ theme }) => theme.spacing.sm}px;
-  padding: 4px ${({ theme }) => theme.spacing.sm}px;
-  border-radius: 8px;
-  background-color: ${({ theme }) => `${theme.colors.primary}22`};
-`;
-
-const SignatureBadgeText = styled.Text`
-  color: ${({ theme }) => theme.colors.primary};
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-left: 4px;
-`;
-
-const Separator = styled.View`
-  height: 1px;
-  background-color: ${({ theme }) => `${theme.colors.surfaceAlt}33`};
-`;
+  ListHeader,
+  ListHeaderTitle,
+  ListHeaderMeta,
+  ListShell,
+  ApkItem,
+  ApkItemContent,
+  ApkIconContainer,
+  ApkInfoContainer,
+  ListItemHeader,
+  ApkNameContainer,
+  ApkName,
+  ApkSize,
+  ApkMetaRow,
+  ApkPath,
+  SignatureBadge,
+  SignatureBadgeText,
+  Separator,
+} = apkRemoverScreenStyles;
 
 const formatBytes = (bytes: number): string => {
   if (!bytes) return "0 B";
@@ -216,15 +110,7 @@ const APKsRemoverScreen = () => {
     [results],
   );
 
-  const signatureMatches = useMemo(
-    () => results.filter((apk) => apk.isSignatureMatch).length,
-    [results],
-  );
 
-  const averageFileSize = useMemo(
-    () => (totalInstallers ? apkSizeTotal / totalInstallers : 0),
-    [apkSizeTotal, totalInstallers],
-  );
 
   const progressPercent = useMemo(
     () => (progress.total > 0 ? Math.min(100, (progress.current / progress.total) * 100) : 0),
