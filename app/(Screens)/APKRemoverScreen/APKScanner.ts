@@ -10,11 +10,14 @@ import * as RNFS from 'react-native-fs';
 // Types
 // ============================================================================
 
+export type ApkFileType = 'apk' | 'split' | 'bundle';
+
 export type ApkFile = {
   path: string;
   size: number;
   name: string;
   isSignatureMatch: boolean;
+  fileType: ApkFileType;
 };
 
 export interface ApkScanProgress {
@@ -93,6 +96,19 @@ const APK_PATTERNS = [
   /base-.*\.apk$/i,
   /split-.*\.apk$/i,
 ];
+
+const APK_TYPE_PATTERNS: { regex: RegExp; fileType: ApkFileType }[] = [
+  { regex: /split-.*\.apk$/i, fileType: 'split' },
+  { regex: /base-.*\.apk$/i, fileType: 'apk' },
+  { regex: /\.apk$/i, fileType: 'apk' },
+  { regex: /\.apks$/i, fileType: 'bundle' },
+  { regex: /\.xapk$/i, fileType: 'bundle' },
+  { regex: /\.aab$/i, fileType: 'bundle' },
+];
+
+// Additional hints let us surface obvious installers that might have been renamed (e.g. myapp.apk.backup)
+// while filtering out WhatsApp DOC/PDF payloads that used to appear because they share the ZIP signature.
+const APK_KEYWORD_HINTS = ['.apk', '.apks', '.xapk', '.aab'];
 
 const loggedPathWarnings = new Set<string>();
 let managePermissionPromptShown = false;
@@ -385,6 +401,32 @@ function matchesApkPattern(filename: string): boolean {
   return APK_PATTERNS.some(pattern => pattern.test(filename));
 }
 
+type ClassificationResult =
+  | { isInstaller: false }
+  | { isInstaller: true; fileType: ApkFileType };
+
+function classifyInstallerCandidate(filename: string): ClassificationResult {
+  const normalized = (filename || '').toLowerCase();
+  if (!normalized) {
+    return { isInstaller: false };
+  }
+
+  for (const { regex, fileType } of APK_TYPE_PATTERNS) {
+    if (regex.test(normalized)) {
+      return { isInstaller: true, fileType };
+    }
+  }
+
+  for (const hint of APK_KEYWORD_HINTS) {
+    if (normalized.includes(hint)) {
+      const hintedType: ApkFileType = hint === '.apk' ? 'apk' : 'bundle';
+      return { isInstaller: true, fileType: hintedType };
+    }
+  }
+
+  return { isInstaller: false };
+}
+
 // ============================================================================
 // Algorithm 5: Size Heuristic Filtering
 // ============================================================================
@@ -519,6 +561,11 @@ async function processFile(
   fileName: string,
   fileSize: number
 ): Promise<ApkFile | null> {
+  const classification = classifyInstallerCandidate(fileName);
+  if (!classification.isInstaller) {
+    return null;
+  }
+
   let normalizedSize = fileSize;
 
   if (!normalizedSize || Number.isNaN(normalizedSize)) {
@@ -557,6 +604,7 @@ async function processFile(
       size: normalizedSize,
       name: fileName,
       isSignatureMatch,
+      fileType: classification.fileType,
     };
   }
 

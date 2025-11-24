@@ -120,17 +120,27 @@ const APKsRemoverScreen = () => {
     transform: [{ scale: pulseScale.value }],
   }));
 
+  const iconConfig = useMemo(
+    () => ({
+      apk: { name: "android", color: theme.colors.primary },
+      split: { name: "cube-scan", color: theme.colors.success || theme.colors.primary },
+      bundle: { name: "zip-box", color: theme.colors.warning || theme.colors.primary },
+    }),
+    [theme.colors.primary, theme.colors.success, theme.colors.warning],
+  );
+
   const renderApkRow = useCallback<ListRenderItem<ApkFile>>(
     ({ item }) => {
+      const iconMeta = iconConfig[item.fileType] ?? iconConfig.apk;
       const displayName = item.name || item.path.split("/").pop() || "Unknown APK";
       return (
         <ApkItem>
           <ApkItemContent>
             <ApkIconContainer>
               <MaterialCommunityIcons
-                name="package-variant"
+                name={iconMeta.name as never}
                 size={28}
-                color={theme.colors.primary}
+                color={iconMeta.color}
               />
             </ApkIconContainer>
             <ApkInfoContainer>
@@ -158,7 +168,7 @@ const APKsRemoverScreen = () => {
         </ApkItem>
       );
     },
-    [theme],
+    [iconConfig, theme],
   );
 
   const showSummaryCard =
