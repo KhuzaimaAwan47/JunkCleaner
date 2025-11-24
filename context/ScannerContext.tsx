@@ -1,5 +1,8 @@
 import { createContext, useContext, ReactNode } from 'react';
-import { useDuplicateScanner, ScannerState } from '../hooks/useDuplicateScanner';
+import {
+  ScannerState,
+  useDuplicateScanner,
+} from '../app/(Screens)/DuplicateImagesScreen/DuplicateImageScanner';
 
 interface ScannerContextType extends ScannerState {
   startScan: () => Promise<void>;

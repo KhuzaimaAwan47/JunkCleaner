@@ -1,5 +1,5 @@
 import * as SQLite from 'expo-sqlite';
-import { DuplicateGroup } from './fileScanner';
+import type { DuplicateGroup } from '../app/(Screens)/DuplicateImagesScreen/DuplicateImageScanner';
 
 export interface FileCacheEntry {
   path: string;
