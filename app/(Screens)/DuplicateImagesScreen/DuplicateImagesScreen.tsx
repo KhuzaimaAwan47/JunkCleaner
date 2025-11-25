@@ -43,7 +43,6 @@ const {
   SelectAllText,
   SelectAllHint,
   ResultsContainer,
-  ResultsTitle,
   ListEmptyState,
   EmptyTitle,
   EmptySubtitle,
