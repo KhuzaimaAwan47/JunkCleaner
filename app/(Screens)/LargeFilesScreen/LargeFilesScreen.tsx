@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, FlatList, Image, ListRenderItem } from "react-native";
+import { ActivityIndicator, FlatList, ListRenderItem } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -8,10 +8,10 @@ import Animated, {
   withSequence,
   withTiming,
 } from "react-native-reanimated";
-import { SafeAreaView } from "react-native-safe-area-context";
-import styledComponentsNative, { useTheme } from "styled-components/native";
+import { useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
 import formatBytes from "../../../constants/formatBytes";
+import { largeFilesScreenStyles } from "../../../styles/GlobalStyles";
 import {
   LargeFileResult,
   LargeFileSource,
@@ -19,13 +19,45 @@ import {
   scanLargeFiles,
 } from "./LargeFileScanner";
 
-const styled = styledComponentsNative;
-
 type SourceFilter = LargeFileSource | "all";
 type ProgressPhase = ScanPhase | "idle";
 
 const LargeFilesScreen: React.FC = () => {
   const theme = useTheme();
+  const {
+    Screen,
+    ListHeader,
+    SummaryRow,
+    SummarySlot,
+    SummaryCard,
+    SummaryIcon,
+    SummaryValue,
+    SummaryLabel,
+    ProgressCard,
+    ProgressHeader,
+    ProgressText,
+    ProgressPercent,
+    ProgressSubtext,
+    ScanButton,
+    ScanButtonText,
+    ActionRow,
+    ActionHint,
+    RescanButton,
+    RescanButtonText,
+    FileCard,
+    FileRow,
+    ThumbnailWrapper,
+    ThumbnailImage,
+    ThumbnailFallback,
+    FileContent,
+    FileHeader,
+    FileName,
+    FileSize,
+    BadgeRow,
+    Tag,
+    MetaText,
+    PathText,
+  } = largeFilesScreenStyles;
   const [files, setFiles] = useState<LargeFileResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -185,7 +217,24 @@ const LargeFilesScreen: React.FC = () => {
         </FileCard>
       );
     },
-    [recordThumbnailError, theme.colors.textMuted, thumbnailFallbacks],
+    [
+      recordThumbnailError,
+      theme.colors.textMuted,
+      thumbnailFallbacks,
+      FileCard,
+      FileRow,
+      ThumbnailWrapper,
+      ThumbnailImage,
+      ThumbnailFallback,
+      FileContent,
+      FileHeader,
+      FileName,
+      FileSize,
+      BadgeRow,
+      Tag,
+      MetaText,
+      PathText,
+    ],
   );
 
   return (
@@ -286,221 +335,5 @@ const isPreviewableAsset = (path: string): boolean => {
   const lower = path.toLowerCase();
   return PREVIEW_EXTENSIONS.some((ext) => lower.endsWith(ext));
 };
-
-const Screen = styled(SafeAreaView)`
-  flex: 1;
-  background-color: ${({ theme }) => theme.colors.background};
-`;
-
-const ListHeader = styled.View`
-  padding-bottom: ${({ theme }) => theme.spacing.lg}px;
-`;
-
-const SummaryRow = styled.View`
-  flex-direction: row;
-  justify-content: space-between;
-  margin-top: ${({ theme }) => theme.spacing.lg}px;
-`;
-
-const SummarySlot = styled.View<{ isLast?: boolean }>`
-  flex: 1;
-  margin-right: ${({ isLast, theme }) => (isLast ? 0 : theme.spacing.sm)}px;
-`;
-
-const SummaryCard = styled.View`
-  padding: ${({ theme }) => theme.spacing.md}px;
-  border-radius: ${({ theme }) => theme.radii.lg}px;
-  background-color: ${({ theme }) => theme.colors.surface};
-  border-width: 1px;
-  border-color: ${({ theme }) => `${theme.colors.surfaceAlt}55`};
-`;
-
-const SummaryIcon = styled.View`
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
-  align-items: center;
-  justify-content: center;
-  background-color: ${({ theme }) => `${theme.colors.primary}15`};
-  margin-bottom: ${({ theme }) => theme.spacing.sm}px;
-`;
-
-const SummaryValue = styled.Text`
-  font-size: 18px;
-  font-weight: 700;
-  color: ${({ theme }) => theme.colors.text};
-`;
-
-const SummaryLabel = styled.Text`
-  font-size: 12px;
-  color: ${({ theme }) => theme.colors.textMuted};
-  margin-top: 2px;
-  text-transform: uppercase;
-`;
-
-const ProgressCard = styled.View`
-  margin-top: ${({ theme }) => theme.spacing.lg}px;
-  padding: ${({ theme }) => theme.spacing.md}px;
-  border-radius: ${({ theme }) => theme.radii.lg}px;
-  background-color: ${({ theme }) => `${theme.colors.surfaceAlt}33`};
-  border-width: 1px;
-  border-color: ${({ theme }) => `${theme.colors.surfaceAlt}55`};
-`;
-
-const ProgressHeader = styled.View`
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-`;
-
-const ProgressText = styled.Text`
-  margin-top: ${({ theme }) => theme.spacing.sm}px;
-  font-weight: 600;
-  color: ${({ theme }) => theme.colors.text};
-`;
-
-const ProgressPercent = styled.Text`
-  font-size: 16px;
-  font-weight: 700;
-  color: ${({ theme }) => theme.colors.primary};
-`;
-
-const ProgressSubtext = styled.Text`
-  margin-top: 2px;
-  color: ${({ theme }) => theme.colors.textMuted};
-  font-size: 12px;
-`;
-
-const ScanButton = styled.TouchableOpacity<{ disabled?: boolean }>`
-  margin-top: ${({ theme }) => theme.spacing.lg}px;
-  paddingVertical: ${({ theme }) => theme.spacing.md + 2}px;
-  border-radius: ${({ theme }) => theme.radii.lg}px;
-  align-items: center;
-  justify-content: center;
-  background-color: ${({ theme }) => theme.colors.primary};
-  opacity: ${({ disabled }) => (disabled ? 0.6 : 1)};
-`;
-
-const ScanButtonText = styled.Text`
-  color: #fff;
-  font-size: 16px;
-  font-weight: 600;
-  text-transform: uppercase;
-`;
-
-const ActionRow = styled.View`
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: ${({ theme }) => theme.spacing.md}px;
-`;
-
-const ActionHint = styled.Text`
-  color: ${({ theme }) => theme.colors.textMuted};
-  font-size: 13px;
-`;
-
-const RescanButton = styled.TouchableOpacity<{ disabled?: boolean }>`
-  paddingVertical: ${({ theme }) => theme.spacing.sm}px;
-  paddingHorizontal: ${({ theme }) => theme.spacing.lg}px;
-  border-radius: ${({ theme }) => theme.radii.lg}px;
-  border-width: 1px;
-  border-color: ${({ theme }) => theme.colors.primary};
-  opacity: ${({ disabled }) => (disabled ? 0.5 : 1)};
-`;
-
-const RescanButtonText = styled.Text`
-  color: ${({ theme }) => theme.colors.primary};
-  font-weight: 700;
-  text-transform: uppercase;
-`;
-
-const FileCard = styled.View`
-  background-color: ${({ theme }) => theme.colors.surface};
-  border-radius: ${({ theme }) => theme.radii.lg}px;
-  padding: ${({ theme }) => theme.spacing.md}px;
-  margin-bottom: ${({ theme }) => theme.spacing.md}px;
-  border-width: 1px;
-  border-color: ${({ theme }) => `${theme.colors.surfaceAlt}55`};
-`;
-
-const FileRow = styled.View`
-  flex-direction: row;
-`;
-
-const ThumbnailWrapper = styled.View`
-  width: 60px;
-  height: 60px;
-  border-radius: ${({ theme }) => theme.radii.lg}px;
-  overflow: hidden;
-  margin-right: ${({ theme }) => theme.spacing.md}px;
-  background-color: ${({ theme }) => `${theme.colors.surfaceAlt}77`};
-  align-items: center;
-  justify-content: center;
-`;
-
-const ThumbnailImage = styled(Image)`
-  width: 100%;
-  height: 100%;
-`;
-
-const ThumbnailFallback = styled.View`
-  flex: 1;
-  align-items: center;
-  justify-content: center;
-`;
-
-const FileContent = styled.View`
-  flex: 1;
-`;
-
-const FileHeader = styled.View`
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-`;
-
-const FileName = styled.Text`
-  flex: 1;
-  margin-right: ${({ theme }) => theme.spacing.sm}px;
-  color: ${({ theme }) => theme.colors.text};
-  font-size: 16px;
-  font-weight: 600;
-`;
-
-const FileSize = styled.Text`
-  color: ${({ theme }) => theme.colors.primary};
-  font-weight: 700;
-`;
-
-const BadgeRow = styled.View`
-  flex-direction: row;
-  flex-wrap: wrap;
-  align-items: center;
-  margin-top: ${({ theme }) => theme.spacing.sm}px;
-`;
-
-const Tag = styled.Text<{ accent?: boolean }>`
-  padding: 4px ${({ theme }) => theme.spacing.sm}px;
-  border-radius: 999px;
-  margin-right: ${({ theme }) => theme.spacing.xs}px;
-  margin-bottom: ${({ theme }) => theme.spacing.xs / 2}px;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  background-color: ${({ accent, theme }) => (accent ? `${theme.colors.primary}22` : `${theme.colors.surfaceAlt}55`)};
-  color: ${({ accent, theme }) => (accent ? theme.colors.primary : theme.colors.text)};
-`;
-
-const MetaText = styled.Text`
-  font-size: 12px;
-  color: ${({ theme }) => theme.colors.textMuted};
-`;
-
-const PathText = styled.Text`
-  margin-top: ${({ theme }) => theme.spacing.sm}px;
-  color: ${({ theme }) => theme.colors.textMuted};
-  font-size: 12px;
-`;
 
 export default LargeFilesScreen;

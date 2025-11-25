@@ -1,4 +1,4 @@
-import { StyleSheet } from "react-native";
+import { Image, StyleSheet } from "react-native";
 import { SafeAreaView as SafeAreaContextView } from "react-native-safe-area-context";
 import styledNative, { DefaultTheme } from "styled-components/native";
 
@@ -903,6 +903,193 @@ export const apkRemoverScreenStyles = {
   Separator: styled.View`
     height: 1px;
     background-color: ${({ theme }: { theme: DefaultTheme }) => `${theme.colors.surfaceAlt}33`};
+  `,
+};
+
+export const largeFilesScreenStyles = {
+  Screen: BaseSafeArea,
+  ListHeader: styled.View`
+    padding-bottom: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.lg}px;
+  `,
+  SummaryRow: styled.View`
+    flex-direction: row;
+    justify-content: space-between;
+    margin-top: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.lg}px;
+  `,
+  SummarySlot: styled.View<{ isLast?: boolean }>`
+    flex: 1;
+    margin-right: ${({ isLast, theme }: { isLast?: boolean; theme: DefaultTheme }) =>
+      isLast ? 0 : theme.spacing.sm}px;
+  `,
+  SummaryCard: styled.View`
+    padding: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.md}px;
+    border-radius: ${({ theme }: { theme: DefaultTheme }) => theme.radii.lg}px;
+    background-color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.surface};
+    border-width: 1px;
+    border-color: ${({ theme }: { theme: DefaultTheme }) => `${theme.colors.surfaceAlt}55`};
+  `,
+  SummaryIcon: styled.View`
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    align-items: center;
+    justify-content: center;
+    background-color: ${({ theme }: { theme: DefaultTheme }) => `${theme.colors.primary}15`};
+    margin-bottom: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.sm}px;
+  `,
+  SummaryValue: styled.Text`
+    font-size: 18px;
+    font-weight: 700;
+    color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.text};
+  `,
+  SummaryLabel: styled.Text`
+    font-size: 12px;
+    color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.textMuted};
+    margin-top: 2px;
+    text-transform: uppercase;
+  `,
+  ProgressCard: styled.View`
+    margin-top: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.lg}px;
+    padding: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.md}px;
+    border-radius: ${({ theme }: { theme: DefaultTheme }) => theme.radii.lg}px;
+    background-color: ${({ theme }: { theme: DefaultTheme }) => `${theme.colors.surfaceAlt}33`};
+    border-width: 1px;
+    border-color: ${({ theme }: { theme: DefaultTheme }) => `${theme.colors.surfaceAlt}55`};
+  `,
+  ProgressHeader: styled.View`
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  `,
+  ProgressText: styled.Text`
+    margin-top: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.sm}px;
+    font-weight: 600;
+    color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.text};
+  `,
+  ProgressPercent: styled.Text`
+    font-size: 16px;
+    font-weight: 700;
+    color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.primary};
+  `,
+  ProgressSubtext: styled.Text`
+    margin-top: 2px;
+    color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.textMuted};
+    font-size: 12px;
+  `,
+  ScanButton: styled.TouchableOpacity<{ disabled?: boolean }>`
+    margin-top: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.lg}px;
+    paddingVertical: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.md + 2}px;
+    border-radius: ${({ theme }: { theme: DefaultTheme }) => theme.radii.lg}px;
+    align-items: center;
+    justify-content: center;
+    background-color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.primary};
+    opacity: ${({ disabled }: { disabled?: boolean }) => (disabled ? 0.6 : 1)};
+  `,
+  ScanButtonText: styled.Text`
+    color: #fff;
+    font-size: 16px;
+    font-weight: 600;
+    text-transform: uppercase;
+  `,
+  ActionRow: styled.View`
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.md}px;
+  `,
+  ActionHint: styled.Text`
+    color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.textMuted};
+    font-size: 13px;
+  `,
+  RescanButton: styled.TouchableOpacity<{ disabled?: boolean }>`
+    paddingVertical: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.sm}px;
+    paddingHorizontal: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.lg}px;
+    border-radius: ${({ theme }: { theme: DefaultTheme }) => theme.radii.lg}px;
+    border-width: 1px;
+    border-color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.primary};
+    opacity: ${({ disabled }: { disabled?: boolean }) => (disabled ? 0.5 : 1)};
+  `,
+  RescanButtonText: styled.Text`
+    color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.primary};
+    font-weight: 700;
+    text-transform: uppercase;
+  `,
+  FileCard: styled.View`
+    background-color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.surface};
+    border-radius: ${({ theme }: { theme: DefaultTheme }) => theme.radii.lg}px;
+    padding: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.md}px;
+    margin-bottom: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.md}px;
+    border-width: 1px;
+    border-color: ${({ theme }: { theme: DefaultTheme }) => `${theme.colors.surfaceAlt}55`};
+  `,
+  FileRow: styled.View`
+    flex-direction: row;
+  `,
+  ThumbnailWrapper: styled.View`
+    width: 60px;
+    height: 60px;
+    border-radius: ${({ theme }: { theme: DefaultTheme }) => theme.radii.lg}px;
+    overflow: hidden;
+    margin-right: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.md}px;
+    background-color: ${({ theme }: { theme: DefaultTheme }) => `${theme.colors.surfaceAlt}77`};
+    align-items: center;
+    justify-content: center;
+  `,
+  ThumbnailImage: styled(Image)`
+    width: 100%;
+    height: 100%;
+  `,
+  ThumbnailFallback: styled.View`
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+  `,
+  FileContent: styled.View`
+    flex: 1;
+  `,
+  FileHeader: styled.View`
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  `,
+  FileName: styled.Text`
+    flex: 1;
+    margin-right: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.sm}px;
+    color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.text};
+    font-size: 16px;
+    font-weight: 600;
+  `,
+  FileSize: styled.Text`
+    color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.primary};
+    font-weight: 700;
+  `,
+  BadgeRow: styled.View`
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-top: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.sm}px;
+  `,
+  Tag: styled.Text<{ accent?: boolean }>`
+    padding: 4px ${({ theme }: { theme: DefaultTheme }) => theme.spacing.sm}px;
+    border-radius: 999px;
+    margin-right: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.xs}px;
+    margin-bottom: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.xs / 2}px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    background-color: ${({ accent, theme }: { accent?: boolean; theme: DefaultTheme }) =>
+      accent ? `${theme.colors.primary}22` : `${theme.colors.surfaceAlt}55`};
+    color: ${({ accent, theme }: { accent?: boolean; theme: DefaultTheme }) =>
+      accent ? theme.colors.primary : theme.colors.text};
+  `,
+  MetaText: styled.Text`
+    font-size: 12px;
+    color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.textMuted};
+  `,
+  PathText: styled.Text`
+    margin-top: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.sm}px;
+    color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.textMuted};
+    font-size: 12px;
   `,
 };
 
