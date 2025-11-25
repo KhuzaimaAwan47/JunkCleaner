@@ -24,16 +24,14 @@ const styled = styledComponentsNative;
 type SourceFilter = LargeFileSource | "all";
 type ProgressPhase = ScanPhase | "idle";
 
-
-
 const LargeFilesScreen: React.FC = () => {
   const theme = useTheme();
   const [files, setFiles] = useState<LargeFileResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastScan, setLastScan] = useState<number | null>(null);
-  const [sortMode ] = useState<"size" | "recent" | "category">("size");
-  const [sourceFilter ] = useState<SourceFilter>("all");
+  const sortMode: "size" | "recent" | "category" = "size";
+  const sourceFilter: SourceFilter = "all";
   const [thumbnailFallbacks, setThumbnailFallbacks] = useState<Record<string, boolean>>({});
   const [scanProgress, setScanProgress] = useState<{ percent: number; phase: ProgressPhase; detail?: string }>({
     percent: 0,
@@ -72,8 +70,6 @@ const LargeFilesScreen: React.FC = () => {
   const totalBytes = useMemo(() => files.reduce((sum, file) => sum + file.size, 0), [files]);
   const visibleBytes = useMemo(() => sortedFiles.reduce((sum, file) => sum + file.size, 0), [sortedFiles]);
 
- 
-
   const startButtonAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pulseScale.value }],
   }));
@@ -94,9 +90,6 @@ const LargeFilesScreen: React.FC = () => {
   const filesInView = resultsAvailable ? sortedFiles.length : files.length;
   const summaryBytes = resultsAvailable ? visibleBytes : totalBytes;
 
- 
-
-  
   const progressLabel = useMemo(() => {
     switch (scanProgress.phase) {
       case "permissions":
@@ -114,10 +107,6 @@ const LargeFilesScreen: React.FC = () => {
     }
   }, [scanProgress.phase]);
   const progressDetail = scanProgress.detail ?? "downloads · dcim · movies · whatsapp media";
-
- 
-
- 
 
   const handleScan = useCallback(async () => {
     if (loading) {
@@ -306,8 +295,6 @@ const Screen = styled(SafeAreaView)`
 const ListHeader = styled.View`
   padding-bottom: ${({ theme }) => theme.spacing.lg}px;
 `;
-
-
 
 const SummaryRow = styled.View`
   flex-direction: row;

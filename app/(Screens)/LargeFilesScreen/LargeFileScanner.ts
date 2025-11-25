@@ -332,4 +332,3 @@ const ensurePerms = async (): Promise<boolean> => {
   const results = await PermissionsAndroid.requestMultiple(permissions);
   return permissions.every((permission) => results[permission] === PermissionsAndroid.RESULTS.GRANTED);
 };
-
