@@ -1,5 +1,6 @@
 import { Buffer } from 'buffer';
 import Constants from 'expo-constants';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as IntentLauncher from 'expo-intent-launcher';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Permission } from 'react-native';
@@ -28,6 +29,13 @@ export interface ApkScanProgress {
   stage: 'scanning' | 'hashing';
   scannedFiles?: number;
   totalFiles?: number;
+}
+
+export interface InstallerFile {
+  path: string;
+  size: number;
+  modified: number;
+  extension: string;
 }
 
 type ApkProgressCallback = (progress: ApkScanProgress) => void;
@@ -65,6 +73,22 @@ const PRIORITY_DIRECTORIES = [
   '/storage/emulated/0/Bluetooth',
 ];
 
+const LEGACY_ROOT_DIRS = [
+  'file:///storage/emulated/0',
+  'file:///storage/self/primary',
+] as const;
+
+const INSTALLER_EXTENSIONS = [
+  '.apk',
+  '.obb',
+  '.xapk',
+  '.apks',
+  '.ipa',
+  '.zip', // optional: limited to Android/obb to avoid noisy matches
+] as const;
+
+const MAX_LEGACY_DEPTH = 30;
+
 const SENSITIVE_PATHS = [
   '/system',
   '/proc',
@@ -96,6 +120,11 @@ const APK_PATTERNS = [
   /\.apk$/i,
   /base-.*\.apk$/i,
   /split-.*\.apk$/i,
+  /\.apks$/i,
+  /\.xapk$/i,
+  /\.aab$/i,
+  /\.obb$/i,
+  /\.ipa$/i,
 ];
 
 const APK_TYPE_PATTERNS: { regex: RegExp; fileType: ApkFileType }[] = [
@@ -105,6 +134,8 @@ const APK_TYPE_PATTERNS: { regex: RegExp; fileType: ApkFileType }[] = [
   { regex: /\.apks$/i, fileType: 'bundle' },
   { regex: /\.xapk$/i, fileType: 'bundle' },
   { regex: /\.aab$/i, fileType: 'bundle' },
+  { regex: /\.obb$/i, fileType: 'bundle' },
+  { regex: /\.ipa$/i, fileType: 'bundle' },
 ];
 
 // Additional hints let us surface obvious installers that might have been renamed (e.g. myapp.apk.backup)
@@ -704,6 +735,189 @@ async function bfsTraversal(
 }
 
 // ============================================================================
+// Algorithm 6: Expo FileSystem Fallback Scanner
+// ============================================================================
+
+function joinFsPath(dir: string, child: string): string {
+  if (dir.endsWith('/')) {
+    return `${dir}${child}`;
+  }
+  return `${dir}/${child}`;
+}
+
+function shouldSkipLegacyDirectory(path: string): boolean {
+  const normalized = path.toLowerCase();
+  if (normalized.includes('/android/obb')) {
+    return false;
+  }
+  return normalized.includes('/android/data') || normalized.includes('/android/media');
+}
+
+function isLegacyInstallerFile(fileName: string, fullPath: string): boolean {
+  const lower = fileName.toLowerCase();
+
+  return INSTALLER_EXTENSIONS.some(extension => {
+    if (!lower.endsWith(extension)) {
+      return false;
+    }
+
+    if (extension === '.zip') {
+      return fullPath.toLowerCase().includes('/android/obb');
+    }
+
+    return true;
+  });
+}
+
+async function listDirSafe(path: string): Promise<string[]> {
+  try {
+    return await FileSystem.readDirectoryAsync(path);
+  } catch {
+    return [];
+  }
+}
+
+async function getInfoSafe(path: string): Promise<FileSystem.FileInfo | null> {
+  try {
+    return await FileSystem.getInfoAsync(path);
+  } catch {
+    return null;
+  }
+}
+
+async function scanLegacyDirectory(
+  dir: string,
+  depth: number,
+  signal: AbortSignal | undefined,
+  results: InstallerFile[],
+  onFileProcessed?: FileProgressCallback,
+): Promise<void> {
+  if (signal?.aborted || depth > MAX_LEGACY_DEPTH) {
+    return;
+  }
+
+  const entries = await listDirSafe(dir);
+  if (!entries.length) {
+    return;
+  }
+
+  for (const entry of entries) {
+    if (signal?.aborted) {
+      break;
+    }
+
+    throwIfCancelled(signal);
+    const fullPath = joinFsPath(dir, entry);
+    const info = await getInfoSafe(fullPath);
+    if (!info || !info.exists) {
+      continue;
+    }
+
+    if (info.isDirectory) {
+      if (shouldSkipLegacyDirectory(fullPath)) {
+        continue;
+      }
+
+      await scanLegacyDirectory(fullPath, depth + 1, signal, results, onFileProcessed);
+      continue;
+    }
+
+    if (!info.isDirectory && isLegacyInstallerFile(entry, fullPath)) {
+      const extension = entry.includes('.') ? entry.split('.').pop() ?? '' : '';
+      results.push({
+        path: fullPath,
+        size: info.size ?? 0,
+        modified: info.modificationTime ?? 0,
+        extension: extension.toLowerCase(),
+      });
+      onFileProcessed?.(entry);
+    }
+  }
+}
+
+async function collectLegacyInstallers(
+  roots: readonly string[],
+  signal?: AbortSignal,
+  onFileProcessed?: FileProgressCallback,
+): Promise<InstallerFile[]> {
+  const results: InstallerFile[] = [];
+
+  for (const root of roots) {
+    if (signal?.aborted) {
+      break;
+    }
+
+    throwIfCancelled(signal);
+    const rootInfo = await getInfoSafe(root);
+    if (!rootInfo?.exists || !rootInfo.isDirectory) {
+      continue;
+    }
+
+    await scanLegacyDirectory(root, 0, signal, results, onFileProcessed);
+  }
+
+  results.sort((a, b) => b.size - a.size);
+  return results;
+}
+
+function extensionToFileType(extension: string): ApkFileType {
+  const normalized = extension.toLowerCase();
+  if (normalized === 'split') {
+    return 'split';
+  }
+  if (
+    normalized === 'obb' ||
+    normalized === 'apks' ||
+    normalized === 'xapk' ||
+    normalized === 'aab' ||
+    normalized === 'ipa' ||
+    normalized === 'zip'
+  ) {
+    return 'bundle';
+  }
+  return 'apk';
+}
+
+function installerToApkFile(installer: InstallerFile): ApkFile | null {
+  const name = installer.path.split('/').pop() || installer.path;
+  if (!name) {
+    return null;
+  }
+
+  const classification = classifyInstallerCandidate(name);
+  const fileType = classification.isInstaller
+    ? classification.fileType
+    : extensionToFileType(installer.extension);
+
+  return {
+    path: installer.path,
+    size: installer.size,
+    name,
+    isSignatureMatch: classification.isInstaller,
+    fileType,
+  };
+}
+
+async function scanWithExpoFileSystem(
+  signal?: AbortSignal,
+  onFileProcessed?: FileProgressCallback,
+): Promise<ApkFile[]> {
+  try {
+    const installers = await collectLegacyInstallers(LEGACY_ROOT_DIRS, signal, onFileProcessed);
+    return installers
+      .map(installerToApkFile)
+      .filter((file): file is ApkFile => Boolean(file));
+  } catch (error) {
+    console.warn('Expo FileSystem scan failed:', error);
+    return [];
+  }
+}
+
+export async function scanInstallerFiles(): Promise<InstallerFile[]> {
+  return collectLegacyInstallers(LEGACY_ROOT_DIRS);
+}
+
+// ============================================================================
 // Main Scanning Function
 // ============================================================================
 
@@ -776,6 +990,18 @@ async function scanForApkFiles(
     const bfsResults = await bfsTraversal(signal, emitProgress);
     throwIfCancelled(signal);
     for (const file of bfsResults) {
+      if (!seenPaths.has(file.path)) {
+        seenPaths.add(file.path);
+        allResults.push(file);
+      }
+    }
+  }
+
+  // Algorithm 6: Expo FileSystem fallback (handles file:/// URIs inside Expo Go)
+  if (!signal?.aborted) {
+    const legacyResults = await scanWithExpoFileSystem(signal, emitProgress);
+    throwIfCancelled(signal);
+    for (const file of legacyResults) {
       if (!seenPaths.has(file.path)) {
         seenPaths.add(file.path);
         allResults.push(file);
