@@ -1,27 +1,63 @@
 ﻿import { Image } from "expo-image";
-import React, { useCallback, useMemo } from "react";
-import { ActivityIndicator, FlatList, ListRenderItem, RefreshControl } from "react-native";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, FlatList, InteractionManager, ListRenderItem, RefreshControl, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import styledNative, { useTheme } from "styled-components/native";
 
 import AdPlaceholder from "../../../components/AdPlaceholder";
 import AppHeader from "../../../components/AppHeader";
-import { InstalledApp, useUnusedApps } from "../../../hooks/useUnusedApps";
+import { scanUnusedApps, UnusedApp } from "./UnusedAppsScanner";
 
 const styled = styledNative;
 
+type SortMode = "unused" | "oldest";
+
+const SORT_OPTIONS: { mode: SortMode; label: string }[] = [
+  { mode: "unused", label: "most unused first" },
+  { mode: "oldest", label: "oldest launch first" },
+];
+
 export default function UnusedAppsScreen() {
   const theme = useTheme();
-  const { apps, unusedApps, isLoading, refresh } = useUnusedApps();
+  const [apps, setApps] = useState<UnusedApp[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [sortMode, setSortMode] = useState<SortMode>("unused");
+  const [error, setError] = useState<string | null>(null);
 
-  const showLoader = isLoading && unusedApps.length === 0;
-  const totalAppCount = useMemo(() => unusedApps.length || apps.length || 0, [apps.length, unusedApps.length]);
+  const sortedApps = useMemo(() => sortApps(apps, sortMode), [apps, sortMode]);
+  const showLoader = loading && apps.length === 0;
 
-  const keyExtractor = useCallback((item: InstalledApp) => item.id, []);
+  const runScan = useCallback(() => {
+    setLoading(true);
+    setError(null);
 
-  const renderAppItem: ListRenderItem<InstalledApp> = useCallback(
+    InteractionManager.runAfterInteractions(() => {
+      scanUnusedApps()
+        .then((result) => {
+          setApps(result);
+        })
+        .catch((err) => {
+          console.warn("unused apps scan failed", err);
+          setError("unable to scan right now. please try again.");
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    });
+  }, []);
+
+  useEffect(() => {
+    runScan();
+  }, [runScan]);
+
+  const totalAppCount = useMemo(() => sortedApps.length, [sortedApps]);
+
+  const keyExtractor = useCallback((item: UnusedApp) => item.packageName, []);
+
+  const renderAppItem: ListRenderItem<UnusedApp> = useCallback(
     ({ item }) => {
       const iconSource = getAppIconSource(item.icon);
+      const lastUsedLabel = formatLastUsed(item.lastUsed);
 
       return (
         <AppCard accessible accessibilityRole="button">
@@ -37,7 +73,11 @@ export default function UnusedAppsScreen() {
           <AppInfo>
             <AppName numberOfLines={1}>{item.name}</AppName>
             <PackageName numberOfLines={1}>{item.packageName}</PackageName>
+            <LastUsedText>{lastUsedLabel}</LastUsedText>
           </AppInfo>
+          <ScoreBubble>
+            <ScoreLabel>{item.unusedScore}</ScoreLabel>
+          </ScoreBubble>
         </AppCard>
       );
     },
@@ -48,9 +88,27 @@ export default function UnusedAppsScreen() {
     () => (
       <HeaderBlock>
         <AppHeader title={`unused apps (${totalAppCount})`} />
+        <HeaderActions>
+          <SortRow>
+            {SORT_OPTIONS.map((option) => (
+              <SortButton
+                key={option.mode}
+                activeOpacity={0.8}
+                onPress={() => setSortMode(option.mode)}
+                $active={sortMode === option.mode}
+              >
+                <SortLabel $active={sortMode === option.mode}>{option.label}</SortLabel>
+              </SortButton>
+            ))}
+          </SortRow>
+          <RefreshButton activeOpacity={0.8} onPress={runScan}>
+            <RefreshLabel>refresh</RefreshLabel>
+          </RefreshButton>
+        </HeaderActions>
+        {error ? <ErrorText>{error}</ErrorText> : null}
       </HeaderBlock>
     ),
-    [totalAppCount]
+    [error, runScan, sortMode, totalAppCount]
   );
 
   const footerComponent = useMemo(
@@ -78,7 +136,7 @@ export default function UnusedAppsScreen() {
   return (
     <Screen>
       <FlatList
-        data={unusedApps}
+        data={sortedApps}
         keyExtractor={keyExtractor}
         renderItem={renderAppItem}
         ListHeaderComponent={headerComponent}
@@ -92,8 +150,8 @@ export default function UnusedAppsScreen() {
           <RefreshControl
             tintColor={theme.colors.primary}
             colors={[theme.colors.primary]}
-            refreshing={isLoading && unusedApps.length > 0}
-            onRefresh={refresh}
+            refreshing={loading && apps.length > 0}
+            onRefresh={runScan}
           />
         }
         ListEmptyComponent={
@@ -109,7 +167,9 @@ export default function UnusedAppsScreen() {
   );
 }
 
-const getAppIconSource = (icon?: InstalledApp["icon"]) => {
+const MILLIS_PER_DAY = 86_400_000;
+
+const getAppIconSource = (icon?: UnusedApp["icon"]) => {
   if (!icon || typeof icon !== "string") {
     return null;
   }
@@ -128,6 +188,45 @@ const getAppIconSource = (icon?: InstalledApp["icon"]) => {
   return { uri: `data:image/png;base64,${trimmedIcon}` };
 };
 
+function formatLastUsed(lastUsed: number | null) {
+  if (!lastUsed) {
+    return "never opened";
+  }
+
+  const diff = Date.now() - lastUsed;
+  if (diff < 60 * 60 * 1000) {
+    return "opened under an hour ago";
+  }
+
+  const days = Math.floor(diff / MILLIS_PER_DAY);
+  if (days === 0) {
+    const hours = Math.floor(diff / (60 * 60 * 1000));
+    return `${hours}h ago`;
+  }
+
+  if (days === 1) {
+    return "1 day ago";
+  }
+
+  if (days < 30) {
+    return `${days} days ago`;
+  }
+
+  return new Date(lastUsed).toLocaleDateString();
+}
+
+function sortApps(apps: UnusedApp[], mode: SortMode) {
+  if (mode === "oldest") {
+    return [...apps].sort((a, b) => {
+      const aLast = a.lastUsed ?? 0;
+      const bLast = b.lastUsed ?? 0;
+      return aLast - bLast;
+    });
+  }
+
+  return [...apps].sort((a, b) => b.unusedScore - a.unusedScore);
+}
+
 const Screen = styled(SafeAreaView)`
   flex: 1;
   background-color: ${({ theme }) => theme.colors.background};
@@ -137,6 +236,53 @@ const HeaderBlock = styled.View`
   padding-top: ${({ theme }) => theme.spacing.xs}px;
   padding-bottom: ${({ theme }) => theme.spacing.lg}px;
   gap: ${({ theme }) => theme.spacing.md}px;
+`;
+
+const HeaderActions = styled.View`
+  gap: ${({ theme }) => theme.spacing.sm}px;
+`;
+
+const SortRow = styled.View`
+  flex-direction: row;
+  gap: ${({ theme }) => theme.spacing.sm}px;
+`;
+
+const SortButton = styled(TouchableOpacity)<{ $active: boolean }>`
+  flex: 1;
+  padding-vertical: ${({ theme }) => theme.spacing.sm}px;
+  border-radius: ${({ theme }) => theme.radii.xl}px;
+  border-width: 1px;
+  border-color: ${({ theme, $active }) => ($active ? theme.colors.primary : `${theme.colors.surfaceAlt}66`)};
+  background-color: ${({ theme, $active }) => ($active ? `${theme.colors.primary}22` : theme.colors.surface)};
+`;
+
+const SortLabel = styled.Text<{ $active: boolean }>`
+  text-align: center;
+  text-transform: lowercase;
+  font-weight: 600;
+  font-size: 13px;
+  color: ${({ theme, $active }) => ($active ? theme.colors.primary : theme.colors.textMuted)};
+`;
+
+const RefreshButton = styled(TouchableOpacity)`
+  align-self: flex-start;
+  padding-vertical: ${({ theme }) => theme.spacing.xs}px;
+  padding-horizontal: ${({ theme }) => theme.spacing.md}px;
+  border-radius: ${({ theme }) => theme.radii.lg}px;
+  background-color: ${({ theme }) => `${theme.colors.primary}22`};
+`;
+
+const RefreshLabel = styled.Text`
+  color: ${({ theme }) => theme.colors.primary};
+  font-weight: 600;
+  text-transform: lowercase;
+  font-size: 13px;
+`;
+
+const ErrorText = styled.Text`
+  color: ${({ theme }) => theme.colors.accent};
+  font-size: 12px;
+  text-transform: lowercase;
 `;
 
 const AppCard = styled.View`
@@ -179,6 +325,28 @@ const FallbackInitials = styled.Text`
 const AppInfo = styled.View`
   flex: 1;
   margin-left: ${({ theme }) => theme.spacing.md}px;
+`;
+
+const LastUsedText = styled.Text`
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-size: 12px;
+  margin-top: 4px;
+  text-transform: lowercase;
+`;
+
+const ScoreBubble = styled.View`
+  min-width: 36px;
+  min-height: 36px;
+  border-radius: 999px;
+  background-color: ${({ theme }) => `${theme.colors.primary}22`};
+  align-items: center;
+  justify-content: center;
+`;
+
+const ScoreLabel = styled.Text`
+  color: ${({ theme }) => theme.colors.primary};
+  font-weight: 700;
+  font-size: 14px;
 `;
 
 const AppName = styled.Text`
