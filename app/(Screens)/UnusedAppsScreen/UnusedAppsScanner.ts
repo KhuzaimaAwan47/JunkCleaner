@@ -12,26 +12,27 @@ export type UnusedApp = {
   icon?: string;
   version?: string;
   lastUsed: number | null;
-  totalForegroundTime: number;
-  notificationInteractions: number;
-  cacheSize: number;
+  totalForegroundTime: number | null;
+  notificationInteractions: number | null;
+  cacheSize: number | null;
   unusedScore: number;
+  isSystemApp?: boolean;
 };
 
 type UsageStat = {
   packageName: string;
   lastUsed: number | null;
-  totalForegroundTime: number;
+  totalForegroundTime: number | null;
 };
 
 type NotificationStat = {
   packageName: string;
-  interactions: number;
+  interactions: number | null;
 };
 
 type CacheStat = {
   packageName: string;
-  cacheSize: number;
+  cacheSize: number | null;
 };
 
 type InstalledAppInfo = {
@@ -43,6 +44,7 @@ type InstalledAppInfo = {
   totalForegroundTime?: number;
   notificationInteractions?: number;
   cacheSize?: number;
+  isSystemApp?: boolean;
 };
 
 type UsageStatParams = {
@@ -65,11 +67,12 @@ const cacheStatsCache = new Map<MemoKey, Promise<CacheStat[]>>();
 
 export async function scanUnusedApps(): Promise<UnusedApp[]> {
   const installedApps = await fetchInstalledApps(true);
+  const userInstalledApps = installedApps.filter((app) => app.isSystemApp !== true);
 
   const [usageStats, notificationStats, cacheStats] = await Promise.all([
     getUsageStats({ interval: "monthly" }),
     getNotificationUsage(),
-    getAppCacheSizes(installedApps),
+    getAppCacheSizes(userInstalledApps),
   ]);
 
   const usageMap = mapByPackage(usageStats);
@@ -78,22 +81,32 @@ export async function scanUnusedApps(): Promise<UnusedApp[]> {
 
   const now = Date.now();
 
-  const scoredApps: UnusedApp[] = installedApps.map((app) => {
+  const scoredApps: UnusedApp[] = userInstalledApps.map((app) => {
     const usage = usageMap.get(app.packageName);
     const notif = notificationMap.get(app.packageName);
     const cache = cacheMap.get(app.packageName);
 
-    const lastUsed = usage?.lastUsed ?? app.lastUsed ?? null;
-    const totalForegroundTime = usage?.totalForegroundTime ?? app.totalForegroundTime ?? 0;
-    const notificationInteractions = notif?.interactions ?? app.notificationInteractions ?? 0;
-    const cacheSize = cache?.cacheSize ?? app.cacheSize ?? 0;
+    const lastUsedRaw = usage?.lastUsed ?? app.lastUsed ?? null;
+    const lastUsed = typeof lastUsedRaw === "number" ? lastUsedRaw : null;
+
+    const totalForegroundRaw = usage?.totalForegroundTime ?? app.totalForegroundTime ?? null;
+    const totalForegroundTime = typeof totalForegroundRaw === "number" ? totalForegroundRaw : null;
+
+    const notificationRaw = notif?.interactions ?? app.notificationInteractions ?? null;
+    const hasNotificationData = typeof notificationRaw === "number";
+    const notificationInteractions = hasNotificationData ? (notificationRaw as number) : null;
+
+    const cacheRaw = cache?.cacheSize ?? app.cacheSize ?? null;
+    const cacheSize = typeof cacheRaw === "number" ? cacheRaw : null;
 
     const unusedScore = computeUnusedScore({
       lastUsed,
       now,
       totalForegroundTime,
       notificationInteractions,
+      hasNotificationData,
       cacheSize,
+      isSystemApp: app.isSystemApp === true,
     });
 
     return {
@@ -106,6 +119,7 @@ export async function scanUnusedApps(): Promise<UnusedApp[]> {
       notificationInteractions,
       cacheSize,
       unusedScore,
+      isSystemApp: app.isSystemApp,
     };
   });
 
@@ -150,6 +164,7 @@ async function fetchInstalledApps(forceRefresh = false): Promise<InstalledAppInf
         totalForegroundTime: extractNumericField(app, ["totalTimeForeground", "totalTimeInForeground"]),
         notificationInteractions: extractNumericField(app, ["notificationInteractions", "notifCount", "notificationCount"]),
         cacheSize: extractNumericField(app, ["cacheSize", "appSize", "size", "storageSize"]),
+        isSystemApp: extractBooleanField(app, ["isSystemApp", "systemApp", "isSystem", "system"]),
       });
     }
 
@@ -232,6 +247,33 @@ function extractNumericField(app: Record<string, unknown>, keys: string[]): numb
   return undefined;
 }
 
+function extractBooleanField(app: Record<string, unknown>, keys: string[]): boolean | undefined {
+  for (const key of keys) {
+    const value = app[key];
+    if (typeof value === "boolean") {
+      return value;
+    }
+    if (typeof value === "string") {
+      const normalized = value.toLowerCase();
+      if (normalized === "true") {
+        return true;
+      }
+      if (normalized === "false") {
+        return false;
+      }
+    }
+    if (typeof value === "number") {
+      if (value === 1) {
+        return true;
+      }
+      if (value === 0) {
+        return false;
+      }
+    }
+  }
+  return undefined;
+}
+
 async function getUsageStats(params: UsageStatParams): Promise<UsageStat[]> {
   const cacheKey = JSON.stringify(params);
   if (!usageStatsCache.has(cacheKey)) {
@@ -239,8 +281,8 @@ async function getUsageStats(params: UsageStatParams): Promise<UsageStat[]> {
       const apps = await fetchInstalledApps();
       return apps.map<UsageStat>((app) => ({
         packageName: app.packageName,
-        lastUsed: app.lastUsed ?? null,
-        totalForegroundTime: app.totalForegroundTime ?? 0,
+        lastUsed: typeof app.lastUsed === "number" ? app.lastUsed : null,
+        totalForegroundTime: typeof app.totalForegroundTime === "number" ? app.totalForegroundTime : null,
       }));
     })();
 
@@ -257,7 +299,7 @@ async function getNotificationUsage(): Promise<NotificationStat[]> {
       const apps = await fetchInstalledApps();
       return apps.map<NotificationStat>((app) => ({
         packageName: app.packageName,
-        interactions: app.notificationInteractions ?? 0,
+        interactions: typeof app.notificationInteractions === "number" ? app.notificationInteractions : null,
       }));
     })();
 
@@ -273,7 +315,7 @@ async function getAppCacheSizes(installedApps: InstalledAppInfo[]): Promise<Cach
     const promise = Promise.resolve(
       installedApps.map<CacheStat>((app) => ({
         packageName: app.packageName,
-        cacheSize: app.cacheSize ?? 0,
+        cacheSize: typeof app.cacheSize === "number" ? app.cacheSize : null,
       }))
     );
     cacheStatsCache.set(signature, promise);
@@ -287,30 +329,40 @@ function computeUnusedScore({
   now,
   totalForegroundTime,
   notificationInteractions,
+  hasNotificationData,
   cacheSize,
+  isSystemApp,
 }: {
   lastUsed: number | null;
   now: number;
-  totalForegroundTime: number;
-  notificationInteractions: number;
-  cacheSize: number;
+  totalForegroundTime: number | null;
+  notificationInteractions: number | null;
+  hasNotificationData: boolean;
+  cacheSize: number | null;
+  isSystemApp?: boolean;
 }): number {
   let score = 0;
 
-  if (!lastUsed || now - lastUsed > UNUSED_DAY_THRESHOLD * MILLIS_PER_DAY) {
+  const hasValidLastUsed = typeof lastUsed === "number" && lastUsed > 0;
+  const treatedAsNeverOpened = !isSystemApp && lastUsed === 0;
+  if (treatedAsNeverOpened || (hasValidLastUsed && now - lastUsed > UNUSED_DAY_THRESHOLD * MILLIS_PER_DAY)) {
+    score += 2;
+  }
+
+  const hasForegroundData = typeof totalForegroundTime === "number" && totalForegroundTime > 0;
+  if (hasForegroundData) {
+    const foregroundTime = totalForegroundTime as number;
+    if (foregroundTime < FOREGROUND_THRESHOLD_MS) {
+      score += 1;
+    }
+  }
+
+  if (hasNotificationData && notificationInteractions === 0) {
     score += 1;
   }
 
-  if (totalForegroundTime < FOREGROUND_THRESHOLD_MS) {
-    score += 1;
-  }
-
-  if (notificationInteractions === 0) {
-    score += 1;
-  }
-
-  if (cacheSize < SMALL_CACHE_THRESHOLD_BYTES) {
-    score += 1;
+  if (typeof cacheSize === "number" && cacheSize <= SMALL_CACHE_THRESHOLD_BYTES) {
+    score += 0.5;
   }
 
   return score;
