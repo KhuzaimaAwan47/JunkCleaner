@@ -25,15 +25,17 @@ const EXTENSION_MAP: Record<string, ScanResultType> = {
   ".bak": "cache",
 };
 
-const getMatchType = (name: string): ScanResultType | null => {
-  const lower = name.toLowerCase();
-  if (lower.includes("cache")) {
+const getMatchType = (name: string, path: string): ScanResultType | null => {
+  const lowerName = name.toLowerCase();
+  const lowerPath = path.toLowerCase();
+
+  if (lowerName.includes("cache") || lowerPath.includes("/cache")) {
     return "cache";
   }
 
-  const dotIndex = lower.lastIndexOf(".");
+  const dotIndex = lowerName.lastIndexOf(".");
   if (dotIndex >= 0) {
-    const ext = lower.substring(dotIndex);
+    const ext = lowerName.substring(dotIndex);
     if (EXTENSION_MAP[ext]) {
       return EXTENSION_MAP[ext];
     }
@@ -83,7 +85,7 @@ export const scanCachesAndLogs = async (): Promise<ScanResult[]> => {
           return;
         }
 
-        const matchType = getMatchType(entry.name);
+        const matchType = getMatchType(entry.name, entry.path);
         if (!matchType) {
           return;
         }
