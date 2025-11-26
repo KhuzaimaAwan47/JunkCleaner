@@ -87,7 +87,7 @@ const isPermissionGranted = async (permission?: Permission | null): Promise<bool
   }
 };
 
-const filterAvailablePermissions = (permissions: Array<Permission | undefined | null>) =>
+const filterAvailablePermissions = (permissions: (Permission | undefined | null)[]) =>
   permissions.filter((perm): perm is Permission => Boolean(perm));
 
 export const askStoragePermissions = async (): Promise<boolean> => {
