@@ -1,18 +1,16 @@
 ﻿import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  FlatList,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
-import { homeScreenStyles } from "../../../styles/GlobalStyles";
+import ThemedList from "../../../components/ThemedList";
 import { OldFileInfo, scanOldFiles } from "./OldFilesScanner";
-
-const { Screen, Content } = homeScreenStyles;
 
 const formatSize = (bytes: number) => {
   if (!bytes) return "0 MB";
@@ -60,8 +58,8 @@ const OldFilesScreen = () => {
   );
 
   return (
-    <Screen>
-      <Content style={styles.content}>
+    <SafeAreaView style={styles.screen}>
+      <View style={styles.content}>
         <AppHeader title="Old Files" />
 
         <View style={styles.heroCard}>
@@ -89,28 +87,32 @@ const OldFilesScreen = () => {
           </Text>
         </View>
 
-        <FlatList
+        <ThemedList
           data={oldFiles}
           keyExtractor={(item) => item.path}
           renderItem={renderItem}
-          contentContainerStyle={oldFiles.length ? styles.listContent : styles.emptyState}
-          ListEmptyComponent={
-            !loading ? (
-              <Text style={styles.emptyText}>tap “Scan Old Files” to analyze your storage.</Text>
-            ) : null
+          title="scan results"
+          subtitle={
+            oldFiles.length ? "sorted by oldest first" : "start a scan to inspect storage"
           }
-          style={styles.list}
-          showsVerticalScrollIndicator={false}
+          loading={loading}
+          emptyText="tap “Scan Old Files” to analyze your storage."
         />
-      </Content>
-    </Screen>
+      </View>
+    </SafeAreaView>
   );
 };
 
 const createStyles = (theme: DefaultTheme) =>
   StyleSheet.create({
+    screen: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
     content: {
       flex: 1,
+      paddingHorizontal: theme.spacing.lg,
+      paddingTop: theme.spacing.lg,
       paddingBottom: theme.spacing.xl,
       gap: theme.spacing.lg,
     },
@@ -158,24 +160,6 @@ const createStyles = (theme: DefaultTheme) =>
       color: theme.colors.textMuted,
       fontSize: 13,
       marginTop: 4,
-    },
-    list: {
-      flex: 1,
-    },
-    listContent: {
-      gap: theme.spacing.sm,
-      paddingBottom: theme.spacing.xl,
-    },
-    emptyState: {
-      flexGrow: 1,
-      justifyContent: "center",
-      alignItems: "center",
-      paddingVertical: theme.spacing.xl,
-    },
-    emptyText: {
-      color: theme.colors.textMuted,
-      fontSize: 14,
-      textAlign: "center",
     },
     item: {
       padding: theme.spacing.md,

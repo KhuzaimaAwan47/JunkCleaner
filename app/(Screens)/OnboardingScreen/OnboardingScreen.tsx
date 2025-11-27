@@ -1,26 +1,19 @@
 ﻿import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useRef, useState } from "react";
-import { FlatList, NativeScrollEvent, NativeSyntheticEvent, useWindowDimensions } from "react-native";
-import { useTheme } from "styled-components/native";
+import {
+    FlatList,
+    NativeScrollEvent,
+    NativeSyntheticEvent,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { DefaultTheme, useTheme } from "styled-components/native";
 import { appRoutes } from "../../../routes";
-import { onboardingScreenStyles } from "../../../styles/GlobalStyles";
-
-const {
-  Container,
-  SlidesArea,
-  SlideWrapper,
-  Title,
-  Description,
-  IconHalo,
-  IconBubble,
-  Footer,
-  Dots,
-  DotButton,
-  Dot,
-  PrimaryButton,
-  ButtonLabel,
-} = onboardingScreenStyles;
 
 const slides = [
   {
@@ -43,6 +36,7 @@ const slides = [
 const OnboardingScreen = () => {
   const { width } = useWindowDimensions();
   const theme = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
   const [activeIndex, setActiveIndex] = useState(0);
   const flatListRef = useRef<FlatList<typeof slides[0]>>(null);
 
@@ -57,26 +51,26 @@ const OnboardingScreen = () => {
   const handleGetStarted = () => router.replace(appRoutes.home);
 
   return (
-    <Container>
-      <SlidesArea>
+    <SafeAreaView style={styles.screen}>
+      <View style={styles.slidesArea}>
         <FlatList
           ref={flatListRef}
           data={slides}
           keyExtractor={(item) => item.title}
           renderItem={({ item }) => (
-            <SlideWrapper style={{ width }}>
-              <IconHalo>
-                <IconBubble>
+            <View style={[styles.slideWrapper, { width }]}>
+              <View style={styles.iconHalo}>
+                <View style={styles.iconBubble}>
                   <MaterialCommunityIcons
                     name={item.icon as any}
                     size={100}
                     color={theme.colors.primary}
                   />
-                </IconBubble>
-              </IconHalo>
-              <Title>{item.title}</Title>
-              <Description>{item.description}</Description>
-            </SlideWrapper>
+                </View>
+              </View>
+              <Text style={styles.title}>{item.title}</Text>
+              <Text style={styles.description}>{item.description}</Text>
+            </View>
           )}
           horizontal
           pagingEnabled
@@ -86,13 +80,13 @@ const OnboardingScreen = () => {
           decelerationRate="fast"
           onMomentumScrollEnd={handleMomentumEnd}
           getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
-          contentContainerStyle={{ flexGrow: 1 }}
+          contentContainerStyle={styles.slidesContent}
         />
-      </SlidesArea>
-      <Footer>
-        <Dots>
+      </View>
+      <View style={styles.footer}>
+        <View style={styles.dots}>
           {slides.map((_, index) => (
-            <DotButton
+            <TouchableOpacity
               key={index}
               onPress={() => {
                 flatListRef.current?.scrollToOffset({ offset: width * index, animated: true });
@@ -100,18 +94,117 @@ const OnboardingScreen = () => {
               }}
               accessibilityRole="button"
               accessibilityLabel={`Go to slide ${index + 1}`}
+              style={styles.dotButton}
             >
-              <Dot active={index === activeIndex} />
-            </DotButton>
+              <View style={[styles.dot, index === activeIndex && styles.dotActive]} />
+            </TouchableOpacity>
           ))}
-        </Dots>
-        <PrimaryButton onPress={handleGetStarted}>
-          <ButtonLabel>get started</ButtonLabel>
-          <MaterialCommunityIcons name="arrow-right" size={20} color="#fff" />
-        </PrimaryButton>
-      </Footer>
-    </Container>
+        </View>
+        <TouchableOpacity style={styles.primaryButton} onPress={handleGetStarted} activeOpacity={0.9}>
+          <Text style={styles.buttonLabel}>get started</Text>
+          <MaterialCommunityIcons name="arrow-right" size={20} color="#fff" style={styles.buttonIcon} />
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
   );
 };
 
 export default OnboardingScreen;
+
+const createStyles = (theme: DefaultTheme) =>
+  StyleSheet.create({
+    screen: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+      padding: theme.spacing.lg,
+    },
+    slidesArea: {
+      flex: 1,
+    },
+    slidesContent: {
+      flexGrow: 1,
+    },
+    slideWrapper: {
+      padding: theme.spacing.xl,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    iconHalo: {
+      width: 260,
+      height: 260,
+      borderRadius: 130,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: `${theme.colors.primary}11`,
+      borderWidth: 1,
+      borderColor: `${theme.colors.primary}33`,
+    },
+    iconBubble: {
+      width: 210,
+      height: 210,
+      borderRadius: 105,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.colors.surface,
+      shadowColor: "#000",
+      shadowOpacity: 0.1,
+      shadowRadius: 24,
+      shadowOffset: { width: 0, height: 12 },
+      elevation: 12,
+    },
+    title: {
+      fontSize: 26,
+      fontWeight: theme.fontWeight.bold,
+      textAlign: "center",
+      color: theme.colors.text,
+      marginTop: 24,
+      textTransform: "capitalize",
+    },
+    description: {
+      fontSize: theme.fontSize.md,
+      textAlign: "center",
+      color: theme.colors.textMuted,
+      marginTop: 12,
+    },
+    footer: {
+      paddingTop: theme.spacing.lg,
+    },
+    dots: {
+      flexDirection: "row",
+      justifyContent: "center",
+      marginBottom: theme.spacing.md,
+    },
+    dotButton: {
+      padding: theme.spacing.xs / 2,
+      marginHorizontal: theme.spacing.xs / 2,
+    },
+    dot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      backgroundColor: `${theme.colors.surfaceAlt}66`,
+    },
+    dotActive: {
+      backgroundColor: theme.colors.primary,
+      width: 28,
+    },
+    primaryButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.colors.primary,
+      borderRadius: theme.radii.xl,
+      paddingVertical: theme.spacing.md,
+      paddingHorizontal: theme.spacing.lg,
+    },
+    buttonLabel: {
+      color: "#fff",
+      fontSize: theme.fontSize.md,
+      fontWeight: theme.fontWeight.semibold,
+      textTransform: "uppercase",
+      letterSpacing: 0.4,
+    },
+    buttonIcon: {
+      marginLeft: theme.spacing.sm,
+    },
+  });

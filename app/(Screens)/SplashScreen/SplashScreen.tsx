@@ -2,34 +2,72 @@
 import { router } from "expo-router";
 import { MotiView } from "moti";
 import React, { useEffect } from "react";
-import { useTheme } from "styled-components/native";
+import { StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { DefaultTheme, useTheme } from "styled-components/native";
 import { appRoutes } from "../../../routes";
-import { splashScreenStyles } from "../../../styles/GlobalStyles";
-
-const { Container, Title, Subtitle, IconRing } = splashScreenStyles;
 
 const SplashScreen = () => {
   const theme = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
   useEffect(() => {
     const timer = setTimeout(() => router.replace(appRoutes.onboarding), 1800);
     return () => clearTimeout(timer);
   }, []);
 
   return (
-    <Container>
+    <SafeAreaView style={styles.screen}>
       <MotiView
         from={{ scale: 0.8, opacity: 0.3 }}
         animate={{ scale: 1, opacity: 1 }}
-        transition={{ loop: true, type: 'timing', duration: 1400 }}
+        transition={{ loop: true, type: "timing", duration: 1400 }}
       >
-        <IconRing>
+        <View style={styles.iconRing}>
           <MaterialCommunityIcons name="robot-excited-outline" size={88} color={theme.colors.primary} />
-        </IconRing>
+        </View>
       </MotiView>
-      <Title>ai junk cleaner</Title>
-      <Subtitle>digitally spotless in seconds</Subtitle>
-    </Container>
+      <Text style={styles.title}>ai junk cleaner</Text>
+      <Text style={styles.subtitle}>digitally spotless in seconds</Text>
+    </SafeAreaView>
   );
 };
 
 export default SplashScreen;
+
+const createStyles = (theme: DefaultTheme) =>
+  StyleSheet.create({
+    screen: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.colors.background,
+      padding: theme.spacing.lg,
+    },
+    iconRing: {
+      width: 180,
+      height: 180,
+      borderRadius: 90,
+      borderWidth: 1,
+      borderColor: `${theme.colors.primary}44`,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: `${theme.colors.primary}11`,
+      shadowColor: theme.mode === "dark" ? "#000" : "#dfe3f0",
+      shadowOpacity: 0.3,
+      shadowRadius: 20,
+      shadowOffset: { width: 0, height: 12 },
+      elevation: 12,
+    },
+    title: {
+      marginTop: theme.spacing.lg,
+      fontSize: 28,
+      fontWeight: theme.fontWeight.bold,
+      color: theme.colors.text,
+      textTransform: "capitalize",
+    },
+    subtitle: {
+      marginTop: theme.spacing.sm,
+      fontSize: theme.fontSize.md,
+      color: theme.colors.textMuted,
+    },
+  });

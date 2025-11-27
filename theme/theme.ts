@@ -1,100 +1,249 @@
+import { useEffect, useState } from "react";
 import type { ViewStyle } from "react-native";
+import { Platform, useColorScheme as useRNColorScheme } from "react-native";
 import "styled-components";
 import "styled-components/native";
 import type { DefaultTheme } from "styled-components/native";
 
-export type Palette = {
+type ColorTokens = {
   primary: string;
+  primaryDark: string;
+  primaryLight: string;
   secondary: string;
   accent: string;
+  text: string;
+  textMuted: string;
+  black: string;
+  white: string;
+  grey: string;
+  neutral50: string;
+  neutral100: string;
+  neutral200: string;
+  neutral300: string;
+  neutral400: string;
+  neutral500: string;
+  neutral600: string;
+  neutral700: string;
+  neutral800: string;
+  neutral900: string;
+  success: string;
+  warning: string;
+  error: string;
+  info: string;
   background: string;
   surface: string;
   surfaceAlt: string;
-  text: string;
-  textMuted: string;
-  success: string;
-  warning: string;
+  border: string;
 };
 
-export const lightPalette: Palette = {
-  primary: "#5D5BFF",
-  secondary: "#00C7B1",
-  accent: "#FF8A7A",
-  background: "#F8FAFF",
-  surface: "#FFFFFF",
-  surfaceAlt: "#E4E9FB",
-  text: "#1A1D33",
-  textMuted: "#73789D",
-  success: "#3CCF8E",
-  warning: "#FFBE5E",
+// Color palette ------------------------------------------------------------
+
+export const allColors: ColorTokens = {
+  primary: "#007AFF",
+  primaryDark: "#0056CC",
+  primaryLight: "#4DA6FF",
+  secondary: "#10B981",
+  accent: "#F97316",
+  text: "#171717",
+  textMuted: "#525252",
+  black: "#000000",
+  white: "#FFFFFF",
+  grey: "#666666",
+  neutral50: "#FAFAFA",
+  neutral100: "#F5F5F5",
+  neutral200: "#E5E5E5",
+  neutral300: "#D4D4D4",
+  neutral400: "#A3A3A3",
+  neutral500: "#737373",
+  neutral600: "#525252",
+  neutral700: "#404040",
+  neutral800: "#262626",
+  neutral900: "#171717",
+  success: "#10B981",
+  warning: "#F59E0B",
+  error: "#EF4444",
+  info: "#3B82F6",
+  background: "#FFFFFF",
+  surface: "#F8F9FA",
+  surfaceAlt: "#E5E5E5",
+  border: "#E5E5E5",
 };
 
-export const darkPalette: Palette = {
-  primary: "#8C7CFF",
-  secondary: "#20DFC3",
-  accent: "#FF8D92",
-  background: "#0F121B",
-  surface: "#181C2C",
-  surfaceAlt: "#262B3D",
-  text: "#F7F8FF",
-  textMuted: "#9AA0C0",
-  success: "#4BC96A",
-  warning: "#FFB347",
+export const darkColors: ColorTokens = {
+  primary: "#007AFF",
+  primaryDark: "#0056CC",
+  primaryLight: "#4DA6FF",
+  secondary: "#34D399",
+  accent: "#FB923C",
+  text: "#F5F5F5",
+  textMuted: "#9CA3AF",
+  black: "#FFFFFF",
+  white: "#000000",
+  grey: "#999999",
+  neutral50: "#171717",
+  neutral100: "#262626",
+  neutral200: "#404040",
+  neutral300: "#525252",
+  neutral400: "#737373",
+  neutral500: "#A3A3A3",
+  neutral600: "#D4D4D4",
+  neutral700: "#E5E5E5",
+  neutral800: "#F5F5F5",
+  neutral900: "#FAFAFA",
+  success: "#10B981",
+  warning: "#F59E0B",
+  error: "#EF4444",
+  info: "#3B82F6",
+  background: "#000000",
+  surface: "#1C1C1E",
+  surfaceAlt: "#2A2A2D",
+  border: "#2F2F32",
 };
+
+export const Colors = {
+  light: {
+    text: allColors.text,
+    background: allColors.background,
+    tint: allColors.primary,
+    tabIconDefault: allColors.neutral400,
+    tabIconSelected: allColors.primary,
+  },
+  dark: {
+    text: darkColors.text,
+    background: darkColors.background,
+    tint: darkColors.primary,
+    tabIconDefault: darkColors.neutral400,
+    tabIconSelected: darkColors.primary,
+  },
+} as const;
+
+export type ThemeMode = keyof typeof Colors;
+
+const DEFAULT_THEME: ThemeMode = "light";
+const isWeb = Platform.OS === "web";
+
+// Spacing system -----------------------------------------------------------
+
+export const spacingX = {
+  _5: 5,
+  _10: 10,
+  _15: 15,
+  _20: 20,
+  _25: 25,
+  _30: 30,
+};
+
+export const spacingY = { ...spacingX };
 
 export const spacing = {
-  xs: 8,
-  sm: 12,
-  md: 16,
-  lg: 20,
-  xl: 24,
+  xxs: 4,
+  xs: spacingX._10,
+  sm: spacingX._15,
+  md: spacingX._20,
+  lg: spacingX._25,
+  xl: spacingX._30,
 };
 
 export type SpacingKey = keyof typeof spacing;
 
-type ThemeMode = "light" | "dark";
+// Border radius -----------------------------------------------------------
 
-type ThemeRadii = {
-  lg: number;
-  xl: number;
+export const radius = {
+  _5: 5,
+  _10: 10,
+  _15: 15,
+  _20: 20,
+  _25: 25,
+  _30: 30,
+  _50: 50,
 };
 
-type ThemeBlur = {
-  sm: number;
-  md: number;
+const radii = {
+  sm: radius._10,
+  md: radius._15,
+  lg: radius._20,
+  xl: radius._30,
+  pill: radius._50,
 };
 
-export type ThemeShape = {
-  mode: ThemeMode;
-  colors: typeof lightPalette;
-  spacing: typeof spacing;
-  radii: ThemeRadii;
-  blur: ThemeBlur;
+// Typography ---------------------------------------------------------------
+
+export const fontSize = {
+  xs: 12,
+  sm: 14,
+  md: 16,
+  lg: 18,
+  xl: 20,
+  xxl: 24,
+  xxxl: 32,
 };
+
+export const fontWeight = {
+  light: "300" as const,
+  normal: "400" as const,
+  medium: "500" as const,
+  semibold: "600" as const,
+  bold: "700" as const,
+};
+
+// Theme factory ------------------------------------------------------------
 
 const baseTheme = {
   spacing,
-  radii: {
-    lg: 18,
-    xl: 28,
-  },
-  blur: {
-    sm: 14,
-    md: 24,
-  },
+  radii,
+  fontSize,
+  fontWeight,
 };
 
-export const lightTheme: DefaultTheme = {
-  mode: "light",
-  colors: lightPalette,
+const buildTheme = (mode: ThemeMode): DefaultTheme => ({
+  mode,
+  colors: mode === "dark" ? darkColors : allColors,
   ...baseTheme,
+});
+
+export const lightTheme = buildTheme("light");
+export const darkTheme = buildTheme("dark");
+
+// Theme utilities ---------------------------------------------------------
+
+export const getThemeColors = (theme: ThemeMode) => {
+  return theme === "dark" ? darkColors : allColors;
 };
 
-export const darkTheme: DefaultTheme = {
-  mode: "dark",
-  colors: darkPalette,
-  ...baseTheme,
-};
+export function useAppColorScheme(): ThemeMode {
+  const colorScheme = useRNColorScheme() as ThemeMode | null;
+  const [hasHydrated, setHasHydrated] = useState(!isWeb);
+
+  useEffect(() => {
+    if (isWeb) {
+      setHasHydrated(true);
+    }
+  }, []);
+
+  if (!hasHydrated) {
+    return DEFAULT_THEME;
+  }
+
+  return colorScheme ?? DEFAULT_THEME;
+}
+
+type ThemeColorName = keyof typeof Colors.light & keyof typeof Colors.dark;
+
+export function useThemeColor(
+  props: { light?: string; dark?: string },
+  colorName: ThemeColorName,
+) {
+  const theme = useAppColorScheme();
+  const colorFromProps = props[theme];
+
+  if (colorFromProps) {
+    return colorFromProps;
+  }
+
+  return Colors[theme][colorName];
+}
+
+// Shared shadows ----------------------------------------------------------
 
 type ShadowSet = {
   soft: ViewStyle;
@@ -122,23 +271,27 @@ export const neumorphicShadows = (isDark: boolean): ShadowSet => {
   };
 };
 
+// Styled-components theme typing -----------------------------------------
+
 declare module "styled-components" {
-  export interface DefaultTheme extends ThemeShape {
+  export interface DefaultTheme {
     mode: ThemeMode;
-    colors: typeof lightPalette;
+    colors: ColorTokens;
     spacing: typeof spacing;
-    radii: ThemeRadii;
-    blur: ThemeBlur;
+    radii: typeof radii;
+    fontSize: typeof fontSize;
+    fontWeight: typeof fontWeight;
   }
 }
 
 declare module "styled-components/native" {
-  export interface DefaultTheme extends ThemeShape {
+  export interface DefaultTheme {
     mode: ThemeMode;
-    colors: typeof lightPalette;
+    colors: ColorTokens;
     spacing: typeof spacing;
-    radii: ThemeRadii;
-    blur: ThemeBlur;
+    radii: typeof radii;
+    fontSize: typeof fontSize;
+    fontWeight: typeof fontWeight;
   }
 }
 

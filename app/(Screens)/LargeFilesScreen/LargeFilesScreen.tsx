@@ -1,6 +1,15 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, FlatList, ListRenderItem } from "react-native";
+import {
+  ActivityIndicator,
+  FlatList,
+  Image,
+  ListRenderItem,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -8,10 +17,10 @@ import Animated, {
   withSequence,
   withTiming,
 } from "react-native-reanimated";
-import { useTheme } from "styled-components/native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
 import formatBytes from "../../../constants/formatBytes";
-import { largeFilesScreenStyles } from "../../../styles/GlobalStyles";
 import {
   LargeFileResult,
   LargeFileSource,
@@ -24,40 +33,7 @@ type ProgressPhase = ScanPhase | "idle";
 
 const LargeFilesScreen: React.FC = () => {
   const theme = useTheme();
-  const {
-    Screen,
-    ListHeader,
-    SummaryRow,
-    SummarySlot,
-    SummaryCard,
-    SummaryIcon,
-    SummaryValue,
-    SummaryLabel,
-    ProgressCard,
-    ProgressHeader,
-    ProgressText,
-    ProgressPercent,
-    ProgressSubtext,
-    ScanButton,
-    ScanButtonText,
-    ActionRow,
-    ActionHint,
-    RescanButton,
-    RescanButtonText,
-    FileCard,
-    FileRow,
-    ThumbnailWrapper,
-    ThumbnailImage,
-    ThumbnailFallback,
-    FileContent,
-    FileHeader,
-    FileName,
-    FileSize,
-    BadgeRow,
-    Tag,
-    MetaText,
-    PathText,
-  } = largeFilesScreenStyles;
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [files, setFiles] = useState<LargeFileResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -182,140 +158,136 @@ const LargeFilesScreen: React.FC = () => {
       const filename = item.path.split("/").pop() || item.path;
       const previewable = isPreviewableAsset(item.path) && !thumbnailFallbacks[item.path];
       return (
-        <FileCard>
-          <FileRow>
-            <ThumbnailWrapper>
+        <View style={styles.fileCard}>
+          <View style={styles.fileRow}>
+            <View style={styles.thumbnailWrapper}>
               {previewable ? (
-                <ThumbnailImage
+                <Image
                   source={{ uri: item.path }}
                   resizeMode="cover"
+                  style={styles.thumbnailImage}
                   onError={() => recordThumbnailError(item.path)}
                 />
               ) : (
-                <ThumbnailFallback>
+                <View style={styles.thumbnailFallback}>
                   <MaterialCommunityIcons
                     name="file-document-outline"
                     size={26}
                     color={theme.colors.textMuted}
                   />
-                </ThumbnailFallback>
+                </View>
               )}
-            </ThumbnailWrapper>
-            <FileContent>
-              <FileHeader>
-                <FileName numberOfLines={1}>{filename}</FileName>
-                <FileSize>{formatBytes(item.size)}</FileSize>
-              </FileHeader>
-              <BadgeRow>
-                <Tag>{item.category}</Tag>
-                <Tag accent>{item.source}</Tag>
-                {item.modified != null ? <MetaText>{formatTimestamp(item.modified)}</MetaText> : null}
-              </BadgeRow>
-              <PathText numberOfLines={2}>{item.path}</PathText>
-            </FileContent>
-          </FileRow>
-        </FileCard>
+            </View>
+            <View style={styles.fileContent}>
+              <View style={styles.fileHeader}>
+                <Text style={styles.fileName} numberOfLines={1}>
+                  {filename}
+                </Text>
+                <Text style={styles.fileSize}>{formatBytes(item.size)}</Text>
+              </View>
+              <View style={styles.badgeRow}>
+                <Text style={styles.tag}>{item.category}</Text>
+                <Text style={[styles.tag, styles.tagAccent]}>{item.source}</Text>
+                {item.modified != null ? (
+                  <Text style={styles.metaText}>{formatTimestamp(item.modified)}</Text>
+                ) : null}
+              </View>
+              <Text style={styles.pathText} numberOfLines={2}>
+                {item.path}
+              </Text>
+            </View>
+          </View>
+        </View>
       );
     },
-    [
-      recordThumbnailError,
-      theme.colors.textMuted,
-      thumbnailFallbacks,
-      FileCard,
-      FileRow,
-      ThumbnailWrapper,
-      ThumbnailImage,
-      ThumbnailFallback,
-      FileContent,
-      FileHeader,
-      FileName,
-      FileSize,
-      BadgeRow,
-      Tag,
-      MetaText,
-      PathText,
-    ],
+    [recordThumbnailError, theme.colors.textMuted, thumbnailFallbacks, styles],
   );
 
   return (
-    <Screen>
+    <SafeAreaView style={styles.screen}>
       <FlatList
         data={sortedFiles}
         keyExtractor={(item) => item.path}
         renderItem={renderItem}
-        contentContainerStyle={listContentInset}
+        contentContainerStyle={[listContentInset, styles.listContent]}
         ListHeaderComponent={
-          <ListHeader>
+          <View style={styles.listHeader}>
             <AppHeader title="large files" subtitle="sniff out the biggest storage hogs" />
 
-            <SummaryRow>
-              <SummarySlot>
-                <SummaryCard>
-                  <SummaryIcon>
-                    <MaterialCommunityIcons
-                      name="folder-arrow-down-outline"
-                      size={20}
-                      color={theme.colors.primary}
-                    />
-                  </SummaryIcon>
-                  <SummaryValue>{formatBytes(summaryBytes)}</SummaryValue>
-                  <SummaryLabel>{resultsAvailable ? "visible weight" : "total weight"}</SummaryLabel>
-                </SummaryCard>
-              </SummarySlot>
-              <SummarySlot>
-                <SummaryCard>
-                  <SummaryIcon>
-                    <MaterialCommunityIcons name="file-search-outline" size={20} color={theme.colors.accent} />
-                  </SummaryIcon>
-                  <SummaryValue>{filesInView}</SummaryValue>
-                  <SummaryLabel>files found</SummaryLabel>
-                </SummaryCard>
-              </SummarySlot>
-              <SummarySlot isLast>
-                <SummaryCard>
-                  <SummaryIcon>
-                    <MaterialCommunityIcons name="clock-outline" size={20} color={theme.colors.secondary} />
-                  </SummaryIcon>
-                  <SummaryValue>{lastScan ? formatLastScan(lastScan) : "—"}</SummaryValue>
-                  <SummaryLabel>last scan</SummaryLabel>
-                </SummaryCard>
-              </SummarySlot>
-            </SummaryRow>
+            <View style={styles.summaryRow}>
+              <View style={styles.summaryCard}>
+                <View style={styles.summaryIcon}>
+                  <MaterialCommunityIcons
+                    name="folder-arrow-down-outline"
+                    size={20}
+                    color={theme.colors.primary}
+                  />
+                </View>
+                <Text style={styles.summaryValue}>{formatBytes(summaryBytes)}</Text>
+                <Text style={styles.summaryLabel}>
+                  {resultsAvailable ? "visible weight" : "total weight"}
+                </Text>
+              </View>
+              <View style={styles.summaryCard}>
+                <View style={styles.summaryIcon}>
+                  <MaterialCommunityIcons name="file-search-outline" size={20} color={theme.colors.accent} />
+                </View>
+                <Text style={styles.summaryValue}>{filesInView}</Text>
+                <Text style={styles.summaryLabel}>files found</Text>
+              </View>
+              <View style={styles.summaryCard}>
+                <View style={styles.summaryIcon}>
+                  <MaterialCommunityIcons name="clock-outline" size={20} color={theme.colors.secondary} />
+                </View>
+                <Text style={styles.summaryValue}>{lastScan ? formatLastScan(lastScan) : "—"}</Text>
+                <Text style={styles.summaryLabel}>last scan</Text>
+              </View>
+            </View>
 
             {loading ? (
-              <ProgressCard>
-                <ProgressHeader>
+              <View style={styles.progressCard}>
+                <View style={styles.progressHeader}>
                   <ActivityIndicator color={theme.colors.primary} size="small" />
-                  <ProgressPercent>{Math.min(100, Math.max(0, scanProgress.percent))}%</ProgressPercent>
-                </ProgressHeader>
-                <ProgressText>{progressLabel}</ProgressText>
-                <ProgressSubtext>{progressDetail}</ProgressSubtext>
-              </ProgressCard>
+                  <Text style={styles.progressPercent}>{Math.min(100, Math.max(0, scanProgress.percent))}%</Text>
+                </View>
+                <Text style={styles.progressText}>{progressLabel}</Text>
+                <Text style={styles.progressSubtext}>{progressDetail}</Text>
+              </View>
             ) : null}
 
             {!resultsAvailable ? (
               <Animated.View style={startButtonAnimatedStyle}>
-                <ScanButton disabled={loading} onPress={handleScan} activeOpacity={0.9}>
+                <TouchableOpacity
+                  disabled={loading}
+                  onPress={handleScan}
+                  activeOpacity={0.9}
+                  style={styles.scanButton}
+                >
                   {loading ? (
                     <ActivityIndicator color="#fff" />
                   ) : (
-                    <ScanButtonText>start storage scan</ScanButtonText>
+                    <Text style={styles.scanButtonText}>start storage scan</Text>
                   )}
-                </ScanButton>
+                </TouchableOpacity>
               </Animated.View>
             ) : (
-              <ActionRow>
-                <ActionHint>need a fresh audit?</ActionHint>
-                <RescanButton disabled={loading} onPress={handleScan} activeOpacity={loading ? 1 : 0.9}>
-                  <RescanButtonText>{loading ? "scanning…" : "run scan"}</RescanButtonText>
-                </RescanButton>
-              </ActionRow>
+              <View style={styles.actionRow}>
+                <Text style={styles.actionHint}>need a fresh audit?</Text>
+                <TouchableOpacity
+                  disabled={loading}
+                  onPress={handleScan}
+                  activeOpacity={loading ? 1 : 0.9}
+                  style={[styles.rescanButton, loading && styles.rescanDisabled]}
+                >
+                  <Text style={styles.rescanButtonText}>{loading ? "scanning…" : "run scan"}</Text>
+                </TouchableOpacity>
+              </View>
             )}
-          </ListHeader>
+          </View>
         }
        showsVerticalScrollIndicator={false}
       />
-    </Screen>
+    </SafeAreaView>
   );
 };
 
@@ -337,3 +309,223 @@ const isPreviewableAsset = (path: string): boolean => {
 };
 
 export default LargeFilesScreen;
+
+const createStyles = (theme: DefaultTheme) =>
+  StyleSheet.create({
+    screen: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    listContent: {
+      paddingBottom: theme.spacing.xl * 1.5,
+    },
+    listHeader: {
+      paddingHorizontal: theme.spacing.lg,
+      paddingTop: theme.spacing.lg,
+      paddingBottom: theme.spacing.md,
+    },
+    summaryRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginBottom: theme.spacing.lg,
+    },
+    summaryCard: {
+      flex: 1,
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.radii.lg,
+      padding: theme.spacing.md,
+      borderWidth: 1,
+      borderColor: `${theme.colors.surfaceAlt}44`,
+      shadowColor: "rgba(0,0,0,0.05)",
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 3,
+      alignItems: "center",
+      gap: theme.spacing.xs,
+    },
+    summaryIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 16,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: `${theme.colors.primary}11`,
+    },
+    summaryValue: {
+      fontSize: theme.fontSize.xl,
+      fontWeight: theme.fontWeight.bold,
+      color: theme.colors.text,
+    },
+    summaryLabel: {
+      fontSize: theme.fontSize.xs,
+      color: theme.colors.textMuted,
+      letterSpacing: 0.6,
+      textTransform: "uppercase",
+    },
+    progressCard: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.radii.lg,
+      padding: theme.spacing.md,
+      borderWidth: 1,
+      borderColor: `${theme.colors.surfaceAlt}44`,
+      marginBottom: theme.spacing.lg,
+    },
+    progressHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    progressPercent: {
+      fontSize: theme.fontSize.lg,
+      fontWeight: theme.fontWeight.bold,
+      color: theme.colors.primary,
+    },
+    progressText: {
+      fontSize: theme.fontSize.md,
+      color: theme.colors.text,
+      fontWeight: theme.fontWeight.semibold,
+    },
+    progressSubtext: {
+      fontSize: theme.fontSize.sm,
+      color: theme.colors.textMuted,
+    },
+    scanButton: {
+      backgroundColor: theme.colors.primary,
+      borderRadius: theme.radii.xl,
+      paddingVertical: theme.spacing.md,
+      alignItems: "center",
+      justifyContent: "center",
+      shadowColor: "rgba(0,0,0,0.25)",
+      shadowOpacity: 0.2,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: 6,
+      marginBottom: theme.spacing.lg,
+    },
+    scanButtonText: {
+      color: "#fff",
+      fontSize: theme.fontSize.md,
+      fontWeight: theme.fontWeight.bold,
+      textTransform: "uppercase",
+      letterSpacing: 0.8,
+    },
+    actionRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.radii.lg,
+      padding: theme.spacing.md,
+      borderWidth: 1,
+      borderColor: `${theme.colors.surfaceAlt}44`,
+      marginBottom: theme.spacing.lg,
+    },
+    actionHint: {
+      color: theme.colors.textMuted,
+      fontSize: theme.fontSize.sm,
+    },
+    rescanButton: {
+      backgroundColor: theme.colors.primary,
+      borderRadius: theme.radii.lg,
+      paddingVertical: theme.spacing.sm,
+      paddingHorizontal: theme.spacing.lg,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    rescanDisabled: {
+      opacity: 0.6,
+    },
+    rescanButtonText: {
+      color: "#fff",
+      fontSize: theme.fontSize.sm,
+      fontWeight: theme.fontWeight.semibold,
+    },
+    fileCard: {
+      marginHorizontal: theme.spacing.lg,
+      marginTop: theme.spacing.md,
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.radii.lg,
+      padding: theme.spacing.md,
+      borderWidth: 1,
+      borderColor: `${theme.colors.surfaceAlt}33`,
+      shadowColor: "rgba(0,0,0,0.05)",
+      shadowOpacity: 0.1,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 3,
+    },
+    fileRow: {
+      flexDirection: "row",
+    },
+    thumbnailWrapper: {
+      width: 64,
+      height: 64,
+      borderRadius: 16,
+      overflow: "hidden",
+      backgroundColor: `${theme.colors.surfaceAlt}55`,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    thumbnailImage: {
+      width: "100%",
+      height: "100%",
+    },
+    thumbnailFallback: {
+      width: "100%",
+      height: "100%",
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: `${theme.colors.surfaceAlt}66`,
+    },
+    fileContent: {
+      flex: 1,
+      marginLeft: theme.spacing.md,
+    },
+    fileHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "baseline",
+    },
+    fileName: {
+      flex: 1,
+      color: theme.colors.text,
+      fontSize: theme.fontSize.md,
+      fontWeight: theme.fontWeight.semibold,
+    },
+    fileSize: {
+      color: theme.colors.accent,
+      fontSize: theme.fontSize.sm,
+      fontWeight: theme.fontWeight.bold,
+    },
+    badgeRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      alignItems: "center",
+      marginTop: theme.spacing.xs,
+    },
+    tag: {
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xs / 2,
+      borderRadius: theme.radii.lg,
+      backgroundColor: `${theme.colors.surfaceAlt}66`,
+      color: theme.colors.text,
+      fontSize: theme.fontSize.xs,
+      textTransform: "uppercase",
+      letterSpacing: 0.6,
+      marginRight: theme.spacing.xs,
+      marginBottom: theme.spacing.xs / 2,
+    },
+    tagAccent: {
+      backgroundColor: `${theme.colors.primary}22`,
+      color: theme.colors.primary,
+    },
+    metaText: {
+      color: theme.colors.textMuted,
+      fontSize: theme.fontSize.xs,
+    },
+    pathText: {
+      color: theme.colors.textMuted,
+      fontSize: theme.fontSize.sm,
+    },
+  });

@@ -2,18 +2,16 @@
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
-import { homeScreenStyles } from "../../../styles/GlobalStyles";
+import ThemedList from "../../../components/ThemedList";
 import { ScanResult, clearAll, scanCachesAndLogs } from "./CacheLogsScanner";
-
-const { Screen, Content } = homeScreenStyles;
 
 const formatSize = (bytes: number) => {
   if (!bytes) return "0 KB";
@@ -98,8 +96,8 @@ const CacheLogsScreen = () => {
   );
 
   return (
-    <Screen>
-      <Content style={styles.content}>
+    <SafeAreaView style={styles.screen}>
+      <View style={styles.content}>
         <AppHeader title="Cache & Logs" />
 
         <View style={styles.heroCard}>
@@ -144,33 +142,17 @@ const CacheLogsScreen = () => {
         </View>
 
         <View style={styles.resultsCard}>
-          <View style={styles.resultsHeader}>
-            <Text style={styles.resultsTitle}>detected cache & logs</Text>
-            <Text style={styles.resultsSubtitle}>
-              {items.length
-                ? "sorted by largest first"
-                : "run a scan to monitor storage health"}
-            </Text>
-          </View>
-
-          <FlatList
+          <ThemedList
             data={items}
             keyExtractor={(item) => item.path}
             renderItem={renderItem}
-            contentContainerStyle={
-              items.length ? styles.listContent : styles.emptyState
+            title="detected cache & logs"
+            subtitle={
+              items.length ? "sorted by largest first" : "run a scan to monitor storage health"
             }
-            ListEmptyComponent={
-              !loading ? (
-                <Text style={styles.emptyText}>
-                  no cache or log clutter detected right now.
-                </Text>
-              ) : null
-            }
-            showsVerticalScrollIndicator={false}
-            style={styles.list}
+            loading={loading}
+            emptyText="no cache or log clutter detected right now."
           />
-
           <Pressable
             onPress={handleClearAll}
             disabled={!items.length || clearing}
@@ -184,15 +166,21 @@ const CacheLogsScreen = () => {
             </Text>
           </Pressable>
         </View>
-      </Content>
-    </Screen>
+      </View>
+    </SafeAreaView>
   );
 };
 
 const createStyles = (theme: DefaultTheme) =>
   StyleSheet.create({
+    screen: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
     content: {
       flex: 1,
+      paddingHorizontal: theme.spacing.lg,
+      paddingTop: theme.spacing.lg,
       gap: theme.spacing.lg,
       paddingBottom: theme.spacing.xl,
     },
@@ -270,40 +258,8 @@ const createStyles = (theme: DefaultTheme) =>
       backgroundColor: theme.colors.surface,
       borderWidth: 1,
       borderColor: `${theme.colors.surfaceAlt}55`,
-      paddingHorizontal: theme.spacing.md,
-      paddingTop: theme.spacing.md,
-      paddingBottom: theme.spacing.lg,
+      padding: theme.spacing.md,
       gap: theme.spacing.md,
-    },
-    resultsHeader: {},
-    resultsTitle: {
-      color: theme.colors.text,
-      fontSize: 18,
-      fontWeight: "700",
-      textTransform: "capitalize",
-    },
-    resultsSubtitle: {
-      color: theme.colors.textMuted,
-      fontSize: 13,
-      marginTop: 4,
-    },
-    list: {
-      flex: 1,
-    },
-    listContent: {
-      paddingBottom: theme.spacing.md,
-      gap: theme.spacing.sm,
-    },
-    emptyState: {
-      flexGrow: 1,
-      justifyContent: "center",
-      alignItems: "center",
-      paddingVertical: theme.spacing.xl,
-    },
-    emptyText: {
-      color: theme.colors.textMuted,
-      fontSize: 14,
-      textAlign: "center",
     },
     item: {
       padding: theme.spacing.md,

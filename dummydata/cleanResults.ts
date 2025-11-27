@@ -1,4 +1,4 @@
-import { lightPalette } from "../theme/theme";
+import { allColors } from "../theme/theme";
 
 export type CleanResultStat = {
   id: string;
@@ -28,19 +28,19 @@ export const cleanResultStats: CleanResultStat[] = [
     id: "space",
     label: "Space cleaned",
     value: "856 MB",
-    accent: lightPalette.primary,
+    accent: allColors.primary,
   },
   {
     id: "apps",
     label: "Apps optimized",
     value: "18 apps",
-    accent: lightPalette.secondary,
+    accent: allColors.secondary,
   },
   {
     id: "time",
     label: "Scan duration",
     value: "38 sec",
-    accent: lightPalette.warning,
+    accent: allColors.warning,
   },
 ];
 
@@ -51,7 +51,7 @@ export const cleanResultBreakdown: CleanResultBreakdown[] = [
     value: "312 MB",
     description: "app cache & verbose logs",
     icon: "broom",
-    accent: lightPalette.primary,
+    accent: allColors.primary,
   },
   {
     id: "residual",
@@ -59,7 +59,7 @@ export const cleanResultBreakdown: CleanResultBreakdown[] = [
     value: "224 MB",
     description: "old installers & split apks",
     icon: "tray-remove",
-    accent: lightPalette.secondary,
+    accent: allColors.secondary,
   },
   {
     id: "media",
@@ -67,7 +67,7 @@ export const cleanResultBreakdown: CleanResultBreakdown[] = [
     value: "140 MB",
     description: "duplicates & low-res clips",
     icon: "image-multiple-outline",
-    accent: lightPalette.accent,
+    accent: allColors.accent,
   },
   {
     id: "whatsapp",
@@ -84,19 +84,19 @@ export const cleanResultInsights: CleanResultInsight[] = [
     id: "battery",
     label: "battery boost",
     value: "+12%",
-    accent: lightPalette.primary,
+    accent: allColors.primary,
   },
   {
     id: "cpu",
     label: "cpu idle time",
     value: "+8%",
-    accent: lightPalette.secondary,
+    accent: allColors.secondary,
   },
   {
     id: "threats",
     label: "risk items removed",
     value: "41",
-    accent: lightPalette.warning,
+    accent: allColors.warning,
   },
 ];
 
