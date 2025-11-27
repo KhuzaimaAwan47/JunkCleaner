@@ -1,5 +1,6 @@
 ﻿import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Modal } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming, } from 'react-native-reanimated';
 import AppHeader from '../../../components/AppHeader';
 import DuplicateCard, { DuplicateFileItem } from '../../../components/DuplicateCard';
@@ -11,10 +12,15 @@ const {
   Screen,
   Scroll,
   Content,
+  FilterRow,
   SmartFilterControl,
   SmartFilterTextWrap,
   SmartFilterLabel,
   SmartFilterSwitch,
+  FilterActionButton,
+  FilterActionTextWrap,
+  FilterActionLabel,
+  FilterActionHint,
   StartButton,
   StartButtonText,
   ProgressContainer,
@@ -30,11 +36,8 @@ const {
   RescanButtonText,
   StopButton,
   StopButtonText,
-  SelectRow,
-  SelectAllButton,
   SelectAllIndicator,
   SelectAllIndicatorInner,
-  SelectAllText,
   ResultsContainer,
   ListEmptyState,
   EmptyTitle,
@@ -43,6 +46,16 @@ const {
   FooterActionButton,
   FooterActionText,
   FooterActionSubtext,
+  ImagePreviewBackdrop,
+  ImagePreviewDismissArea,
+  ImagePreviewCard,
+  ImagePreview,
+  ImagePreviewFallback,
+  ImagePreviewMeta,
+  ImagePreviewTitle,
+  ImagePreviewSubtitle,
+  ImagePreviewCloseButton,
+  ImagePreviewCloseText,
 } = duplicateImagesScreenStyles;
 
 function formatTime(seconds: number): string {
@@ -66,12 +79,32 @@ function guessOriginalPath(files: { path: string }[]): string | null {
   return (nonSystem || files[0]).path;
 }
 
+function ensurePreviewUri(path: string): string | null {
+  if (!path) {
+    return null;
+  }
+  if (path.startsWith('file://') || path.startsWith('content://') || path.startsWith('data:')) {
+    return path;
+  }
+  return `file://${path}`;
+}
+
+function getFileName(path: string): string {
+  return path.split('/').pop() || path.split('\\').pop() || path;
+}
+
+function formatDateLabel(timestamp?: number): string {
+  if (!timestamp) return 'unknown date';
+  return new Date(timestamp).toLocaleDateString();
+}
+
 export default function DuplicateImagesScreen() {
   const { isScanning, progress, duplicates, error, startScan, stopScan } = useScanner();
   const pulseScale = useSharedValue(1);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [smartFiltering, setSmartFiltering] = useState(false);
   const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(() => new Set());
+  const [previewFile, setPreviewFile] = useState<DuplicateFileItem | null>(null);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<number | null>(null);
   const smartFilterMemoryRef = useRef<Set<string>>(new Set());
@@ -253,6 +286,19 @@ export default function DuplicateImagesScreen() {
   const noneSelected = selectedFileIds.size === 0;
   const selectionState: 'all' | 'partial' | 'none' = allSelected ? 'all' : noneSelected ? 'none' : 'partial';
   const selectAllActionLabel = allSelected ? 'restore selection' : 'select all';
+  const selectAllDisabled = duplicateFiles.length === 0;
+  const selectAllHint = selectAllDisabled
+    ? 'run a scan to enable'
+    : `${selectedFileIds.size}/${duplicateFiles.length} selected`;
+  const previewUri = previewFile ? ensurePreviewUri(previewFile.path) : null;
+
+  const handlePreview = (file: DuplicateFileItem) => {
+    setPreviewFile(file);
+  };
+
+  const handlePreviewClose = () => {
+    setPreviewFile(null);
+  };
 
   return (
     <Screen>
@@ -260,12 +306,32 @@ export default function DuplicateImagesScreen() {
         <Content>
           <AppHeader title="Duplicate Images" subtitle="Review and clean identical photos quickly" />
 
-          <SmartFilterControl>
-            <SmartFilterTextWrap>
-              <SmartFilterLabel>Smart filtering</SmartFilterLabel>
-            </SmartFilterTextWrap>
-            <SmartFilterSwitch value={smartFiltering} onValueChange={handleSmartFilteringToggle} />
-          </SmartFilterControl>
+          <FilterRow>
+            <SmartFilterControl>
+              <SmartFilterTextWrap>
+                <SmartFilterLabel>Smart filtering</SmartFilterLabel>
+              </SmartFilterTextWrap>
+              <SmartFilterSwitch value={smartFiltering} onValueChange={handleSmartFilteringToggle} />
+            </SmartFilterControl>
+
+            <FilterActionButton
+              onPress={handleSelectAll}
+              disabled={selectAllDisabled}
+              activeOpacity={selectAllDisabled ? 1 : 0.85}
+            >
+              <SelectAllIndicator state={selectionState}>
+                {selectionState === 'all' ? (
+                  <MaterialCommunityIcons name="check" size={16} color="#ffffff" />
+                ) : (
+                  <SelectAllIndicatorInner state={selectionState} />
+                )}
+              </SelectAllIndicator>
+              <FilterActionTextWrap>
+                <FilterActionLabel>{selectAllActionLabel}</FilterActionLabel>
+                <FilterActionHint>{selectAllHint}</FilterActionHint>
+              </FilterActionTextWrap>
+            </FilterActionButton>
+          </FilterRow>
 
           {!isScanning && duplicateFiles.length === 0 && (
             <Animated.View style={buttonAnimatedStyle}>
@@ -303,31 +369,17 @@ export default function DuplicateImagesScreen() {
           )}
 
           {!isScanning && (duplicateFiles.length > 0 || totalDuplicates > 0) && (
-            <>
-              <SelectRow>
-                <SelectAllButton onPress={handleSelectAll}>
-                  <SelectAllIndicator state={selectionState}>
-                    {selectionState === 'all' ? (
-                      <MaterialCommunityIcons name="check" size={16} color="#ffffff" />
-                    ) : (
-                      <SelectAllIndicatorInner state={selectionState} />
-                    )}
-                  </SelectAllIndicator>
-                  <SelectAllText>{selectAllActionLabel}</SelectAllText>
-                </SelectAllButton>
-              </SelectRow>
-
-              <ResultsContainer>
-                {duplicateFiles.map((file: DuplicateFileItem) => (
-                  <DuplicateCard
-                    key={file.id}
-                    file={file}
-                    isSelected={selectedFileIds.has(file.id)}
-                    onToggleSelect={() => toggleFileSelection(file.id)}
-                  />
-                ))}
-              </ResultsContainer>
-            </>
+            <ResultsContainer>
+              {duplicateFiles.map((file: DuplicateFileItem) => (
+                <DuplicateCard
+                  key={file.id}
+                  file={file}
+                  isSelected={selectedFileIds.has(file.id)}
+                  onToggleSelect={() => toggleFileSelection(file.id)}
+                  onPreview={handlePreview}
+                />
+              ))}
+            </ResultsContainer>
           )}
 
           {!isScanning && duplicateFiles.length === 0 && !error && progress.total > 0 && (
@@ -377,6 +429,35 @@ export default function DuplicateImagesScreen() {
           )}
         </Content>
       </Scroll>
+
+      <Modal
+        visible={!!previewFile}
+        transparent
+        animationType="fade"
+        onRequestClose={handlePreviewClose}
+      >
+        <ImagePreviewBackdrop>
+          <ImagePreviewDismissArea onPress={handlePreviewClose} />
+          <ImagePreviewCard>
+            {previewUri ? (
+              <ImagePreview source={{ uri: previewUri }} resizeMode="contain" />
+            ) : (
+              <ImagePreviewFallback>cannot load preview</ImagePreviewFallback>
+            )}
+            {previewFile && (
+              <ImagePreviewMeta>
+                <ImagePreviewTitle numberOfLines={1}>{getFileName(previewFile.path)}</ImagePreviewTitle>
+                <ImagePreviewSubtitle>
+                  {formatBytes(previewFile.size)} • {formatDateLabel(previewFile.modifiedDate)}
+                </ImagePreviewSubtitle>
+              </ImagePreviewMeta>
+            )}
+            <ImagePreviewCloseButton onPress={handlePreviewClose}>
+              <ImagePreviewCloseText>close</ImagePreviewCloseText>
+            </ImagePreviewCloseButton>
+          </ImagePreviewCard>
+        </ImagePreviewBackdrop>
+      </Modal>
     </Screen>
   );
 }

@@ -18,6 +18,7 @@ interface DuplicateCardProps {
   file: DuplicateFileItem;
   isSelected: boolean;
   onToggleSelect: () => void;
+  onPreview?: (file: DuplicateFileItem) => void;
 }
 
 const CardWrapper = styled.View<{ theme: DefaultTheme }>`
@@ -31,7 +32,7 @@ const CardInner = styled.View<{ theme: DefaultTheme }>`
   gap: ${({ theme }) => theme.spacing.sm}px;
 `;
 
-const ThumbnailWrapper = styled.View<{ theme: DefaultTheme }>`
+const ThumbnailWrapper = styled.Pressable<{ disabled?: boolean; theme: DefaultTheme }>`
   width: 56px;
   height: 56px;
   border-radius: 18px;
@@ -39,6 +40,7 @@ const ThumbnailWrapper = styled.View<{ theme: DefaultTheme }>`
   align-items: center;
   justify-content: center;
   background-color: ${({ theme }) => `${theme.colors.surfaceAlt}cc`};
+  opacity: ${({ disabled }) => (disabled ? 0.7 : 1)};
 `;
 
 const ThumbnailImage = styled(Image)`
@@ -139,18 +141,29 @@ function ensureFileUri(path: string): string | null {
   return `file://${path}`;
 }
 
-export default function DuplicateCard({ file, isSelected, onToggleSelect }: DuplicateCardProps) {
+export default function DuplicateCard({ file, isSelected, onToggleSelect, onPreview }: DuplicateCardProps) {
   const theme = useTheme();
   const [loadError, setLoadError] = React.useState(false);
   const imageUri = React.useMemo(() => ensureFileUri(file.path), [file.path]);
   const showImage = !!imageUri && !loadError;
+  const handlePreview = React.useCallback(() => {
+    if (!showImage || !onPreview) {
+      return;
+    }
+    onPreview(file);
+  }, [file, onPreview, showImage]);
 
   return (
     <CardWrapper>
       <NeumorphicContainer padding={theme.spacing.md}>
         <CardInner>
           {showImage ? (
-            <ThumbnailWrapper>
+            <ThumbnailWrapper
+              disabled={!onPreview}
+              onPress={handlePreview}
+              accessibilityRole="button"
+              accessibilityLabel={`Preview ${getFileName(file.path)}`}
+            >
               <ThumbnailImage
                 source={{ uri: imageUri }}
                 resizeMode="cover"

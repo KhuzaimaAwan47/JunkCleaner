@@ -372,6 +372,31 @@ export const duplicateImagesScreenStyles = {
   }))`
     transform: scale(0.9);
   `,
+  FilterActionButton: styled.TouchableOpacity<{ disabled?: boolean }>`
+    flex: 1;
+    flex-direction: row;
+    align-items: center;
+    gap: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.sm}px;
+    padding: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.md}px;
+    border-radius: ${({ theme }: { theme: DefaultTheme }) => theme.radii.lg}px;
+    background-color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.surface};
+    border-width: 1px;
+    border-color: ${({ theme }: { theme: DefaultTheme }) => `${theme.colors.surfaceAlt}55`};
+    opacity: ${({ disabled }: { disabled?: boolean }) => (disabled ? 0.5 : 1)};
+  `,
+  FilterActionTextWrap: styled.View`
+    flex: 1;
+  `,
+  FilterActionLabel: styled.Text`
+    color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.text};
+    font-size: 14px;
+    font-weight: 600;
+  `,
+  FilterActionHint: styled.Text`
+    color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.textMuted};
+    font-size: 12px;
+    margin-top: 2px;
+  `,
   Title: styled.Text`
     font-size: 32px;
     font-weight: 700;
@@ -633,6 +658,62 @@ export const duplicateImagesScreenStyles = {
     color: #fff;
     font-size: 13px;
     opacity: 0.9;
+  `,
+  ImagePreviewBackdrop: styled.View`
+    flex: 1;
+    background-color: rgba(0, 0, 0, 0.7);
+    align-items: center;
+    justify-content: center;
+    padding: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.lg}px;
+  `,
+  ImagePreviewDismissArea: styled.Pressable`
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+  `,
+  ImagePreviewCard: styled.View`
+    width: 100%;
+    max-width: 420px;
+    border-radius: ${({ theme }: { theme: DefaultTheme }) => theme.radii.xl}px;
+    padding: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.md}px;
+    background-color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.surface};
+    gap: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.md}px;
+  `,
+  ImagePreview: styled(Image)`
+    width: 100%;
+    height: 320px;
+    border-radius: ${({ theme }: { theme: DefaultTheme }) => theme.radii.lg}px;
+    background-color: ${({ theme }: { theme: DefaultTheme }) => `${theme.colors.surfaceAlt}55`};
+  `,
+  ImagePreviewFallback: styled.Text`
+    text-align: center;
+    color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.textMuted};
+  `,
+  ImagePreviewMeta: styled.View`
+    gap: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.xs / 2}px;
+  `,
+  ImagePreviewTitle: styled.Text`
+    color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.text};
+    font-size: 16px;
+    font-weight: 600;
+  `,
+  ImagePreviewSubtitle: styled.Text`
+    color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.textMuted};
+    font-size: 13px;
+  `,
+  ImagePreviewCloseButton: styled.TouchableOpacity`
+    align-self: flex-end;
+    padding-horizontal: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.lg}px;
+    padding-vertical: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.sm}px;
+    border-radius: 999px;
+    background-color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.primary};
+  `,
+  ImagePreviewCloseText: styled.Text`
+    color: #fff;
+    font-weight: 600;
+    text-transform: capitalize;
   `,
 };
 
