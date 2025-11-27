@@ -1,6 +1,10 @@
-﻿import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+﻿import { MaterialCommunityIcons } from '@expo/vector-icons';
+import React, { useCallback, useMemo, useState } from 'react';
+import { ActivityIndicator, FlatList, ListRenderItem } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import styledNative, { useTheme } from 'styled-components/native';
+import AppHeader from '../../../components/AppHeader';
+import formatBytes from '../../../constants/formatBytes';
 import {
   deleteSelected,
   scanWhatsApp,
@@ -9,8 +13,11 @@ import {
   WhatsAppScanResult,
 } from './WhatsAppScanner';
 
-const formatSize = (size: number) => `${(size / (1024 * 1024)).toFixed(2)} MB`;
-const FILTER_TYPES: ('All' | WhatsAppFileType)[] = [
+const styled = styledNative;
+
+type FilterType = 'All' | WhatsAppFileType;
+
+const FILTER_TYPES: FilterType[] = [
   'All',
   'Images',
   'Video',
@@ -21,17 +28,22 @@ const FILTER_TYPES: ('All' | WhatsAppFileType)[] = [
   'Junk',
 ];
 
-export default function WhatsAppRemoverScreen() {
+const PREVIEWABLE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif', '.gif', '.mp4', '.mov'];
+
+const WhatsAppRemoverScreen = () => {
+  const theme = useTheme();
   const [files, setFiles] = useState<WhatsAppScanResult[]>([]);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [isScanning, setIsScanning] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [filterType, setFilterType] = useState<'All' | WhatsAppFileType>('All');
+  const [filterType, setFilterType] = useState<FilterType>('All');
+  const [thumbnailFallbacks, setThumbnailFallbacks] = useState<Record<string, boolean>>({});
 
   const onScan = useCallback(async () => {
     setIsScanning(true);
     setError(null);
+    setThumbnailFallbacks({});
     try {
       const results = await scanWhatsApp();
       setFiles(results);
@@ -103,282 +115,467 @@ export default function WhatsAppRemoverScreen() {
     });
   }, [filteredFiles, isAllFilteredSelected]);
 
-  const renderItem = ({ item }: { item: WhatsAppScanResult }) => {
-    const isActive = selected.has(item.path);
-    return (
-      <TouchableOpacity
-        style={[styles.row, isActive && styles.rowActive]}
-        onPress={() => toggleSelect(item.path)}
-        activeOpacity={0.7}
-      >
-        <View style={styles.rowMeta}>
-          <Text style={styles.rowType}>{item.type}</Text>
-          <Text style={styles.rowSize}>{formatSize(item.size)}</Text>
-        </View>
-        <Text style={styles.rowPath} numberOfLines={2}>
-          {item.path.replace('file://', '')}
-        </Text>
-      </TouchableOpacity>
-    );
-  };
+  const recordThumbnailError = useCallback((path: string) => {
+    setThumbnailFallbacks((prev) => {
+      if (prev[path]) {
+        return prev;
+      }
+      return { ...prev, [path]: true };
+    });
+  }, []);
+
+  const listContentInset = useMemo(
+    () => ({
+      paddingTop: theme.spacing.lg,
+      paddingHorizontal: theme.spacing.lg,
+      paddingBottom: theme.spacing.xl,
+    }),
+    [theme.spacing.lg, theme.spacing.xl],
+  );
+
+  const renderItem = useCallback<ListRenderItem<WhatsAppScanResult>>(
+    ({ item }) => {
+      const filename = getFilename(item.path);
+      const previewable = isPreviewableMedia(item.path) && !thumbnailFallbacks[item.path];
+      const isActive = selected.has(item.path);
+      return (
+        <FileRow activeOpacity={0.85} selected={isActive} onPress={() => toggleSelect(item.path)}>
+          <ThumbWrapper>
+            {previewable ? (
+              <ThumbnailImage
+                source={{ uri: item.path }}
+                resizeMode="cover"
+                onError={() => recordThumbnailError(item.path)}
+              />
+            ) : (
+              <ThumbnailFallback>
+                <MaterialCommunityIcons
+                  name="file-outline"
+                  size={24}
+                  color={theme.colors.textMuted}
+                />
+              </ThumbnailFallback>
+            )}
+            {isActive ? (
+              <SelectionBadge>
+                <MaterialCommunityIcons name="check" size={16} color="#fff" />
+              </SelectionBadge>
+            ) : null}
+          </ThumbWrapper>
+          <FileMeta>
+            <FileName numberOfLines={1}>{filename}</FileName>
+            <FileSize>{formatBytes(item.size)}</FileSize>
+          </FileMeta>
+        </FileRow>
+      );
+    },
+    [recordThumbnailError, selected, thumbnailFallbacks, theme.colors.textMuted, toggleSelect],
+  );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <View style={styles.header}>
-        <Text style={styles.title}>whatsapp remover</Text>
-        <TouchableOpacity
-          style={[styles.button, isScanning && styles.buttonDisabled]}
-          onPress={onScan}
-          disabled={isScanning}
-        >
-          {isScanning ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>scan whatsapp</Text>}
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.summaryRow}>
-        <View style={[styles.summaryCard, styles.summaryCardSpacing]}>
-          <Text style={styles.summaryLabel}>total weight</Text>
-          <Text style={styles.summaryValue}>{formatSize(summary.totalSize)}</Text>
-        </View>
-        <View style={[styles.summaryCard, styles.summaryCardSpacing]}>
-          <Text style={styles.summaryLabel}>items found</Text>
-          <Text style={styles.summaryValue}>{summary.totalCount}</Text>
-        </View>
-        <TouchableOpacity
-          style={[
-            styles.summaryCard,
-            styles.summaryCardLast,
-            styles.selectAllCard,
-            (!filteredFiles.length || isAllFilteredSelected) && styles.selectAllCardActive,
-          ]}
-          onPress={toggleSelectAllFiltered}
-          disabled={!filteredFiles.length}
-        >
-          <Text style={styles.summaryLabel}>filter select</Text>
-          <Text style={styles.summaryValue}>
-            {isAllFilteredSelected ? 'selected' : `${activeFilterCount} files`}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.filterRow}>
-        {FILTER_TYPES.map((type) => {
-          const isActive = filterType === type;
-          const countLabel =
-            type === 'All'
-              ? summary.totalCount
-              : summary.byType[type as WhatsAppFileType]?.count ?? 0;
-          return (
-            <TouchableOpacity
-              key={type}
-              style={[styles.filterPill, isActive && styles.filterPillActive]}
-              onPress={() => setFilterType(type)}
-            >
-              <Text style={styles.filterPillText}>
-                {type.toLowerCase()} · {countLabel}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-
+    <Screen edges={['top', 'bottom']}>
       <FlatList
         data={filteredFiles}
         keyExtractor={(item) => item.path}
-        contentContainerStyle={filteredFiles.length ? undefined : styles.emptyWrap}
-        ListEmptyComponent={
-          isScanning
-            ? null
-            : (
-              <Text style={styles.emptyText}>
-                {files.length
-                  ? 'no files match this filter.'
-                  : 'tap scan to snapshot whatsapp media folders instantly.'}
-              </Text>
-            )
-        }
         renderItem={renderItem}
+        contentContainerStyle={listContentInset}
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={
+          <HeaderSection>
+            <AppHeader title="whatsapp remover" />
+            <ActionsRow>
+              <ActionButton
+                tone="primary"
+                disabled={isScanning}
+                onPress={onScan}
+                accessibilityRole="button"
+              >
+                {isScanning ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <ActionLabel>scan whatsapp</ActionLabel>
+                )}
+              </ActionButton>
+              <ActionButton
+                tone="danger"
+                disabled={!checkedFiles.length || isDeleting}
+                onPress={onDelete}
+                accessibilityRole="button"
+              >
+                {isDeleting ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <ActionLabel>delete selected</ActionLabel>
+                )}
+              </ActionButton>
+            </ActionsRow>
+
+            <SelectionMetaCard>
+              <SelectionTextWrap>
+                <SelectionLabel>selected</SelectionLabel>
+                <SelectionValue>
+                  {checkedFiles.length} files · {formatBytes(selectedBytes)}
+                </SelectionValue>
+              </SelectionTextWrap>
+              <SelectAllButton
+                onPress={toggleSelectAllFiltered}
+                disabled={!filteredFiles.length}
+                activeOpacity={filteredFiles.length ? 0.85 : 1}
+                isActive={isAllFilteredSelected}
+              >
+                <MaterialCommunityIcons
+                  name={isAllFilteredSelected ? 'check-all' : 'selection'}
+                  size={18}
+                  color={isAllFilteredSelected ? theme.colors.secondary : theme.colors.text}
+                />
+                <SelectAllLabel>
+                  {isAllFilteredSelected ? 'clear filter' : 'select filter'}
+                </SelectAllLabel>
+              </SelectAllButton>
+            </SelectionMetaCard>
+
+            <SummaryGrid>
+              <SummaryCard>
+                <SummaryValue>{formatBytes(summary.totalSize)}</SummaryValue>
+                <SummaryLabel>total weight</SummaryLabel>
+              </SummaryCard>
+              <SummaryCard>
+                <SummaryValue>{summary.totalCount}</SummaryValue>
+                <SummaryLabel>items found</SummaryLabel>
+              </SummaryCard>
+              <SummaryCard>
+                <SummaryValue>{activeFilterCount}</SummaryValue>
+                <SummaryLabel>{filterType === 'All' ? 'visible files' : `${filterType.toLowerCase()} files`}</SummaryLabel>
+              </SummaryCard>
+            </SummaryGrid>
+
+            <FiltersHeader>
+              <FiltersTitle>filter by type</FiltersTitle>
+              <FiltersHint>{activeFilterCount} in view</FiltersHint>
+            </FiltersHeader>
+            <FiltersRow>
+              {FILTER_TYPES.map((type) => {
+                const isActive = type === filterType;
+                const countLabel =
+                  type === 'All' ? summary.totalCount : summary.byType[type as WhatsAppFileType]?.count ?? 0;
+                return (
+                  <FilterChip key={type} active={isActive} onPress={() => setFilterType(type)} activeOpacity={0.8}>
+                    <FilterChipText active={isActive}>
+                      {type.toLowerCase()} · {countLabel}
+                    </FilterChipText>
+                  </FilterChip>
+                );
+              })}
+            </FiltersRow>
+
+            {error ? (
+              <ErrorBanner>
+                <MaterialCommunityIcons name="alert-circle-outline" size={18} color="#ff8484" />
+                <ErrorText>{error}</ErrorText>
+              </ErrorBanner>
+            ) : null}
+          </HeaderSection>
+        }
+        ListEmptyComponent={
+          <EmptyCard>
+            {isScanning ? (
+              <>
+                <ActivityIndicator color={theme.colors.primary} />
+                <EmptyTitle>scanning whatsapp folders</EmptyTitle>
+                <EmptySubtitle>sit tight while we index your chats and media.</EmptySubtitle>
+              </>
+            ) : (
+              <>
+                <EmptyTitle>
+                  {files.length ? 'no files in this filter' : 'ready to clean whatsapp clutter'}
+                </EmptyTitle>
+                <EmptySubtitle>
+                  {files.length
+                    ? 'try switching to another media type.'
+                    : 'tap scan whatsapp to fetch images, audio, and docs instantly.'}
+                </EmptySubtitle>
+              </>
+            )}
+          </EmptyCard>
+        }
+        ListFooterComponent={<FooterSpacer />}
       />
-
-      <View style={styles.footer}>
-        <View>
-          <Text style={styles.summaryLabel}>selected</Text>
-          <Text style={styles.summaryValue}>
-            {checkedFiles.length} files · {formatSize(selectedBytes)}
-          </Text>
-        </View>
-        <TouchableOpacity
-          style={[
-            styles.button,
-            styles.deleteButton,
-            (!checkedFiles.length || isDeleting) && styles.buttonDisabled,
-          ]}
-          onPress={onDelete}
-          disabled={!checkedFiles.length || isDeleting}
-        >
-          {isDeleting ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>delete selected</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+    </Screen>
   );
-}
+};
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#050505',
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  title: {
-    color: '#f4f4f4',
-    fontSize: 20,
-    fontWeight: '600',
-  },
-  button: {
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 999,
-    backgroundColor: '#00a86b',
-  },
-  deleteButton: {
-    backgroundColor: '#ff4d4f',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  error: {
-    color: '#ff6b6b',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingBottom: 8,
-  },
-  summaryCard: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 14,
-    backgroundColor: '#0b0b0b',
-    borderWidth: 1,
-    borderColor: '#1d1d1d',
-  },
-  summaryCardSpacing: {
-    marginRight: 8,
-  },
-  summaryCardLast: {
-    marginLeft: 8,
-  },
-  selectAllCard: {
-    alignItems: 'flex-start',
-    justifyContent: 'center',
-  },
-  selectAllCardActive: {
-    borderColor: '#00a86b',
-  },
-  filterRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 20,
-    paddingBottom: 8,
-  },
-  filterPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#1d1d1d',
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  filterPillActive: {
-    borderColor: '#00a86b',
-  },
-  filterPillText: {
-    color: '#f4f4f4',
-    fontSize: 12,
-    textTransform: 'capitalize',
-  },
-  row: {
-    marginHorizontal: 20,
-    marginVertical: 6,
-    padding: 14,
-    borderRadius: 14,
-    backgroundColor: '#101010',
-    borderWidth: 1,
-    borderColor: '#1d1d1d',
-  },
-  rowActive: {
-    borderColor: '#00a86b',
-  },
-  rowMeta: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  rowType: {
-    color: '#f4f4f4',
-    fontWeight: '600',
-    fontSize: 16,
-    textTransform: 'capitalize',
-  },
-  rowSize: {
-    color: '#9aa0a6',
-    fontSize: 14,
-  },
-  rowPath: {
-    color: '#9aa0a6',
-    fontSize: 12,
-  },
-  emptyWrap: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 40,
-  },
-  emptyText: {
-    textAlign: 'center',
-    color: '#9aa0a6',
-    fontSize: 14,
-  },
-  footer: {
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#1d1d1d',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  summaryLabel: {
-    color: '#9aa0a6',
-    textTransform: 'uppercase',
-    fontSize: 12,
-    marginBottom: 4,
-  },
-  summaryValue: {
-    color: '#f4f4f4',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});
+const getFilename = (path: string) => {
+  const parts = path.split('/');
+  return parts[parts.length - 1] || path;
+};
+
+const isPreviewableMedia = (path: string) => {
+  const lower = path.toLowerCase();
+  return PREVIEWABLE_EXTENSIONS.some((ext) => lower.endsWith(ext));
+};
+
+const Screen = styled(SafeAreaView)`
+  flex: 1;
+  background-color: ${({ theme }) => theme.colors.background};
+`;
+
+const HeaderSection = styled.View`
+  width: 100%;
+  gap: ${({ theme }) => theme.spacing.md}px;
+  padding-bottom: ${({ theme }) => theme.spacing.md}px;
+`;
+
+const ActionsRow = styled.View`
+  flex-direction: row;
+  gap: ${({ theme }) => theme.spacing.sm}px;
+`;
+
+const ActionButton = styled.TouchableOpacity<{ tone: 'primary' | 'danger'; disabled?: boolean }>`
+  flex: 1;
+  padding-vertical: ${({ theme }) => theme.spacing.md - 2}px;
+  border-radius: ${({ theme }) => theme.radii.lg}px;
+  align-items: center;
+  justify-content: center;
+  background-color: ${({ tone, theme }) =>
+    tone === 'primary' ? theme.colors.secondary : theme.colors.accent};
+  opacity: ${({ disabled }) => (disabled ? 0.5 : 1)};
+`;
+
+const ActionLabel = styled.Text`
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+`;
+
+const SelectionMetaCard = styled.View`
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: ${({ theme }) => theme.spacing.md}px;
+  border-radius: ${({ theme }) => theme.radii.lg}px;
+  background-color: ${({ theme }) => theme.colors.surface};
+  border-width: 1px;
+  border-color: ${({ theme }) => `${theme.colors.surfaceAlt}55`};
+`;
+
+const SelectionTextWrap = styled.View`
+  flex: 1;
+  margin-right: ${({ theme }) => theme.spacing.sm}px;
+`;
+
+const SelectionLabel = styled.Text`
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-size: 12px;
+  text-transform: uppercase;
+`;
+
+const SelectionValue = styled.Text`
+  color: ${({ theme }) => theme.colors.text};
+  font-size: 15px;
+  font-weight: 600;
+  margin-top: 4px;
+`;
+
+const SelectAllButton = styled.TouchableOpacity<{ isActive: boolean }>`
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  padding: ${({ theme }) => `${theme.spacing.xs}px ${theme.spacing.sm}px`};
+  border-radius: 999px;
+  border-width: 1px;
+  border-color: ${({ isActive, theme }) =>
+    isActive ? theme.colors.secondary : `${theme.colors.surfaceAlt}99`};
+  background-color: ${({ isActive, theme }) =>
+    isActive ? `${theme.colors.secondary}22` : theme.colors.surface};
+`;
+
+const SelectAllLabel = styled.Text`
+  color: ${({ theme }) => theme.colors.text};
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: capitalize;
+`;
+
+const SummaryGrid = styled.View`
+  flex-direction: row;
+  gap: ${({ theme }) => theme.spacing.sm}px;
+`;
+
+const SummaryCard = styled.View`
+  flex: 1;
+  padding: ${({ theme }) => theme.spacing.md}px;
+  border-radius: ${({ theme }) => theme.radii.lg}px;
+  background-color: ${({ theme }) => theme.colors.surface};
+  border-width: 1px;
+  border-color: ${({ theme }) => `${theme.colors.surfaceAlt}55`};
+`;
+
+const SummaryValue = styled.Text`
+  color: ${({ theme }) => theme.colors.text};
+  font-size: 18px;
+  font-weight: 700;
+`;
+
+const SummaryLabel = styled.Text`
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-size: 11px;
+  text-transform: uppercase;
+  margin-top: 6px;
+`;
+
+const FiltersHeader = styled.View`
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+`;
+
+const FiltersTitle = styled.Text`
+  color: ${({ theme }) => theme.colors.text};
+  font-size: 15px;
+  font-weight: 600;
+  text-transform: capitalize;
+`;
+
+const FiltersHint = styled.Text`
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-size: 13px;
+`;
+
+const FiltersRow = styled.View`
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: ${({ theme }) => theme.spacing.xs}px;
+`;
+
+const FilterChip = styled.TouchableOpacity<{ active: boolean }>`
+  padding: ${({ theme }) => `${theme.spacing.xs}px ${theme.spacing.sm}px`};
+  border-radius: 999px;
+  border-width: 1px;
+  border-color: ${({ active, theme }) =>
+    active ? theme.colors.secondary : `${theme.colors.surfaceAlt}55`};
+  background-color: ${({ active, theme }) =>
+    active ? `${theme.colors.secondary}22` : theme.colors.surface};
+`;
+
+const FilterChipText = styled.Text<{ active: boolean }>`
+  color: ${({ active, theme }) => (active ? theme.colors.secondary : theme.colors.text)};
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: capitalize;
+`;
+
+const ErrorBanner = styled.View`
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  padding: ${({ theme }) => theme.spacing.sm}px;
+  border-radius: ${({ theme }) => theme.radii.lg}px;
+  background-color: rgba(255, 77, 79, 0.1);
+  border-width: 1px;
+  border-color: rgba(255, 77, 79, 0.4);
+`;
+
+const ErrorText = styled.Text`
+  color: #ff8a8a;
+  flex: 1;
+`;
+
+const FileRow = styled.TouchableOpacity<{ selected: boolean }>`
+  flex-direction: row;
+  align-items: center;
+  padding: ${({ theme }) => theme.spacing.md}px;
+  border-radius: ${({ theme }) => theme.radii.lg}px;
+  background-color: ${({ theme }) => theme.colors.surface};
+  border-width: 1px;
+  border-color: ${({ selected, theme }) =>
+    selected ? theme.colors.secondary : `${theme.colors.surfaceAlt}55`};
+  margin-top: ${({ theme }) => theme.spacing.sm}px;
+`;
+
+const ThumbWrapper = styled.View`
+  width: 60px;
+  height: 60px;
+  border-radius: ${({ theme }) => theme.radii.lg}px;
+  overflow: hidden;
+  background-color: ${({ theme }) => `${theme.colors.surfaceAlt}55`};
+  align-items: center;
+  justify-content: center;
+  margin-right: ${({ theme }) => theme.spacing.md}px;
+  position: relative;
+`;
+
+const ThumbnailImage = styled.Image`
+  width: 100%;
+  height: 100%;
+`;
+
+const ThumbnailFallback = styled.View`
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+`;
+
+const FileMeta = styled.View`
+  flex: 1;
+`;
+
+const FileName = styled.Text`
+  color: ${({ theme }) => theme.colors.text};
+  font-size: 16px;
+  font-weight: 600;
+`;
+
+const FileSize = styled.Text`
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-size: 13px;
+  margin-top: 4px;
+`;
+
+const SelectionBadge = styled.View`
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 11px;
+  background-color: ${({ theme }) => theme.colors.secondary};
+  align-items: center;
+  justify-content: center;
+  shadow-color: rgba(0, 0, 0, 0.25);
+  shadow-opacity: 0.3;
+  shadow-radius: 4px;
+  elevation: 4;
+`;
+
+const EmptyCard = styled.View`
+  margin-top: ${({ theme }) => theme.spacing.lg}px;
+  padding: ${({ theme }) => theme.spacing.lg}px;
+  border-radius: ${({ theme }) => theme.radii.xl}px;
+  background-color: ${({ theme }) => theme.colors.surface};
+  border-width: 1px;
+  border-color: ${({ theme }) => `${theme.colors.surfaceAlt}55`};
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.xs}px;
+`;
+
+const EmptyTitle = styled.Text`
+  color: ${({ theme }) => theme.colors.text};
+  font-size: 16px;
+  font-weight: 600;
+  text-align: center;
+`;
+
+const EmptySubtitle = styled.Text`
+  color: ${({ theme }) => theme.colors.textMuted};
+  text-align: center;
+  font-size: 13px;
+`;
+
+const FooterSpacer = styled.View`
+  height: ${({ theme }) => theme.spacing.xl}px;
+`;
+
+export default WhatsAppRemoverScreen;
+
