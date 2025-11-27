@@ -1,7 +1,6 @@
-import * as FileSystem from 'expo-file-system/legacy';
-import * as MediaLibrary from 'expo-media-library';
 import type { Permission } from 'react-native';
 import { PermissionsAndroid, Platform } from 'react-native';
+import RNFS from 'react-native-fs';
 
 export type LargeFileSource = 'recursive' | 'media' | 'extension' | 'old-large';
 
@@ -22,11 +21,11 @@ export interface ScanProgressSnapshot {
 }
 
 const PHASE_WEIGHTS: Record<ScanPhase, number> = {
-  permissions: 0.05,
-  media: 0.45,
-  directories: 0.3,
-  extensions: 0.15,
-  finalizing: 0.05,
+  permissions: 0.1,
+  media: 0,
+  directories: 0.8,
+  extensions: 0,
+  finalizing: 0.1,
 };
 const PHASE_ORDER: ScanPhase[] = ['permissions', 'media', 'directories', 'extensions', 'finalizing'];
 const PHASE_OFFSETS = PHASE_ORDER.reduce<Record<ScanPhase, number>>((acc, phase, index) => {
@@ -39,26 +38,24 @@ const PHASE_OFFSETS = PHASE_ORDER.reduce<Record<ScanPhase, number>>((acc, phase,
   return acc;
 }, {} as Record<ScanPhase, number>);
 
-const ROOTS = [
-  'file:///storage/emulated/0/Downloads',
-  'file:///storage/emulated/0/DCIM',
-  'file:///storage/emulated/0/Movies',
-  'file:///storage/emulated/0/Pictures',
-  'file:///storage/emulated/0/WhatsApp/Media',
-];
-const EXT_TARGETS = ['.mp4', '.mkv', '.zip', '.rar', '.obb', '.apk', '.pdf'];
-const MAX_DIRECTORY_DEPTH = 2;
-const OLD_FILE_AGE_MS = 90 * 24 * 60 * 60 * 1000;
-
-type FastInfo = {
-  exists: boolean;
-  size: number;
-  isDirectory: boolean;
-  modificationTime: number | null;
-};
-
 const DEFAULT_THRESHOLD = 10 * 1024 * 1024; // 10 MB
+const BATCH_SIZE = 24;
 const clamp = (value: number) => Math.min(Math.max(value, 0), 1);
+
+const ROOT_DIRECTORIES = [
+  RNFS.ExternalStorageDirectoryPath,
+  RNFS.DownloadDirectoryPath,
+  RNFS.ExternalDirectoryPath,
+  RNFS.DocumentDirectoryPath,
+].filter(Boolean) as string[];
+
+const SKIP_PATH_PATTERNS = [
+  /\/Android(\/|$)/i,
+  /\/DCIM\/\.thumbnails(\/|$)/i,
+  /\/WhatsApp\/\.Shared(\/|$)/i,
+  /\/\.Trash(\/|$)/i,
+  /\/\.RecycleBin(\/|$)/i,
+];
 
 export const scanLargeFiles = async (
   threshold: number = DEFAULT_THRESHOLD,
@@ -78,205 +75,87 @@ export const scanLargeFiles = async (
   }
   emit('permissions', 1, 'permission granted');
 
-  const media = await scanMedia(threshold, (progress, detail) => emit('media', progress, detail));
-  emit('media', 1, 'media library indexed');
-  const dirs = await scanDirectories(threshold, (progress, detail) => emit('directories', progress, detail));
-  emit('directories', 1, 'priority folders scanned');
-  const extFiles = await scanByExtension(threshold, (progress, detail) => emit('extensions', progress, detail));
-  emit('extensions', 1, 'extension targets scanned');
+  emit('directories', 0, 'initializing storage sweep');
+  const files = await scanFileSystem(threshold, (progress, detail) => emit('directories', progress, detail));
+  emit('directories', 1, 'file system traversal complete');
 
-  const merged = mergeResults([...media, ...dirs, ...extFiles]);
-  const withOldFlag = detectOldLargeFiles(merged, threshold);
   emit('finalizing', 1, 'compiling results');
-  return withOldFlag.sort((a, b) => b.size - a.size);
+  return dedupeResults(files).sort((a, b) => b.size - a.size);
 };
 
-const scanMedia = async (
+const scanFileSystem = async (
   threshold: number,
   reportProgress?: (progress: number, detail?: string) => void,
 ): Promise<LargeFileResult[]> => {
-  const permission = await MediaLibrary.requestPermissionsAsync();
-  if (!permission.granted) {
-    reportProgress?.(1, 'media permission denied');
+  const results: LargeFileResult[] = [];
+  const queue = [...new Set(ROOT_DIRECTORIES)];
+  const visited = new Set<string>();
+  let processed = 0;
+
+  while (queue.length > 0) {
+    const currentDir = queue.shift();
+    if (!currentDir || visited.has(currentDir) || shouldSkipPath(currentDir)) {
+      continue;
+    }
+    visited.add(currentDir);
+
+    const entries = await readDirSafe(currentDir);
+    processed += 1;
+    const detail = currentDir.split('/').pop() ?? currentDir;
+    const total = processed + queue.length || 1;
+    reportProgress?.(Math.min(processed / total, 0.99), detail);
+
+    const batches = chunkArray(entries, BATCH_SIZE);
+    for (const batch of batches) {
+      await Promise.all(
+        batch.map(async (entry) => {
+          if (shouldSkipPath(entry.path)) {
+            return;
+          }
+
+          if (entry.isFile() && entry.size >= threshold) {
+            results.push(createResult(entry.path, entry.size, entry.mtime ? entry.mtime.getTime() / 1000 : null));
+            return;
+          }
+
+          if (entry.isDirectory()) {
+            queue.push(entry.path);
+          }
+        }),
+      );
+    }
+  }
+
+  return results;
+};
+
+const chunkArray = <T>(items: T[], chunkSize: number): T[][] => {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += chunkSize) {
+    chunks.push(items.slice(i, i + chunkSize));
+  }
+  return chunks;
+};
+
+const readDirSafe = async (directory: string): Promise<RNFS.ReadDirItem[]> => {
+  try {
+    return await RNFS.readDir(directory);
+  } catch {
     return [];
   }
-
-  const collected: LargeFileResult[] = [];
-  let after: string | undefined;
-  let hasNextPage = true;
-  let batches = 0;
-  const MAX_HINT_BATCHES = 8;
-
-  while (hasNextPage) {
-    try {
-      const page = await MediaLibrary.getAssetsAsync({
-        mediaType: ['photo', 'video'],
-        first: 2000,
-        after,
-        sortBy: MediaLibrary.SortBy.modificationTime,
-      });
-
-      batches += 1;
-      hasNextPage = page.hasNextPage;
-      after = page.endCursor ?? undefined;
-      const progress = hasNextPage ? Math.min(batches / MAX_HINT_BATCHES, 0.95) : 1;
-      reportProgress?.(progress, `processed ${collected.length} assets`);
-
-      for (const asset of page.assets) {
-        const assetInfo = (await MediaLibrary.getAssetInfoAsync(asset)) as MediaLibrary.AssetInfo & {
-          size?: number;
-        };
-        const uri = assetInfo.localUri ?? asset.uri;
-        const size = assetInfo.size ?? 0;
-        if (size <= threshold) {
-          continue;
-        }
-        collected.push({
-          path: uri,
-          size,
-          modified: asset.modificationTime ?? null,
-          category: inferCategory(uri),
-          source: 'media',
-        });
-      }
-    } catch {
-      break;
-    }
-  }
-
-  return collected;
 };
 
-const scanDirectories = async (
-  threshold: number,
-  reportProgress?: (progress: number, detail?: string) => void,
-): Promise<LargeFileResult[]> => {
-  const out: LargeFileResult[] = [];
-  for (let index = 0; index < ROOTS.length; index += 1) {
-    const dir = ROOTS[index];
-    await walkDirectory(dir, 0, threshold, out);
-    reportProgress?.(((index + 1) / ROOTS.length) || 1, dir.split('/').pop() ?? dir);
-  }
-  return out;
-};
+const shouldSkipPath = (path: string): boolean => SKIP_PATH_PATTERNS.some((pattern) => pattern.test(path));
 
-const walkDirectory = async (
-  directory: string,
-  depth: number,
-  threshold: number,
-  results: LargeFileResult[],
-): Promise<void> => {
-  if (depth > MAX_DIRECTORY_DEPTH) {
-    return;
-  }
-
-  const entries = await safeReadDir(directory);
-  for (const entry of entries) {
-    const fullPath = joinPath(directory, entry);
-    const info = await fastInfo(fullPath);
-    if (!info.exists) {
-      continue;
-    }
-
-    if (info.isDirectory) {
-      if (shouldSkipDirectory(fullPath)) {
-        continue;
-      }
-      await walkDirectory(fullPath, depth + 1, threshold, results);
-      continue;
-    }
-
-    if (info.size > threshold) {
-      results.push(createResult(fullPath, info.size, info.modificationTime, 'recursive'));
-    }
-  }
-};
-
-const scanByExtension = async (
-  threshold: number,
-  reportProgress?: (progress: number, detail?: string) => void,
-): Promise<LargeFileResult[]> => {
-  const out: LargeFileResult[] = [];
-
-  for (let index = 0; index < ROOTS.length; index += 1) {
-    const root = ROOTS[index];
-    const entries = await safeReadDir(root);
-    for (const entry of entries) {
-      const fullPath = joinPath(root, entry);
-      if (!matchesLargeExtension(fullPath)) {
-        continue;
-      }
-      const info = await fastInfo(fullPath);
-      if (!info.exists || info.isDirectory || info.size <= threshold) {
-        continue;
-      }
-      out.push(createResult(fullPath, info.size, info.modificationTime, 'extension'));
-    }
-    reportProgress?.(((index + 1) / ROOTS.length) || 1, root.split('/').pop() ?? root);
-  }
-
-  return out;
-};
-
-const mergeResults = (items: LargeFileResult[]): LargeFileResult[] => {
-  const map = new Map<string, LargeFileResult>();
+const dedupeResults = (items: LargeFileResult[]): LargeFileResult[] => {
+  const seen = new Map<string, LargeFileResult>();
   for (const item of items) {
-    const existing = map.get(item.path);
-    if (!existing || item.size > existing.size) {
-      map.set(item.path, item);
+    const existing = seen.get(item.path);
+    if (!existing || existing.size < item.size) {
+      seen.set(item.path, item);
     }
   }
-  return Array.from(map.values());
-};
-
-const detectOldLargeFiles = (items: LargeFileResult[], threshold: number): LargeFileResult[] => {
-  const cutoff = Date.now() - OLD_FILE_AGE_MS;
-  return items.map((item) => {
-    if (item.size > threshold && item.modified !== null && item.modified * 1000 < cutoff) {
-      return { ...item, source: 'old-large' };
-    }
-    return item;
-  });
-};
-
-const matchesLargeExtension = (path: string): boolean =>
-  EXT_TARGETS.some((ext) => path.toLowerCase().endsWith(ext));
-
-const fastInfo = async (path: string): Promise<FastInfo> => {
-  try {
-    const info = (await FileSystem.getInfoAsync(path)) as FileSystem.FileInfo & {
-      size?: number;
-      modificationTime?: number;
-    };
-    return {
-      exists: info.exists ?? false,
-      size: info.size ?? 0,
-      isDirectory: Boolean((info as Record<string, unknown>).isDirectory),
-      modificationTime: info.modificationTime ?? null,
-    };
-  } catch {
-    return {
-      exists: false,
-      size: 0,
-      isDirectory: false,
-      modificationTime: null,
-    };
-  }
-};
-
-const safeReadDir = async (directory: string): Promise<string[]> => {
-  try {
-    const normalized = directory.endsWith('/') ? directory : `${directory}/`;
-    return await FileSystem.readDirectoryAsync(normalized);
-  } catch {
-    return [];
-  }
-};
-
-const joinPath = (base: string, segment: string): string => {
-  const normalizedBase = base.endsWith('/') ? base : `${base}/`;
-  const cleanedSegment = segment.replace(/^\/+/, '');
-  return `${normalizedBase}${cleanedSegment}`;
+  return Array.from(seen.values());
 };
 
 const inferCategory = (path: string): string => {
@@ -293,20 +172,13 @@ const inferCategory = (path: string): string => {
   return 'unknown';
 };
 
-const createResult = (
-  path: string,
-  size: number,
-  modified: number | null,
-  source: LargeFileSource,
-): LargeFileResult => ({
+const createResult = (path: string, size: number, modified: number | null): LargeFileResult => ({
   path,
   size,
   modified,
   category: inferCategory(path),
-  source,
+  source: 'recursive',
 });
-
-const shouldSkipDirectory = (path: string): boolean => path.includes('/Android/');
 
 const ensurePerms = async (): Promise<boolean> => {
   if (Platform.OS !== 'android') {
@@ -329,6 +201,10 @@ const ensurePerms = async (): Promise<boolean> => {
       ];
 
   const permissions = permissionCandidates.filter(Boolean) as Permission[];
+  if (!permissions.length) {
+    return true;
+  }
+
   const results = await PermissionsAndroid.requestMultiple(permissions);
   return permissions.every((permission) => results[permission] === PermissionsAndroid.RESULTS.GRANTED);
 };

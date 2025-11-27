@@ -10,7 +10,7 @@ import {
 import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
 import { homeScreenStyles } from "../../../styles/GlobalStyles";
-import scanOldFiles, { OldFileInfo } from "./OldFilesScanner";
+import { OldFileInfo, scanOldFiles } from "./OldFilesScanner";
 
 const { Screen, Content } = homeScreenStyles;
 
@@ -28,11 +28,6 @@ const OldFilesScreen = () => {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [oldFiles, setOldFiles] = useState<OldFileInfo[]>([]);
   const [loading, setLoading] = useState(false);
-
-  const totalSize = useMemo(
-    () => oldFiles.reduce((sum, file) => sum + (file.size || 0), 0),
-    [oldFiles]
-  );
 
   const handleScan = useCallback(async () => {
     setLoading(true);
@@ -70,13 +65,6 @@ const OldFilesScreen = () => {
         <AppHeader title="Old Files" />
 
         <View style={styles.heroCard}>
-          <View style={styles.heroHeader}>
-            <Text style={styles.heroTitle}>aging files cleanup</Text>
-            <Text style={styles.heroSubtitle}>
-              Find items untouched for 30+ days and reclaim storage safely.
-            </Text>
-          </View>
-
           <Pressable
             onPress={handleScan}
             style={({ pressed }) => [
@@ -94,43 +82,26 @@ const OldFilesScreen = () => {
           {loading && <ActivityIndicator style={styles.spinner} color={theme.colors.accent} />}
         </View>
 
-        <View style={styles.metricsRow}>
-          <View style={styles.metricCard}>
-            <Text style={styles.metricLabel}>files found</Text>
-            <Text style={styles.metricValue}>{oldFiles.length}</Text>
-          </View>
-          <View style={styles.metricCard}>
-            <Text style={styles.metricLabel}>total size</Text>
-            <Text style={styles.metricValue}>{formatSize(totalSize)}</Text>
-          </View>
+        <View style={styles.resultsHeader}>
+          <Text style={styles.resultsTitle}>scan results</Text>
+          <Text style={styles.resultsSubtitle}>
+            {oldFiles.length ? "sorted by oldest first" : "start a scan to inspect storage"}
+          </Text>
         </View>
 
-        <View style={styles.resultsCard}>
-          <View style={styles.resultsHeader}>
-            <Text style={styles.resultsTitle}>scan results</Text>
-            <Text style={styles.resultsSubtitle}>
-              {oldFiles.length ? "sorted by oldest first" : "start a scan to inspect storage"}
-            </Text>
-          </View>
-
-          <FlatList
-            data={oldFiles}
-            keyExtractor={(item) => item.path}
-            renderItem={renderItem}
-            contentContainerStyle={
-              oldFiles.length ? styles.listContent : styles.emptyState
-            }
-            ListEmptyComponent={
-              !loading ? (
-                <Text style={styles.emptyText}>
-                  tap “Scan Old Files” to analyze your storage.
-                </Text>
-              ) : null
-            }
-            style={styles.list}
-            showsVerticalScrollIndicator={false}
-          />
-        </View>
+        <FlatList
+          data={oldFiles}
+          keyExtractor={(item) => item.path}
+          renderItem={renderItem}
+          contentContainerStyle={oldFiles.length ? styles.listContent : styles.emptyState}
+          ListEmptyComponent={
+            !loading ? (
+              <Text style={styles.emptyText}>tap “Scan Old Files” to analyze your storage.</Text>
+            ) : null
+          }
+          style={styles.list}
+          showsVerticalScrollIndicator={false}
+        />
       </Content>
     </Screen>
   );
@@ -149,20 +120,6 @@ const createStyles = (theme: DefaultTheme) =>
       backgroundColor: theme.colors.surface,
       borderWidth: 1,
       borderColor: `${theme.colors.surfaceAlt}55`,
-    },
-    heroHeader: {
-      gap: theme.spacing.sm,
-    },
-    heroTitle: {
-      color: theme.colors.text,
-      fontSize: 20,
-      fontWeight: "700",
-      textTransform: "capitalize",
-    },
-    heroSubtitle: {
-      color: theme.colors.textMuted,
-      fontSize: 14,
-      lineHeight: 20,
     },
     scanButton: {
       marginTop: theme.spacing.md,
@@ -188,42 +145,8 @@ const createStyles = (theme: DefaultTheme) =>
     spinner: {
       marginTop: theme.spacing.sm,
     },
-    metricsRow: {
-      flexDirection: "row",
-      gap: theme.spacing.md,
-    },
-    metricCard: {
-      flex: 1,
-      padding: theme.spacing.md,
-      borderRadius: theme.radii.lg,
-      backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: `${theme.colors.surfaceAlt}55`,
-    },
-    metricLabel: {
-      color: theme.colors.textMuted,
-      fontSize: 12,
-      textTransform: "uppercase",
-      letterSpacing: 0.6,
-    },
-    metricValue: {
-      color: theme.colors.text,
-      fontSize: 22,
-      fontWeight: "700",
-      marginTop: theme.spacing.xs / 2,
-    },
-    resultsCard: {
-      flex: 1,
-      borderRadius: theme.radii.xl,
-      backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: `${theme.colors.surfaceAlt}55`,
-      paddingHorizontal: theme.spacing.md,
-      paddingTop: theme.spacing.md,
-      paddingBottom: theme.spacing.lg,
-    },
     resultsHeader: {
-      marginBottom: theme.spacing.md,
+      gap: theme.spacing.xs,
     },
     resultsTitle: {
       color: theme.colors.text,
@@ -240,8 +163,8 @@ const createStyles = (theme: DefaultTheme) =>
       flex: 1,
     },
     listContent: {
-      paddingBottom: theme.spacing.xl,
       gap: theme.spacing.sm,
+      paddingBottom: theme.spacing.xl,
     },
     emptyState: {
       flexGrow: 1,
