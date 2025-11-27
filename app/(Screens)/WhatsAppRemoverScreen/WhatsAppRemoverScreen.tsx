@@ -173,7 +173,7 @@ const WhatsAppRemoverScreen = () => {
   );
 
   return (
-    <Screen edges={['top', 'bottom']}>
+    <Screen edges={['bottom', 'left', 'right']}>
       <FlatList
         data={filteredFiles}
         keyExtractor={(item) => item.path}

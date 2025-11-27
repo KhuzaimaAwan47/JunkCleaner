@@ -148,7 +148,7 @@ const APKsRemoverScreen = () => {
   const showStarterCallout = !isScanning && totalInstallers === 0 && progress.total === 0 && !scanWasCancelled;
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <SafeAreaView style={styles.screen} edges={['bottom', 'left', 'right']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <AppHeader title="APK Remover" subtitle="installers clean-up" />
 

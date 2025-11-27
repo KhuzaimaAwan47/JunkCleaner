@@ -13,7 +13,7 @@ const NotificationReminderScreen = () => {
   const [whatsapp, setWhatsapp] = React.useState(true);
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <SafeAreaView style={styles.screen} edges={['bottom', 'left', 'right']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <AppHeader title="Reminders" subtitle="stay in sync" />
         <View style={styles.section}>

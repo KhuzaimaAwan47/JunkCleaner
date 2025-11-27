@@ -172,7 +172,7 @@ export default function UnusedAppsScreen() {
 
   if (showLoader) {
     return (
-      <Screen>
+      <Screen edges={['bottom', 'left', 'right']}>
         <AppHeader title={`unused apps (${totalAppCount})`} />
         <CenteredState>
           <ActivityIndicator color={theme.colors.primary} size="large" />
@@ -183,7 +183,7 @@ export default function UnusedAppsScreen() {
   }
 
   return (
-    <Screen>
+    <Screen edges={['bottom', 'left', 'right']}>
       <FlatList
         data={sortedApps}
         keyExtractor={keyExtractor}

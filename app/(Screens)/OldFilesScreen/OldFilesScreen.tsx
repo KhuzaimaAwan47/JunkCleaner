@@ -58,7 +58,7 @@ const OldFilesScreen = () => {
   );
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <SafeAreaView style={styles.screen} edges={['bottom', 'left', 'right']}>
       <View style={styles.content}>
         <AppHeader title="Old Files" />
 

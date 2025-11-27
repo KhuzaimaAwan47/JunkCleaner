@@ -204,7 +204,7 @@ const LargeFilesScreen: React.FC = () => {
   );
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <SafeAreaView style={styles.screen} edges={['bottom', 'left', 'right']}>
       <FlatList
         data={sortedFiles}
         keyExtractor={(item) => item.path}

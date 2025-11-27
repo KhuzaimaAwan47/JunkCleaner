@@ -96,7 +96,7 @@ const CacheLogsScreen = () => {
   );
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <SafeAreaView style={styles.screen} edges={['bottom', 'left', 'right']}>
       <View style={styles.content}>
         <AppHeader title="Cache & Logs" />
 

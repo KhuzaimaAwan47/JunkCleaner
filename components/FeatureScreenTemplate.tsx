@@ -32,7 +32,7 @@ const FeatureScreenTemplate: React.FC<Props> = ({
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   return (
-    <SafeAreaView style={styles.wrapper}>
+    <SafeAreaView style={styles.wrapper} edges={['bottom', 'left', 'right']}>
       <ScrollView style={styles.screen} showsVerticalScrollIndicator={false}>
         <AppHeader title={title} subtitle={subtitle} />
         <View style={styles.progressWrap}>

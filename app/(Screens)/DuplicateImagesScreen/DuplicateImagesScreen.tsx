@@ -254,7 +254,7 @@ export default function DuplicateImagesScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <SafeAreaView style={styles.screen} edges={['bottom', 'left', 'right']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <AppHeader title="Duplicate Images" subtitle="Review and clean identical photos quickly" />
 

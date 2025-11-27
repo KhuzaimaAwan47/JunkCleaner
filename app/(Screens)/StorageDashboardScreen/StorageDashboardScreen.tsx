@@ -12,7 +12,7 @@ const StorageDashboardScreen = () => {
   const styles = React.useMemo(() => createStyles(theme), [theme]);
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <SafeAreaView style={styles.screen} edges={['bottom', 'left', 'right']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <AppHeader title="Storage IQ" subtitle="visual dashboard" />
         <NeumorphicContainer padding={24} glass style={styles.sectionSpacing}>
