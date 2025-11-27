@@ -6,6 +6,7 @@ import styledNative, { useTheme } from "styled-components/native";
 
 import AdPlaceholder from "../../../components/AdPlaceholder";
 import AppHeader from "../../../components/AppHeader";
+import formatBytes from "../../../constants/formatBytes";
 import { scanUnusedApps, UnusedApp } from "./UnusedAppsScanner";
 
 const styled = styledNative;
@@ -51,6 +52,14 @@ export default function UnusedAppsScreen() {
   }, [runScan]);
 
   const totalAppCount = useMemo(() => sortedApps.length, [sortedApps]);
+  const totalSize = useMemo(
+    () => sortedApps.reduce((sum, app) => sum + (app.appSizeBytes ?? 0), 0),
+    [sortedApps]
+  );
+  const totalCacheSize = useMemo(
+    () => sortedApps.reduce((sum, app) => sum + (app.cacheSize ?? 0), 0),
+    [sortedApps]
+  );
 
   const keyExtractor = useCallback((item: UnusedApp) => item.packageName, []);
 
@@ -58,26 +67,52 @@ export default function UnusedAppsScreen() {
     ({ item }) => {
       const iconSource = getAppIconSource(item.icon);
       const lastUsedLabel = formatLastUsed(item.lastUsed);
+      const appSize = item.appSizeBytes ? formatBytes(item.appSizeBytes) : null;
+      const cacheSize = item.cacheSize ? formatBytes(item.cacheSize) : null;
+      const dataUsage = item.dataUsageBytes ? formatBytes(item.dataUsageBytes) : null;
+      const launchCount = item.launchCount ?? null;
+      const foregroundTime = item.totalForegroundTime
+        ? formatForegroundTime(item.totalForegroundTime)
+        : null;
 
       return (
         <AppCard accessible accessibilityRole="button">
-          <IconWrapper>
-            {iconSource ? (
-              <Image source={iconSource} style={{ width: "100%", height: "100%" }} contentFit="cover" transition={200} />
-            ) : (
-              <FallbackBubble>
-                <FallbackInitials>{item.name.slice(0, 2).toUpperCase()}</FallbackInitials>
-              </FallbackBubble>
-            )}
-          </IconWrapper>
-          <AppInfo>
-            <AppName numberOfLines={1}>{item.name}</AppName>
-            <PackageName numberOfLines={1}>{item.packageName}</PackageName>
-            <LastUsedText>{lastUsedLabel}</LastUsedText>
-          </AppInfo>
-          <ScoreBubble>
-            <ScoreLabel>{item.unusedScore}</ScoreLabel>
-          </ScoreBubble>
+          <AppCardContent>
+            <IconWrapper>
+              {iconSource ? (
+                <Image source={iconSource} style={{ width: "100%", height: "100%" }} contentFit="cover" transition={200} />
+              ) : (
+                <FallbackBubble>
+                  <FallbackInitials>{item.name.slice(0, 2).toUpperCase()}</FallbackInitials>
+                </FallbackBubble>
+              )}
+            </IconWrapper>
+            <AppInfo>
+              <AppHeaderRow>
+                <AppName numberOfLines={1}>{item.name}</AppName>
+                <ScoreBubble>
+                  <ScoreLabel>{item.unusedScore.toFixed(1)}</ScoreLabel>
+                </ScoreBubble>
+              </AppHeaderRow>
+              <PackageName numberOfLines={1}>{item.packageName}</PackageName>
+              <MetaRow>
+                <MetaText>{lastUsedLabel}</MetaText>
+                {launchCount !== null && <MetaText>• {launchCount} launches</MetaText>}
+              </MetaRow>
+              <MetricsRow>
+                {appSize && <MetricChip><MetricText>{appSize}</MetricText></MetricChip>}
+                {cacheSize && <MetricChip><MetricText>{cacheSize} cache</MetricText></MetricChip>}
+                {dataUsage && <MetricChip><MetricText>{dataUsage}</MetricText></MetricChip>}
+                {foregroundTime && <MetricChip><MetricText>{foregroundTime}</MetricText></MetricChip>}
+              </MetricsRow>
+              <BadgeRow>
+                {item.isSystemApp && <SystemBadge><BadgeText>system</BadgeText></SystemBadge>}
+                {item.foregroundServicePresent && (
+                  <ServiceBadge><BadgeText>foreground service</BadgeText></ServiceBadge>
+                )}
+              </BadgeRow>
+            </AppInfo>
+          </AppCardContent>
         </AppCard>
       );
     },
@@ -87,7 +122,21 @@ export default function UnusedAppsScreen() {
   const headerComponent = useMemo(
     () => (
       <HeaderBlock>
-        <AppHeader title={`unused apps (${totalAppCount})`} />
+        <AppHeader title={`unused apps (${totalAppCount})`} subtitle="apps with low usage patterns" />
+        <HeaderMetricsRow>
+          <MetricCard>
+            <MetricLabel>apps</MetricLabel>
+            <MetricValue>{totalAppCount}</MetricValue>
+          </MetricCard>
+          <MetricCard>
+            <MetricLabel>total size</MetricLabel>
+            <MetricValue>{formatBytes(totalSize)}</MetricValue>
+          </MetricCard>
+          <MetricCard>
+            <MetricLabel>cache</MetricLabel>
+            <MetricValue>{formatBytes(totalCacheSize)}</MetricValue>
+          </MetricCard>
+        </HeaderMetricsRow>
         <HeaderActions>
           <SortRow>
             {SORT_OPTIONS.map((option) => (
@@ -108,7 +157,7 @@ export default function UnusedAppsScreen() {
         {error ? <ErrorText>{error}</ErrorText> : null}
       </HeaderBlock>
     ),
-    [error, runScan, sortMode, totalAppCount]
+    [error, runScan, sortMode, totalAppCount, totalSize, totalCacheSize]
   );
 
   const footerComponent = useMemo(
@@ -189,7 +238,7 @@ const getAppIconSource = (icon?: UnusedApp["icon"]) => {
 };
 
 function formatLastUsed(lastUsed: number | null) {
-  if (!lastUsed) {
+  if (!lastUsed || lastUsed === 0) {
     return "never opened";
   }
 
@@ -215,6 +264,18 @@ function formatLastUsed(lastUsed: number | null) {
   return new Date(lastUsed).toLocaleDateString();
 }
 
+function formatForegroundTime(ms: number): string {
+  if (ms < 60 * 1000) {
+    return `${Math.floor(ms / 1000)}s`;
+  }
+  if (ms < 60 * 60 * 1000) {
+    return `${Math.floor(ms / (60 * 1000))}m`;
+  }
+  const hours = Math.floor(ms / (60 * 60 * 1000));
+  const minutes = Math.floor((ms % (60 * 60 * 1000)) / (60 * 1000));
+  return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+}
+
 function sortApps(apps: UnusedApp[], mode: SortMode) {
   if (mode === "oldest") {
     return [...apps].sort((a, b) => {
@@ -236,6 +297,33 @@ const HeaderBlock = styled.View`
   padding-top: ${({ theme }) => theme.spacing.xs}px;
   padding-bottom: ${({ theme }) => theme.spacing.lg}px;
   gap: ${({ theme }) => theme.spacing.md}px;
+`;
+
+const HeaderMetricsRow = styled.View`
+  flex-direction: row;
+  gap: ${({ theme }) => theme.spacing.sm}px;
+`;
+
+const MetricCard = styled.View`
+  flex: 1;
+  padding: ${({ theme }) => theme.spacing.md}px;
+  border-radius: ${({ theme }) => theme.radii.lg}px;
+  background-color: ${({ theme }) => theme.colors.surface};
+  border-width: 1px;
+  border-color: ${({ theme }) => `${theme.colors.surfaceAlt}55`};
+  gap: ${({ theme }) => theme.spacing.xs}px;
+`;
+
+const MetricLabel = styled.Text`
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-size: 12px;
+  text-transform: uppercase;
+`;
+
+const MetricValue = styled.Text`
+  color: ${({ theme }) => theme.colors.text};
+  font-size: 16px;
+  font-weight: 700;
 `;
 
 const HeaderActions = styled.View`
@@ -286,14 +374,17 @@ const ErrorText = styled.Text`
 `;
 
 const AppCard = styled.View`
-  flex-direction: row;
-  align-items: center;
-  padding: ${({ theme }) => theme.spacing.md}px;
   margin-bottom: ${({ theme }) => theme.spacing.md}px;
   background-color: ${({ theme }) => theme.colors.surface};
   border-radius: ${({ theme }) => theme.radii.lg}px;
   border-width: 1px;
   border-color: ${({ theme }) => `${theme.colors.surfaceAlt}55`};
+  overflow: hidden;
+`;
+
+const AppCardContent = styled.View`
+  flex-direction: row;
+  padding: ${({ theme }) => theme.spacing.md}px;
 `;
 
 const IconWrapper = styled.View`
@@ -325,28 +416,97 @@ const FallbackInitials = styled.Text`
 const AppInfo = styled.View`
   flex: 1;
   margin-left: ${({ theme }) => theme.spacing.md}px;
+  gap: 4px;
 `;
 
-const LastUsedText = styled.Text`
+const AppHeaderRow = styled.View`
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: ${({ theme }) => theme.spacing.sm}px;
+`;
+
+const MetaRow = styled.View`
+  flex-direction: row;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.xs}px;
+  margin-top: 2px;
+`;
+
+const MetaText = styled.Text`
   color: ${({ theme }) => theme.colors.textMuted};
   font-size: 12px;
+  text-transform: lowercase;
+`;
+
+const MetricsRow = styled.View`
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: ${({ theme }) => theme.spacing.xs}px;
   margin-top: 4px;
+`;
+
+const MetricChip = styled.View`
+  padding-horizontal: ${({ theme }) => theme.spacing.xs}px;
+  padding-vertical: 2px;
+  border-radius: 6px;
+  background-color: ${({ theme }) => `${theme.colors.surfaceAlt}66`};
+`;
+
+const MetricText = styled.Text`
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-size: 11px;
+  text-transform: lowercase;
+`;
+
+const BadgeRow = styled.View`
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: ${({ theme }) => theme.spacing.xs}px;
+  margin-top: 4px;
+`;
+
+const SystemBadge = styled.View`
+  padding-horizontal: ${({ theme }) => theme.spacing.xs}px;
+  padding-vertical: 2px;
+  border-radius: 6px;
+  background-color: ${({ theme }) => `${theme.colors.accent}22`};
+  border-width: 1px;
+  border-color: ${({ theme }) => `${theme.colors.accent}55`};
+`;
+
+const ServiceBadge = styled.View`
+  padding-horizontal: ${({ theme }) => theme.spacing.xs}px;
+  padding-vertical: 2px;
+  border-radius: 6px;
+  background-color: ${({ theme }) => `${theme.colors.primary}22`};
+  border-width: 1px;
+  border-color: ${({ theme }) => `${theme.colors.primary}55`};
+`;
+
+const BadgeText = styled.Text`
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-size: 10px;
+  font-weight: 600;
   text-transform: lowercase;
 `;
 
 const ScoreBubble = styled.View`
-  min-width: 36px;
-  min-height: 36px;
+  min-width: 40px;
+  min-height: 24px;
+  padding-horizontal: ${({ theme }) => theme.spacing.xs}px;
   border-radius: 999px;
   background-color: ${({ theme }) => `${theme.colors.primary}22`};
   align-items: center;
   justify-content: center;
+  border-width: 1px;
+  border-color: ${({ theme }) => `${theme.colors.primary}55`};
 `;
 
 const ScoreLabel = styled.Text`
   color: ${({ theme }) => theme.colors.primary};
   font-weight: 700;
-  font-size: 14px;
+  font-size: 12px;
 `;
 
 const AppName = styled.Text`
