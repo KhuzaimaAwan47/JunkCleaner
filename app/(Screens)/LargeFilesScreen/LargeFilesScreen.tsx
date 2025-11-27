@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -10,13 +10,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withSequence,
-  withTiming,
-} from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
@@ -45,15 +38,6 @@ const LargeFilesScreen: React.FC = () => {
     percent: 0,
     phase: "idle",
   });
-  const pulseScale = useSharedValue(1);
-
-  const listContentInset = useMemo(
-    () => ({
-      paddingHorizontal: theme.spacing.lg,
-      paddingBottom: theme.spacing.xl,
-    }),
-    [theme.spacing.lg, theme.spacing.xl],
-  );
 
   const filteredFiles = useMemo(() => {
     if (sourceFilter === "all") {
@@ -77,22 +61,6 @@ const LargeFilesScreen: React.FC = () => {
 
   const totalBytes = useMemo(() => files.reduce((sum, file) => sum + file.size, 0), [files]);
   const visibleBytes = useMemo(() => sortedFiles.reduce((sum, file) => sum + file.size, 0), [sortedFiles]);
-
-  const startButtonAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: pulseScale.value }],
-  }));
-
-  useEffect(() => {
-    if (!sortedFiles.length && !loading && !error) {
-      pulseScale.value = withRepeat(
-        withSequence(withTiming(1.04, { duration: 900 }), withTiming(1, { duration: 900 })),
-        -1,
-        true,
-      );
-      return;
-    }
-    pulseScale.value = withTiming(1, { duration: 250 });
-  }, [sortedFiles.length, loading, error, pulseScale]);
 
   const resultsAvailable = sortedFiles.length > 0;
   const filesInView = resultsAvailable ? sortedFiles.length : files.length;
@@ -205,88 +173,86 @@ const LargeFilesScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.screen} edges={['bottom', 'left', 'right']}>
-      <FlatList
-        data={sortedFiles}
-        keyExtractor={(item) => item.path}
-        renderItem={renderItem}
-        contentContainerStyle={[listContentInset, styles.listContent]}
-        ListHeaderComponent={
-          <View style={styles.listHeader}>
-            <AppHeader title="large files" subtitle="sniff out the biggest storage hogs" />
+      <View style={styles.content}>
+        <AppHeader title="large files" />
 
-            <View style={styles.summaryRow}>
-              <View style={styles.summaryCard}>
-                <View style={styles.summaryIcon}>
-                  <MaterialCommunityIcons
-                    name="folder-arrow-down-outline"
-                    size={20}
-                    color={theme.colors.primary}
-                  />
-                </View>
-                <Text style={styles.summaryValue}>{formatBytes(summaryBytes)}</Text>
-                <Text style={styles.summaryLabel}>
-                  {resultsAvailable ? "visible weight" : "total weight"}
-                </Text>
-              </View>
-              <View style={styles.summaryCard}>
-                <View style={styles.summaryIcon}>
-                  <MaterialCommunityIcons name="file-search-outline" size={20} color={theme.colors.accent} />
-                </View>
-                <Text style={styles.summaryValue}>{filesInView}</Text>
-                <Text style={styles.summaryLabel}>files found</Text>
-              </View>
-              <View style={styles.summaryCard}>
-                <View style={styles.summaryIcon}>
-                  <MaterialCommunityIcons name="clock-outline" size={20} color={theme.colors.secondary} />
-                </View>
-                <Text style={styles.summaryValue}>{lastScan ? formatLastScan(lastScan) : "—"}</Text>
-                <Text style={styles.summaryLabel}>last scan</Text>
-              </View>
-            </View>
-
-            {loading ? (
-              <View style={styles.progressCard}>
-                <View style={styles.progressHeader}>
-                  <ActivityIndicator color={theme.colors.primary} size="small" />
-                  <Text style={styles.progressPercent}>{Math.min(100, Math.max(0, scanProgress.percent))}%</Text>
-                </View>
-                <Text style={styles.progressText}>{progressLabel}</Text>
-                <Text style={styles.progressSubtext}>{progressDetail}</Text>
-              </View>
-            ) : null}
-
-            {!resultsAvailable ? (
-              <Animated.View style={startButtonAnimatedStyle}>
-                <TouchableOpacity
-                  disabled={loading}
-                  onPress={handleScan}
-                  activeOpacity={0.9}
-                  style={styles.scanButton}
-                >
-                  {loading ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <Text style={styles.scanButtonText}>start storage scan</Text>
-                  )}
-                </TouchableOpacity>
-              </Animated.View>
-            ) : (
-              <View style={styles.actionRow}>
-                <Text style={styles.actionHint}>need a fresh audit?</Text>
-                <TouchableOpacity
-                  disabled={loading}
-                  onPress={handleScan}
-                  activeOpacity={loading ? 1 : 0.9}
-                  style={[styles.rescanButton, loading && styles.rescanDisabled]}
-                >
-                  <Text style={styles.rescanButtonText}>{loading ? "scanning…" : "run scan"}</Text>
-                </TouchableOpacity>
-              </View>
-            )}
+        <View style={styles.heroCard}>
+          <View style={styles.heroHeader}>
+            <Text style={styles.heroTitle}>sniff out the biggest storage hogs</Text>
+            <Text style={styles.heroSubtitle}>
+              scan your device for large files that are consuming valuable storage space
+            </Text>
           </View>
-        }
-       showsVerticalScrollIndicator={false}
-      />
+
+          {loading ? (
+            <View style={styles.progressCard}>
+              <View style={styles.progressHeader}>
+                <ActivityIndicator color={theme.colors.primary} size="small" />
+                <Text style={styles.progressPercent}>{Math.min(100, Math.max(0, scanProgress.percent))}%</Text>
+              </View>
+              <Text style={styles.progressText}>{progressLabel}</Text>
+              <Text style={styles.progressSubtext}>{progressDetail}</Text>
+            </View>
+          ) : (
+            <TouchableOpacity
+              disabled={loading}
+              onPress={handleScan}
+              activeOpacity={0.9}
+              style={[styles.scanButton, loading && styles.scanButtonDisabled]}
+            >
+              <Text style={styles.scanButtonText}>
+                {loading ? "scanning…" : resultsAvailable ? "rescan storage" : "start storage scan"}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <View style={styles.metricsRow}>
+          <View style={styles.metricCard}>
+            <Text style={styles.metricLabel}>
+              {resultsAvailable ? "visible weight" : "total weight"}
+            </Text>
+            <Text style={styles.metricValue}>{formatBytes(summaryBytes)}</Text>
+          </View>
+          <View style={styles.metricCard}>
+            <Text style={styles.metricLabel}>files found</Text>
+            <Text style={styles.metricValue}>{filesInView}</Text>
+          </View>
+          <View style={styles.metricCard}>
+            <Text style={styles.metricLabel}>last scan</Text>
+            <Text style={styles.metricValue}>{lastScan ? formatLastScan(lastScan) : "—"}</Text>
+          </View>
+        </View>
+
+        <View style={styles.resultsCard}>
+          {resultsAvailable ? (
+            <FlatList
+              data={sortedFiles}
+              keyExtractor={(item) => item.path}
+              renderItem={renderItem}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.listContent}
+              ListEmptyComponent={
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyText}>no large files detected</Text>
+                </View>
+              }
+            />
+          ) : (
+            <View style={styles.emptyState}>
+              <MaterialCommunityIcons
+                name={error ? "alert-circle-outline" : "file-search-outline"}
+                size={48}
+                color={error ? theme.colors.error : theme.colors.textMuted}
+                style={styles.emptyIcon}
+              />
+              <Text style={[styles.emptyText, error && styles.emptyTextError]}>
+                {error || "run a scan to find large files consuming storage space"}
+              </Text>
+            </View>
+          )}
+        </View>
+      </View>
     </SafeAreaView>
   );
 };
@@ -316,60 +282,40 @@ const createStyles = (theme: DefaultTheme) =>
       flex: 1,
       backgroundColor: theme.colors.background,
     },
-    listContent: {
-      paddingBottom: theme.spacing.xl * 1.5,
-    },
-    listHeader: {
+    content: {
+      flex: 1,
       paddingHorizontal: theme.spacing.lg,
       paddingTop: theme.spacing.lg,
-      paddingBottom: theme.spacing.md,
+      gap: theme.spacing.lg,
+      paddingBottom: theme.spacing.xl,
     },
-    summaryRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      marginBottom: theme.spacing.lg,
-    },
-    summaryCard: {
-      flex: 1,
+    heroCard: {
+      borderRadius: theme.radii.xl,
+      padding: theme.spacing.lg,
       backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.lg,
-      padding: theme.spacing.md,
       borderWidth: 1,
-      borderColor: `${theme.colors.surfaceAlt}44`,
-      shadowColor: "rgba(0,0,0,0.05)",
-      shadowOpacity: 0.1,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 4 },
-      elevation: 3,
-      alignItems: "center",
-      gap: theme.spacing.xs,
+      borderColor: `${theme.colors.surfaceAlt}55`,
+      gap: theme.spacing.md,
     },
-    summaryIcon: {
-      width: 48,
-      height: 48,
-      borderRadius: 16,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: `${theme.colors.primary}11`,
+    heroHeader: {
+      gap: theme.spacing.sm,
     },
-    summaryValue: {
+    heroTitle: {
+      color: theme.colors.text,
       fontSize: theme.fontSize.xl,
       fontWeight: theme.fontWeight.bold,
-      color: theme.colors.text,
+      textTransform: "capitalize",
     },
-    summaryLabel: {
-      fontSize: theme.fontSize.xs,
+    heroSubtitle: {
       color: theme.colors.textMuted,
-      letterSpacing: 0.6,
-      textTransform: "uppercase",
+      fontSize: theme.fontSize.sm,
+      lineHeight: 20,
     },
     progressCard: {
-      backgroundColor: theme.colors.surface,
+      backgroundColor: `${theme.colors.surfaceAlt}33`,
       borderRadius: theme.radii.lg,
       padding: theme.spacing.md,
-      borderWidth: 1,
-      borderColor: `${theme.colors.surfaceAlt}44`,
-      marginBottom: theme.spacing.lg,
+      gap: theme.spacing.xs,
     },
     progressHeader: {
       flexDirection: "row",
@@ -392,78 +338,92 @@ const createStyles = (theme: DefaultTheme) =>
     },
     scanButton: {
       backgroundColor: theme.colors.primary,
-      borderRadius: theme.radii.xl,
+      borderRadius: theme.radii.lg,
       paddingVertical: theme.spacing.md,
       alignItems: "center",
       justifyContent: "center",
-      shadowColor: "rgba(0,0,0,0.25)",
-      shadowOpacity: 0.2,
-      shadowRadius: 12,
-      shadowOffset: { width: 0, height: 6 },
-      elevation: 6,
-      marginBottom: theme.spacing.lg,
     },
-    scanButtonText: {
-      color: "#fff",
-      fontSize: theme.fontSize.md,
-      fontWeight: theme.fontWeight.bold,
-      textTransform: "uppercase",
-      letterSpacing: 0.8,
-    },
-    actionRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.lg,
-      padding: theme.spacing.md,
-      borderWidth: 1,
-      borderColor: `${theme.colors.surfaceAlt}44`,
-      marginBottom: theme.spacing.lg,
-    },
-    actionHint: {
-      color: theme.colors.textMuted,
-      fontSize: theme.fontSize.sm,
-    },
-    rescanButton: {
-      backgroundColor: theme.colors.primary,
-      borderRadius: theme.radii.lg,
-      paddingVertical: theme.spacing.sm,
-      paddingHorizontal: theme.spacing.lg,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    rescanDisabled: {
+    scanButtonDisabled: {
       opacity: 0.6,
     },
-    rescanButtonText: {
-      color: "#fff",
+    scanButtonText: {
+      color: theme.colors.background,
+      fontSize: theme.fontSize.md,
+      fontWeight: theme.fontWeight.bold,
+      letterSpacing: 0.4,
+      textTransform: "uppercase",
+    },
+    metricsRow: {
+      flexDirection: "row",
+      gap: theme.spacing.md,
+    },
+    metricCard: {
+      flex: 1,
+      padding: theme.spacing.md,
+      borderRadius: theme.radii.lg,
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: `${theme.colors.surfaceAlt}55`,
+    },
+    metricLabel: {
+      color: theme.colors.textMuted,
+      fontSize: theme.fontSize.xs,
+      textTransform: "uppercase",
+      letterSpacing: 0.6,
+    },
+    metricValue: {
+      color: theme.colors.text,
+      fontSize: theme.fontSize.xl,
+      fontWeight: theme.fontWeight.bold,
+      marginTop: theme.spacing.xs / 2,
+    },
+    emptyTextError: {
+      color: theme.colors.error,
+    },
+    resultsCard: {
+      flex: 1,
+      borderRadius: theme.radii.xl,
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: `${theme.colors.surfaceAlt}55`,
+      padding: theme.spacing.md,
+      minHeight: 200,
+    },
+    listContent: {
+      paddingBottom: theme.spacing.sm,
+    },
+    emptyState: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: theme.spacing.xl * 2,
+      gap: theme.spacing.md,
+    },
+    emptyIcon: {
+      opacity: 0.5,
+    },
+    emptyText: {
+      color: theme.colors.textMuted,
       fontSize: theme.fontSize.sm,
-      fontWeight: theme.fontWeight.semibold,
+      textAlign: "center",
+      paddingHorizontal: theme.spacing.lg,
     },
     fileCard: {
-      marginHorizontal: theme.spacing.lg,
-      marginTop: theme.spacing.md,
-      backgroundColor: theme.colors.surface,
+      marginBottom: theme.spacing.md,
+      backgroundColor: theme.colors.surfaceAlt,
       borderRadius: theme.radii.lg,
       padding: theme.spacing.md,
-      borderWidth: 1,
-      borderColor: `${theme.colors.surfaceAlt}33`,
-      shadowColor: "rgba(0,0,0,0.05)",
-      shadowOpacity: 0.1,
-      shadowRadius: 10,
-      shadowOffset: { width: 0, height: 4 },
-      elevation: 3,
+      gap: theme.spacing.xs,
     },
     fileRow: {
       flexDirection: "row",
     },
     thumbnailWrapper: {
-      width: 64,
-      height: 64,
-      borderRadius: 16,
+      width: 56,
+      height: 56,
+      borderRadius: theme.radii.md,
       overflow: "hidden",
-      backgroundColor: `${theme.colors.surfaceAlt}55`,
+      backgroundColor: `${theme.colors.surfaceAlt}cc`,
       alignItems: "center",
       justifyContent: "center",
     },
@@ -476,11 +436,12 @@ const createStyles = (theme: DefaultTheme) =>
       height: "100%",
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: `${theme.colors.surfaceAlt}66`,
+      backgroundColor: `${theme.colors.primary}18`,
     },
     fileContent: {
       flex: 1,
       marginLeft: theme.spacing.md,
+      gap: theme.spacing.xs / 2,
     },
     fileHeader: {
       flexDirection: "row",
@@ -502,7 +463,7 @@ const createStyles = (theme: DefaultTheme) =>
       flexDirection: "row",
       flexWrap: "wrap",
       alignItems: "center",
-      marginTop: theme.spacing.xs,
+      gap: theme.spacing.xs,
     },
     tag: {
       paddingHorizontal: theme.spacing.sm,
@@ -513,8 +474,6 @@ const createStyles = (theme: DefaultTheme) =>
       fontSize: theme.fontSize.xs,
       textTransform: "uppercase",
       letterSpacing: 0.6,
-      marginRight: theme.spacing.xs,
-      marginBottom: theme.spacing.xs / 2,
     },
     tagAccent: {
       backgroundColor: `${theme.colors.primary}22`,
@@ -526,6 +485,7 @@ const createStyles = (theme: DefaultTheme) =>
     },
     pathText: {
       color: theme.colors.textMuted,
-      fontSize: theme.fontSize.sm,
+      fontSize: theme.fontSize.xs,
+      marginTop: theme.spacing.xs / 2,
     },
   });
