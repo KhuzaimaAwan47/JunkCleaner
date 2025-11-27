@@ -1,38 +1,8 @@
 ﻿import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React from "react";
-import { PressableProps } from "react-native";
-import styledNative, { DefaultTheme, useTheme } from "styled-components/native";
-
-const Container = styledNative.View`
-  width: 100%;
-  padding-bottom: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.sm}px;
-`;
-
-const TitleRow = styledNative.View`
-  flex-direction: row;
-  align-items: center;
-`;
-
-const TitleContent = styledNative.View`
-  flex: 1;
-  margin-left: ${({ theme }: { theme: DefaultTheme }) => theme.spacing.md}px;
-`;
-
-const Heading = styledNative.Text`
-  color: ${({ theme }: { theme: DefaultTheme }) => theme.colors.text};
-  font-size: 20px;
-  font-weight: 700;
-`;
-
-const IconButton = styledNative.Pressable`
-  width: 48px;
-  height: 48px;
-  border-radius: 16px;
-  align-items: center;
-  justify-content: center;
-  background-color: ${({ theme }: { theme: DefaultTheme }) => `${theme.colors.surfaceAlt}99`};
-`;
+import React, { useMemo } from "react";
+import { Pressable, PressableProps, StyleSheet, Text, View } from "react-native";
+import { DefaultTheme, useTheme } from "styled-components/native";
 
 type Props = {
   title: string;
@@ -48,6 +18,7 @@ const AppHeader: React.FC<Props> = ({
   onRightPress,
 }) => {
   const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const router = useRouter();
 
   const onbackPress = () => {
@@ -58,14 +29,13 @@ const AppHeader: React.FC<Props> = ({
   const isInteractive = Boolean(pressHandler);
 
   return (
-    <Container>
-      <TitleRow>
-        
-        <IconButton
+    <View style={styles.container}>
+      <View style={styles.titleRow}>
+        <Pressable
+          style={[styles.iconButton, { opacity: isInteractive ? 1 : 0.4 }]}
           onPress={pressHandler}
           disabled={!isInteractive}
           hitSlop={12}
-          style={{ opacity: isInteractive ? 1 : 0.4 }}
           accessibilityRole="button"
           accessibilityLabel="navigate back"
           accessibilityState={{ disabled: !isInteractive }}
@@ -75,15 +45,43 @@ const AppHeader: React.FC<Props> = ({
             size={28}
             color={theme.mode === "dark" ? theme.colors.text : theme.colors.primary}
           />
-        </IconButton>
+        </Pressable>
 
-        <TitleContent>
-          <Heading>{title}</Heading>
-        </TitleContent>
-
-      </TitleRow>
-    </Container>
+        <View style={styles.titleContent}>
+          <Text style={styles.heading}>{title}</Text>
+        </View>
+      </View>
+    </View>
   );
 };
 
 export default AppHeader;
+
+const createStyles = (theme: DefaultTheme) =>
+  StyleSheet.create({
+    container: {
+      width: "100%",
+      paddingBottom: theme.spacing.sm,
+    },
+    titleRow: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    titleContent: {
+      flex: 1,
+      marginLeft: theme.spacing.md,
+    },
+    heading: {
+      color: theme.colors.text,
+      fontSize: 20,
+      fontWeight: "700",
+    },
+    iconButton: {
+      width: 48,
+      height: 48,
+      borderRadius: 16,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: `${theme.colors.surfaceAlt}99`,
+    },
+  });

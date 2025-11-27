@@ -1,6 +1,6 @@
-﻿import React from "react";
-import styled, { useTheme } from "styled-components/native";
-import { Switch } from "react-native";
+﻿import React, { useMemo } from "react";
+import { StyleSheet, Switch, Text, View } from "react-native";
+import { DefaultTheme, useTheme } from "styled-components/native";
 import NeumorphicContainer from "./NeumorphicContainer";
 
 type Props = {
@@ -10,48 +10,49 @@ type Props = {
   onValueChange?: (value: boolean) => void;
 };
 
-const Row = styled.View`
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-`;
-
-const TextWrap = styled.View`
-  flex: 1;
-  margin-right: ${({ theme }) => theme.spacing.md}px;
-`;
-
-const Title = styled.Text`
-  color: ${({ theme }) => theme.colors.text};
-  font-size: 16px;
-  font-weight: 600;
-`;
-
-const Caption = styled.Text`
-  color: ${({ theme }) => theme.colors.textMuted};
-  font-size: 13px;
-  margin-top: 2px;
-`;
-
 const ToggleRow: React.FC<Props> = ({ title, caption, value, onValueChange }) => {
   const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   return (
     <NeumorphicContainer padding={18}>
-      <Row>
-        <TextWrap>
-          <Title>{title}</Title>
-          {caption ? <Caption>{caption}</Caption> : null}
-        </TextWrap>
+      <View style={styles.row}>
+        <View style={styles.textWrap}>
+          <Text style={styles.title}>{title}</Text>
+          {caption ? <Text style={styles.caption}>{caption}</Text> : null}
+        </View>
         <Switch
           value={value}
           onValueChange={onValueChange}
           trackColor={{ false: `${theme.colors.surfaceAlt}99`, true: theme.colors.primary }}
           thumbColor="#fff"
         />
-      </Row>
+      </View>
     </NeumorphicContainer>
   );
 };
 
 export default ToggleRow;
+
+const createStyles = (theme: DefaultTheme) =>
+  StyleSheet.create({
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    textWrap: {
+      flex: 1,
+      marginRight: theme.spacing.md,
+    },
+    title: {
+      color: theme.colors.text,
+      fontSize: 16,
+      fontWeight: "600",
+    },
+    caption: {
+      color: theme.colors.textMuted,
+      fontSize: 13,
+      marginTop: 2,
+    },
+  });

@@ -5,7 +5,6 @@ import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from "re
 import { SafeAreaView } from "react-native-safe-area-context";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import AdPlaceholder from "../../../components/AdPlaceholder";
-import AppHeader from "../../../components/AppHeader";
 import CircularStorageIndicator from "../../../components/CircularStorageIndicator";
 import FeatureCard from "../../../components/FeatureCard";
 import NeumorphicContainer from "../../../components/NeumorphicContainer";
@@ -40,7 +39,7 @@ const HomeScreen = () => {
   return (
     <SafeAreaView style={styles.screen}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <AppHeader title="smart cleaner" subtitle="system health overview" />
+
         <View style={styles.themeToggleRow}>
           <View style={styles.themeToggleTextWrap}>
             <Text style={styles.themeToggleLabel}>{isDarkMode ? "dark mode" : "light mode"}</Text>

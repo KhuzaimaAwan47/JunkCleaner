@@ -1,7 +1,7 @@
 ﻿import { LinearGradient } from "expo-linear-gradient";
 import React, { ReactNode, useMemo } from "react";
-import { StyleProp, ViewStyle } from "react-native";
-import styledNative, { useTheme } from "styled-components/native";
+import { Pressable, StyleProp, StyleSheet, View, ViewStyle } from "react-native";
+import { DefaultTheme, useTheme } from "styled-components/native";
 
 type Props = {
   children: ReactNode;
@@ -11,25 +11,6 @@ type Props = {
   style?: StyleProp<ViewStyle>;
 };
 
-const Base = styledNative.Pressable<{ glass?: boolean; padding?: number }>`
-  border-radius: ${({ theme }) => theme.radii.xl}px;
-  padding: ${({ padding, theme }) => padding ?? theme.spacing.lg}px;
-  background-color: ${({ glass, theme }) =>
-    glass ? `${theme.colors.surface}11` : theme.colors.surface};
-  border-width: ${({ glass }) => (glass ? 1 : 0)}px;
-  border-color: ${({ theme }) => `${theme.colors.surfaceAlt}66`};
-  overflow: hidden;
-`;
-
-const GlassOverlay = styledNative(LinearGradient)`
-  flex: 1;
-  border-radius: ${({ theme }) => theme.radii.xl}px;
-`;
-
-const Content = styledNative.View`
-  flex: 1;
-`;
-
 const NeumorphicContainer: React.FC<Props> = ({
   children,
   glass,
@@ -38,6 +19,7 @@ const NeumorphicContainer: React.FC<Props> = ({
   style,
 }) => {
   const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const shadowStyle = useMemo(
     () => ({
       shadowColor: theme.mode === 'dark' ? '#05070E' : `${theme.colors.surfaceAlt}aa`,
@@ -55,22 +37,50 @@ const NeumorphicContainer: React.FC<Props> = ({
       : ['rgba(255,255,255,0.95)', 'rgba(255,255,255,0.55)'];
 
   return (
-    <Base
-      padding={padding}
-      glass={glass}
+    <Pressable
       onPress={onPress}
       disabled={!onPress}
-      style={[shadowStyle, style]}
+      style={[
+        styles.base,
+        {
+          padding: padding ?? theme.spacing.lg,
+          backgroundColor: glass ? `${theme.colors.surface}11` : theme.colors.surface,
+          borderWidth: glass ? 1 : 0,
+        },
+        shadowStyle,
+        style,
+      ]}
     >
       {glass ? (
-        <GlassOverlay colors={gradientColors as [string, string]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-          <Content>{children}</Content>
-        </GlassOverlay>
+        <LinearGradient
+          colors={gradientColors as [string, string]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.glassOverlay}
+        >
+          <View style={styles.content}>{children}</View>
+        </LinearGradient>
       ) : (
-        <Content>{children}</Content>
+        <View style={styles.content}>{children}</View>
       )}
-    </Base>
+    </Pressable>
   );
 };
 
 export default NeumorphicContainer;
+
+const createStyles = (theme: DefaultTheme) =>
+  StyleSheet.create({
+    base: {
+      borderRadius: theme.radii.xl,
+      borderColor: `${theme.colors.surfaceAlt}66`,
+      overflow: "hidden",
+    },
+    glassOverlay: {
+      flex: 1,
+      borderRadius: theme.radii.xl,
+    },
+    content: {
+      flex: 1,
+    },
+  });

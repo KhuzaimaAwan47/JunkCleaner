@@ -1,6 +1,7 @@
 ﻿import React from "react";
+import { StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Defs, Stop, LinearGradient as SvgGradient } from "react-native-svg";
-import styledNative, { useTheme } from "styled-components/native";
+import { DefaultTheme, useTheme } from "styled-components/native";
 
 type Props = {
   total: number;
@@ -9,30 +10,6 @@ type Props = {
   label?: string;
 };
 
-const Wrapper = styledNative.View<{ size: number }>`
-  width: ${({ size }) => size}px;
-  height: ${({ size }) => size}px;
-  align-items: center;
-  justify-content: center;
-`;
-
-const Inner = styledNative.View`
-  position: absolute;
-  align-items: center;
-  justify-content: center;
-`;
-
-const Value = styledNative.Text`
-  font-size: 24px;
-  font-weight: 700;
-  color: ${({ theme }) => theme.colors.text};
-`;
-
-const Caption = styledNative.Text`
-  font-size: 13px;
-  color: ${({ theme }) => theme.colors.textMuted};
-`;
-
 const CircularStorageIndicator: React.FC<Props> = ({ total, used, size = 200, label = "Used" }) => {
   const strokeWidth = 18;
   const radius = (size - strokeWidth) / 2;
@@ -40,11 +17,12 @@ const CircularStorageIndicator: React.FC<Props> = ({ total, used, size = 200, la
   const progress = Math.min(1, used / total);
   const remaining = total - used;
   const theme = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
   const gradientId = React.useMemo(() => `usageGradient-${Math.random().toString(36).slice(2, 9)}`, []);
   const trackColor = `${theme.colors.surfaceAlt}55`;
 
   return (
-    <Wrapper size={size}>
+    <View style={[styles.wrapper, { width: size, height: size }]}>
       <Svg width={size} height={size}>
         <Defs>
           <SvgGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
@@ -72,13 +50,35 @@ const CircularStorageIndicator: React.FC<Props> = ({ total, used, size = 200, la
           strokeLinecap="round"
         />
       </Svg>
-      <Inner style={{ width: size - 80, height: size - 80 }}>
-        <Value>{used} GB</Value>
-        <Caption>{label}</Caption>
-        <Caption>{remaining.toFixed(1)} GB free</Caption>
-      </Inner>
-    </Wrapper>
+      <View style={[styles.inner, { width: size - 80, height: size - 80 }]}>
+        <Text style={styles.value}>{used} GB</Text>
+        <Text style={styles.caption}>{label}</Text>
+        <Text style={styles.caption}>{remaining.toFixed(1)} GB free</Text>
+      </View>
+    </View>
   );
 };
 
 export default CircularStorageIndicator;
+
+const createStyles = (theme: DefaultTheme) =>
+  StyleSheet.create({
+    wrapper: {
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    inner: {
+      position: "absolute",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    value: {
+      fontSize: 24,
+      fontWeight: "700",
+      color: theme.colors.text,
+    },
+    caption: {
+      fontSize: 13,
+      color: theme.colors.textMuted,
+    },
+  });
