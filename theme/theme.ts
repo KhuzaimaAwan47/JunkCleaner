@@ -5,40 +5,9 @@ import "styled-components";
 import "styled-components/native";
 import type { DefaultTheme } from "styled-components/native";
 
-type ColorTokens = {
-  primary: string;
-  primaryDark: string;
-  primaryLight: string;
-  secondary: string;
-  accent: string;
-  text: string;
-  textMuted: string;
-  black: string;
-  white: string;
-  grey: string;
-  neutral50: string;
-  neutral100: string;
-  neutral200: string;
-  neutral300: string;
-  neutral400: string;
-  neutral500: string;
-  neutral600: string;
-  neutral700: string;
-  neutral800: string;
-  neutral900: string;
-  success: string;
-  warning: string;
-  error: string;
-  info: string;
-  background: string;
-  surface: string;
-  surfaceAlt: string;
-  border: string;
-};
-
 // Color palette ------------------------------------------------------------
 
-export const allColors: ColorTokens = {
+export const allColors = {
   primary: "#007AFF",
   primaryDark: "#0056CC",
   primaryLight: "#4DA6FF",
@@ -69,7 +38,7 @@ export const allColors: ColorTokens = {
   border: "#E5E5E5",
 };
 
-export const darkColors: ColorTokens = {
+export const darkColors = {
   primary: "#007AFF",
   primaryDark: "#0056CC",
   primaryLight: "#4DA6FF",
@@ -276,7 +245,7 @@ export const neumorphicShadows = (isDark: boolean): ShadowSet => {
 declare module "styled-components" {
   export interface DefaultTheme {
     mode: ThemeMode;
-    colors: ColorTokens;
+    colors: typeof allColors | typeof darkColors;
     spacing: typeof spacing;
     radii: typeof radii;
     fontSize: typeof fontSize;
@@ -287,7 +256,7 @@ declare module "styled-components" {
 declare module "styled-components/native" {
   export interface DefaultTheme {
     mode: ThemeMode;
-    colors: ColorTokens;
+    colors: typeof allColors | typeof darkColors;
     spacing: typeof spacing;
     radii: typeof radii;
     fontSize: typeof fontSize;
