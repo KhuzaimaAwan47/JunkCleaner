@@ -11,10 +11,6 @@ const {
   Screen,
   Scroll,
   Content,
-  FilterRow,
-  FilterButton,
-  FilterButtonText,
-  FilterButtonIcon,
   SmartFilterControl,
   SmartFilterTextWrap,
   SmartFilterLabel,
@@ -27,8 +23,6 @@ const {
   FileCountText,
   ErrorContainer,
   ErrorText,
-  SummaryRow,
-  SummaryMeta,
   SummaryCard,
   SummaryTitle,
   SummaryText,
@@ -41,7 +35,6 @@ const {
   SelectAllIndicator,
   SelectAllIndicatorInner,
   SelectAllText,
-  SelectAllHint,
   ResultsContainer,
   ListEmptyState,
   EmptyTitle,
@@ -77,7 +70,6 @@ export default function DuplicateImagesScreen() {
   const { isScanning, progress, duplicates, error, startScan, stopScan } = useScanner();
   const pulseScale = useSharedValue(1);
   const [elapsedTime, setElapsedTime] = useState(0);
-  const [sortBy, setSortBy] = useState<'size' | 'name' | 'recent'>('size');
   const [smartFiltering, setSmartFiltering] = useState(false);
   const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(() => new Set());
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -194,36 +186,19 @@ export default function DuplicateImagesScreen() {
     : 0;
 
   const totalDuplicates = duplicateFiles.length;
-  const totalDuplicateSize = duplicateFiles.reduce((sum, file) => sum + file.size, 0);
-
   const scannedFiles = progress.scannedFiles ?? progress.current;
   const totalFiles = progress.totalFiles ?? progress.total;
 
-  const sortedFiles = useMemo(() => {
-    const filesCopy = [...duplicateFiles];
-    return filesCopy.sort((a, b) => {
-      if (sortBy === 'size') {
-        return b.size - a.size;
-      }
-      if (sortBy === 'name') {
-        const nameA = (a.path.split('/').pop() || '').toLowerCase();
-        const nameB = (b.path.split('/').pop() || '').toLowerCase();
-        return nameA.localeCompare(nameB);
-      }
-      return b.modifiedDate - a.modifiedDate;
-    });
-  }, [duplicateFiles, sortBy]);
-
   const selectedStats = useMemo(() => {
     const stats = { items: 0, size: 0 };
-    sortedFiles.forEach((file) => {
+    duplicateFiles.forEach((file) => {
       if (selectedFileIds.has(file.id)) {
         stats.items += 1;
         stats.size += file.size;
       }
     });
     return stats;
-  }, [selectedFileIds, sortedFiles]);
+  }, [selectedFileIds, duplicateFiles]);
 
   const formatBytes = (bytes: number): string => {
     if (bytes === 0) return '0 B';
@@ -231,14 +206,6 @@ export default function DuplicateImagesScreen() {
     const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
-  };
-
-  const handleToggleSort = () => {
-    setSortBy((prev) => {
-      if (prev === 'size') return 'name';
-      if (prev === 'name') return 'recent';
-      return 'size';
-    });
   };
 
   const toggleFileSelection = (id: string) => {
@@ -281,15 +248,11 @@ export default function DuplicateImagesScreen() {
     setSelectedFileIds(new Set(duplicateFiles.map((file) => file.id)));
   };
 
-  const sortLabel = sortBy === 'size' ? 'size' : sortBy === 'name' ? 'name' : 'date';
   const deleteDisabled = selectedStats.items === 0;
   const allSelected = duplicateFiles.length > 0 && selectedFileIds.size === duplicateFiles.length;
   const noneSelected = selectedFileIds.size === 0;
   const selectionState: 'all' | 'partial' | 'none' = allSelected ? 'all' : noneSelected ? 'none' : 'partial';
   const selectAllActionLabel = allSelected ? 'restore selection' : 'select all';
-  const selectionHint = smartFiltering
-    ? `smart filtering chose ${selectedStats.items} item${selectedStats.items !== 1 ? 's' : ''}`
-    : `${selectedStats.items} item${selectedStats.items !== 1 ? 's' : ''} selected`;
 
   return (
     <Screen>
@@ -297,20 +260,12 @@ export default function DuplicateImagesScreen() {
         <Content>
           <AppHeader title="Duplicate Images" subtitle="Review and clean identical photos quickly" />
 
-          <FilterRow>
-            <FilterButton onPress={handleToggleSort}>
-              <FilterButtonText>by {sortLabel}</FilterButtonText>
-              <FilterButtonIcon>
-                <MaterialCommunityIcons name="chevron-down" size={18} color="#6B6F80" />
-              </FilterButtonIcon>
-            </FilterButton>
-            <SmartFilterControl>
-              <SmartFilterTextWrap>
-                <SmartFilterLabel>smart filtering</SmartFilterLabel>
-              </SmartFilterTextWrap>
-              <SmartFilterSwitch value={smartFiltering} onValueChange={handleSmartFilteringToggle} />
-            </SmartFilterControl>
-          </FilterRow>
+          <SmartFilterControl>
+            <SmartFilterTextWrap>
+              <SmartFilterLabel>Smart filtering</SmartFilterLabel>
+            </SmartFilterTextWrap>
+            <SmartFilterSwitch value={smartFiltering} onValueChange={handleSmartFilteringToggle} />
+          </SmartFilterControl>
 
           {!isScanning && duplicateFiles.length === 0 && (
             <Animated.View style={buttonAnimatedStyle}>
@@ -319,15 +274,6 @@ export default function DuplicateImagesScreen() {
               </StartButton>
             </Animated.View>
           )}
-
-          <SummaryRow>
-            <SummaryMeta>
-              {sortedFiles.length} item{sortedFiles.length !== 1 ? 's' : ''} · {formatBytes(totalDuplicateSize)}
-            </SummaryMeta>
-            <SummaryMeta accent>
-              {totalDuplicates} duplicate{totalDuplicates !== 1 ? 's' : ''}
-            </SummaryMeta>
-          </SummaryRow>
 
           {isScanning && (
             <ProgressContainer>
@@ -369,24 +315,10 @@ export default function DuplicateImagesScreen() {
                   </SelectAllIndicator>
                   <SelectAllText>{selectAllActionLabel}</SelectAllText>
                 </SelectAllButton>
-                <SelectAllHint>{selectionHint}</SelectAllHint>
               </SelectRow>
 
-              <SummaryCard>
-                <SummaryTitle>Scan Complete</SummaryTitle>
-                <SummaryText>
-                  Scanned {progress.total || 0} files
-                </SummaryText>
-                <SummaryText>
-                  Found {totalDuplicates} duplicate{totalDuplicates !== 1 ? 's' : ''}
-                </SummaryText>
-                <RescanButton onPress={startScan} activeOpacity={0.8}>
-                  <RescanButtonText>Rescan</RescanButtonText>
-                </RescanButton>
-              </SummaryCard>
-
               <ResultsContainer>
-                {sortedFiles.map((file: DuplicateFileItem) => (
+                {duplicateFiles.map((file: DuplicateFileItem) => (
                   <DuplicateCard
                     key={file.id}
                     file={file}
@@ -404,20 +336,14 @@ export default function DuplicateImagesScreen() {
                 <>
                   <SummaryTitle>Scan Cancelled</SummaryTitle>
                   <SummaryText>
-                    Scanned {progress.scannedFiles || progress.current || 0} files before cancellation
-                  </SummaryText>
-                  <SummaryText>
-                    Scan was stopped before completion
+                    Scanned {progress.scannedFiles || progress.current || 0} files before cancellation.
                   </SummaryText>
                 </>
               ) : (
                 <>
                   <SummaryTitle>No Duplicates Found</SummaryTitle>
                   <SummaryText>
-                    Scanned {progress.total} files
-                  </SummaryText>
-                  <SummaryText>
-                    All files are unique
+                    Scanned {progress.total} files. All files are unique.
                   </SummaryText>
                 </>
               )}
@@ -431,7 +357,7 @@ export default function DuplicateImagesScreen() {
             <ListEmptyState>
               <EmptyTitle>No duplicate images yet</EmptyTitle>
               <EmptySubtitle>
-                Run a smart scan to surface identical photos and clean up your storage quickly.
+                Start a scan to find identical photos and free up storage space.
               </EmptySubtitle>
             </ListEmptyState>
           )}
