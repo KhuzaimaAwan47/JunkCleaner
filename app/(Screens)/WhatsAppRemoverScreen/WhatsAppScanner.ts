@@ -165,4 +165,5 @@ export const summarizeWhatsApp = (files: WhatsAppScanResult[]): WhatsAppSummary 
   };
 };
 
+export default scanWhatsApp;
 

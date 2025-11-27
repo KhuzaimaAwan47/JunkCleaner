@@ -419,3 +419,5 @@ function extractBooleanField(app: Record<string, unknown>, keys: string[]): bool
   }
   return undefined;
 }
+
+export default scanUnusedApps;
