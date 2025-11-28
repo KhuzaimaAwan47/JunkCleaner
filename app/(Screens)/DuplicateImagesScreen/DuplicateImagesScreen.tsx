@@ -262,7 +262,7 @@ export default function DuplicateImagesScreen() {
           <View style={styles.smartFilterCard}>
             <View style={styles.smartFilterText}>
               <Text style={styles.smartFilterLabel}>smart filtering</Text>
-              <Text style={styles.smartFilterCaption}>auto-select safe duplicates</Text>
+              {/* <Text style={styles.smartFilterCaption}>auto-select safe duplicates</Text> */}
             </View>
             <Switch
               value={smartFiltering}
