@@ -1,6 +1,6 @@
 ﻿import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Image, Modal, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { Dimensions, Image, Modal, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DefaultTheme, useTheme } from 'styled-components/native';
@@ -40,20 +40,6 @@ function ensurePreviewUri(path: string): string | null {
   return `file://${path}`;
 }
 
-function getFileName(path: string): string {
-  return path.split('/').pop() || path.split('\\').pop() || path;
-}
-
-function formatDateLabel(timestamp?: number): string {
-  if (!timestamp) return 'unknown date';
-  // Handle both seconds and milliseconds timestamps
-  const date = new Date(timestamp > 1e12 ? timestamp : timestamp * 1000);
-  if (isNaN(date.getTime())) return 'unknown date';
-  const month = (date.getMonth() + 1).toString().padStart(2, '0');
-  const day = date.getDate().toString().padStart(2, '0');
-  const year = date.getFullYear();
-  return `${month}/${day}/${year}`;
-}
 
 export default function DuplicateImagesScreen() {
   const { isScanning, progress, duplicates, error, startScan, stopScan } = useScanner();
@@ -403,27 +389,23 @@ export default function DuplicateImagesScreen() {
 
       <Modal visible={!!previewFile} transparent animationType="fade" onRequestClose={handlePreviewClose}>
         <View style={styles.previewBackdrop}>
-          <TouchableOpacity style={styles.previewDismissArea} onPress={handlePreviewClose} />
-          <View style={styles.previewCard}>
+          <TouchableOpacity 
+            style={styles.previewTouchArea}
+            activeOpacity={1}
+            onPress={handlePreviewClose}
+          >
             {previewUri ? (
-              <Image source={{ uri: previewUri }} resizeMode="contain" style={styles.previewImage} />
+              <Image 
+                source={{ uri: previewUri }} 
+                resizeMode="contain" 
+                style={styles.previewImage}
+              />
             ) : (
-              <Text style={styles.previewFallback}>cannot load preview</Text>
-            )}
-            {previewFile && (
-              <View style={styles.previewMeta}>
-                <Text style={styles.previewTitle} numberOfLines={1}>
-                  {getFileName(previewFile.path)}
-                </Text>
-                <Text style={styles.previewSubtitle}>
-                  {formatBytes(previewFile.size)} • {formatDateLabel(previewFile.modifiedDate)}
-                </Text>
+              <View style={styles.previewFallbackContainer}>
+                <Text style={styles.previewFallback}>cannot load preview</Text>
               </View>
             )}
-            <TouchableOpacity style={styles.previewCloseButton} onPress={handlePreviewClose}>
-              <Text style={styles.previewCloseText}>close</Text>
-            </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
         </View>
       </Modal>
     </SafeAreaView>
@@ -688,64 +670,28 @@ const createStyles = (theme: DefaultTheme) =>
     },
     previewBackdrop: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.8)',
+      backgroundColor: 'rgba(0,0,0,0.95)',
+    },
+    previewTouchArea: {
+      flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      padding: theme.spacing.lg,
-    },
-    previewDismissArea: {
-      position: 'absolute',
-      top: 0,
-      bottom: 0,
-      left: 0,
-      right: 0,
-    },
-    previewCard: {
       width: '100%',
-      borderRadius: theme.radii.xl,
-      backgroundColor: theme.colors.surface,
-      padding: theme.spacing.md,
-      alignItems: 'center',
-      gap: theme.spacing.md,
+      height: '100%',
     },
     previewImage: {
-      width: '100%',
-      height: 280,
-      borderRadius: theme.radii.lg,
-      backgroundColor: theme.colors.surfaceAlt,
+      width: Dimensions.get('window').width,
+      height: Dimensions.get('window').height,
+    },
+    previewFallbackContainer: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     previewFallback: {
       color: theme.colors.textMuted,
-      fontSize: theme.fontSize.sm,
-      textAlign: 'center',
-    },
-    previewMeta: {
-      width: '100%',
-      alignItems: 'center',
-      gap: theme.spacing.xs,
-    },
-    previewTitle: {
-      color: theme.colors.text,
       fontSize: theme.fontSize.md,
-      fontWeight: theme.fontWeight.semibold,
-    },
-    previewSubtitle: {
-      color: theme.colors.textMuted,
-      fontSize: theme.fontSize.sm,
-    },
-    previewCloseButton: {
-      width: '100%',
-      borderRadius: theme.radii.lg,
-      paddingVertical: theme.spacing.sm,
-      backgroundColor: theme.colors.primary,
-      alignItems: 'center',
-    },
-    previewCloseText: {
-      color: '#fff',
-      fontSize: theme.fontSize.sm,
-      fontWeight: theme.fontWeight.semibold,
-      textTransform: 'uppercase',
-      letterSpacing: 0.6,
+      textAlign: 'center',
     },
   });
 
