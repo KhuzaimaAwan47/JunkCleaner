@@ -46,7 +46,13 @@ function getFileName(path: string): string {
 
 function formatDateLabel(timestamp?: number): string {
   if (!timestamp) return 'unknown date';
-  return new Date(timestamp).toLocaleDateString();
+  // Handle both seconds and milliseconds timestamps
+  const date = new Date(timestamp > 1e12 ? timestamp : timestamp * 1000);
+  if (isNaN(date.getTime())) return 'unknown date';
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  const year = date.getFullYear();
+  return `${month}/${day}/${year}`;
 }
 
 export default function DuplicateImagesScreen() {
@@ -449,7 +455,8 @@ const createStyles = (theme: DefaultTheme) =>
       justifyContent: 'space-between',
       backgroundColor: theme.colors.surface,
       borderRadius: theme.radii.lg,
-      padding: theme.spacing.md,
+      paddingVertical: theme.spacing.sm,
+      paddingHorizontal: theme.spacing.md,
       borderWidth: 1,
       borderColor: `${theme.colors.surfaceAlt}55`,
     },
@@ -474,7 +481,8 @@ const createStyles = (theme: DefaultTheme) =>
       flex: 1,
       backgroundColor: theme.colors.surface,
       borderRadius: theme.radii.lg,
-      padding: theme.spacing.md,
+      paddingVertical: theme.spacing.sm,
+      paddingHorizontal: theme.spacing.md,
       borderWidth: 1,
       borderColor: `${theme.colors.surfaceAlt}55`,
     },
@@ -592,7 +600,7 @@ const createStyles = (theme: DefaultTheme) =>
     },
     resultsContainer: {},
     duplicateWrapper: {
-      marginBottom: theme.spacing.sm,
+      marginBottom: theme.spacing.xs,
     },
     summaryCard: {
       backgroundColor: theme.colors.surface,

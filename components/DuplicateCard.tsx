@@ -34,8 +34,13 @@ function getFileName(path: string): string {
 
 function formatDateLabel(timestamp?: number): string {
   if (!timestamp) return 'unknown date';
-  const date = new Date(timestamp);
-  return date.toLocaleDateString();
+  // Handle both seconds and milliseconds timestamps
+  const date = new Date(timestamp > 1e12 ? timestamp : timestamp * 1000);
+  if (isNaN(date.getTime())) return 'unknown date';
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  const year = date.getFullYear();
+  return `${month}/${day}/${year}`;
 }
 
 
@@ -158,7 +163,7 @@ export default function DuplicateCard({ file, isSelected, onToggleSelect, onPrev
 const createStyles = (theme: DefaultTheme) =>
   StyleSheet.create({
     cardWrapper: {
-      marginVertical: theme.spacing.xs,
+      marginVertical: 0,
     },
     cardInner: {
       width: '100%',
