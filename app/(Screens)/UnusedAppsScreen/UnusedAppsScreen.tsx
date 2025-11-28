@@ -76,7 +76,7 @@ export default function UnusedAppsScreen() {
         : null;
 
       return (
-        <AppCard accessible accessibilityRole="button">
+        <AppCard>
           <AppCardContent>
             <IconWrapper>
               {iconSource ? (
