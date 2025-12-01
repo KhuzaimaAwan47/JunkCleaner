@@ -2,7 +2,7 @@ import type { Permission } from 'react-native';
 import { PermissionsAndroid, Platform } from 'react-native';
 import RNFS from 'react-native-fs';
 
-export type JunkFileType = 'cache' | 'temp' | 'log' | 'apk' | 'large' | 'other';
+export type JunkFileType = 'cache' | 'temp' | 'log' | 'large' | 'other';
 
 export interface JunkFileItem {
   path: string;
@@ -87,9 +87,7 @@ const isJunkFile = (name: string, path: string): boolean => {
     if (JUNK_EXTENSIONS.includes(ext)) {
       return true;
     }
-    if (ext === '.apk') {
-      return true;
-    }
+    // Skip .apk files - they should be handled by APK remover, not junk scanner
   }
   
   // Check path for cache indicators
@@ -106,10 +104,6 @@ const detectJunkType = (name: string, path: string, size: number): JunkFileType 
   
   if (size > LARGE_FILE_SIZE) {
     return 'large';
-  }
-  
-  if (lowerName.endsWith('.apk')) {
-    return 'apk';
   }
   
   if (lowerName.endsWith('.log') || lowerName.endsWith('.trace')) {
@@ -249,6 +243,11 @@ export const scanJunkFiles = async (
 
           // Skip media and documents
           if (isMediaOrDocument(entry.path)) {
+            return;
+          }
+
+          // Skip APK files - they should be handled by APK remover
+          if (entry.name.toLowerCase().endsWith('.apk')) {
             return;
           }
 
