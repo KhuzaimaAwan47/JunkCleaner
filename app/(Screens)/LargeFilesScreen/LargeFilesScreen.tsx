@@ -2,9 +2,8 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  FlatList,
   Image,
-  ListRenderItem,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -13,6 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
+import NeumorphicContainer from "../../../components/NeumorphicContainer";
 import formatBytes from "../../../constants/formatBytes";
 import {
   LargeFileResult,
@@ -121,138 +121,140 @@ const LargeFilesScreen: React.FC = () => {
     });
   }, []);
 
-  const renderItem = useCallback<ListRenderItem<LargeFileResult>>(
-    ({ item }) => {
+  const renderFileItem = useCallback(
+    (item: LargeFileResult) => {
       const filename = item.path.split("/").pop() || item.path;
       const previewable = isPreviewableAsset(item.path) && !thumbnailFallbacks[item.path];
       return (
-        <View style={styles.fileCard}>
-          <View style={styles.fileRow}>
-            <View style={styles.thumbnailWrapper}>
-              {previewable ? (
-                <Image
-                  source={{ uri: item.path }}
-                  resizeMode="cover"
-                  style={styles.thumbnailImage}
-                  onError={() => recordThumbnailError(item.path)}
-                />
-              ) : (
-                <View style={styles.thumbnailFallback}>
-                  <MaterialCommunityIcons
-                    name="file-document-outline"
-                    size={26}
-                    color={theme.colors.textMuted}
+        <View key={item.path} style={styles.itemWrapper}>
+          <NeumorphicContainer padding={theme.spacing.md}>
+            <View style={styles.itemInner}>
+              <View style={styles.thumbnailWrapper}>
+                {previewable ? (
+                  <Image
+                    source={{ uri: item.path }}
+                    resizeMode="cover"
+                    style={styles.thumbnailImage}
+                    onError={() => recordThumbnailError(item.path)}
                   />
+                ) : (
+                  <View style={styles.thumbnailFallback}>
+                    <MaterialCommunityIcons
+                      name="file-document-outline"
+                      size={24}
+                      color={theme.colors.primary}
+                    />
+                  </View>
+                )}
+              </View>
+              <View style={styles.infoColumn}>
+                <View style={styles.fileHeader}>
+                  <Text style={styles.fileName} numberOfLines={1}>
+                    {filename}
+                  </Text>
+                  <Text style={styles.fileSize}>{formatBytes(item.size)}</Text>
                 </View>
-              )}
-            </View>
-            <View style={styles.fileContent}>
-              <View style={styles.fileHeader}>
-                <Text style={styles.fileName} numberOfLines={1}>
-                  {filename}
+                <View style={styles.badgeRow}>
+                  <Text style={styles.tag}>{item.category}</Text>
+                  <Text style={[styles.tag, styles.tagAccent]}>{item.source}</Text>
+                  {item.modified != null ? (
+                    <Text style={styles.metaText}>{formatTimestamp(item.modified)}</Text>
+                  ) : null}
+                </View>
+                <Text style={styles.pathText} numberOfLines={1}>
+                  {item.path}
                 </Text>
-                <Text style={styles.fileSize}>{formatBytes(item.size)}</Text>
               </View>
-              <View style={styles.badgeRow}>
-                <Text style={styles.tag}>{item.category}</Text>
-                <Text style={[styles.tag, styles.tagAccent]}>{item.source}</Text>
-                {item.modified != null ? (
-                  <Text style={styles.metaText}>{formatTimestamp(item.modified)}</Text>
-                ) : null}
-              </View>
-              <Text style={styles.pathText} numberOfLines={2}>
-                {item.path}
-              </Text>
             </View>
-          </View>
+          </NeumorphicContainer>
         </View>
       );
     },
-    [recordThumbnailError, theme.colors.textMuted, thumbnailFallbacks, styles],
+    [recordThumbnailError, theme.colors.primary, theme.spacing.md, thumbnailFallbacks, styles],
   );
 
   return (
     <SafeAreaView style={styles.screen} edges={['bottom', 'left', 'right']}>
-      <View style={styles.content}>
-        <AppHeader title="large files" />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <AppHeader title="Large Files" subtitle="Find and manage storage hogs" />
 
-        <View style={styles.heroCard}>
-          <View style={styles.heroHeader}>
-            <Text style={styles.heroTitle}>sniff out the biggest storage hogs</Text>
-            <Text style={styles.heroSubtitle}>
-              scan your device for large files that are consuming valuable storage space
-            </Text>
-          </View>
-
-          {loading ? (
-            <View style={styles.progressCard}>
-              <View style={styles.progressHeader}>
-                <ActivityIndicator color={theme.colors.primary} size="small" />
-                <Text style={styles.progressPercent}>{Math.min(100, Math.max(0, scanProgress.percent))}%</Text>
-              </View>
-              <Text style={styles.progressText}>{progressLabel}</Text>
-              <Text style={styles.progressSubtext}>{progressDetail}</Text>
-            </View>
-          ) : (
-            <TouchableOpacity
-              disabled={loading}
-              onPress={handleScan}
-              activeOpacity={0.9}
-              style={[styles.scanButton, loading && styles.scanButtonDisabled]}
-            >
-              <Text style={styles.scanButtonText}>
-                {loading ? "scanning…" : resultsAvailable ? "rescan storage" : "start storage scan"}
-              </Text>
+        {!loading && !resultsAvailable && (
+          <View style={[styles.primaryButtonContainer, styles.sectionSpacing]}>
+            <TouchableOpacity style={styles.primaryButton} onPress={handleScan} activeOpacity={0.8}>
+              <Text style={styles.primaryButtonText}>start storage scan</Text>
             </TouchableOpacity>
-          )}
-        </View>
+          </View>
+        )}
 
-        <View style={styles.metricsRow}>
-          <View style={styles.metricCard}>
-            <Text style={styles.metricLabel}>
-              {resultsAvailable ? "visible weight" : "total weight"}
-            </Text>
-            <Text style={styles.metricValue}>{formatBytes(summaryBytes)}</Text>
-          </View>
-          <View style={styles.metricCard}>
-            <Text style={styles.metricLabel}>files found</Text>
-            <Text style={styles.metricValue}>{filesInView}</Text>
-          </View>
-          <View style={styles.metricCard}>
-            <Text style={styles.metricLabel}>last scan</Text>
-            <Text style={styles.metricValue}>{lastScan ? formatLastScan(lastScan) : "—"}</Text>
-          </View>
-        </View>
-
-        <View style={styles.resultsCard}>
-          {resultsAvailable ? (
-            <FlatList
-              data={sortedFiles}
-              keyExtractor={(item) => item.path}
-              renderItem={renderItem}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.listContent}
-              ListEmptyComponent={
-                <View style={styles.emptyState}>
-                  <Text style={styles.emptyText}>no large files detected</Text>
-                </View>
-              }
-            />
-          ) : (
-            <View style={styles.emptyState}>
-              <MaterialCommunityIcons
-                name={error ? "alert-circle-outline" : "file-search-outline"}
-                size={48}
-                color={error ? theme.colors.error : theme.colors.textMuted}
-                style={styles.emptyIcon}
-              />
-              <Text style={[styles.emptyText, error && styles.emptyTextError]}>
-                {error || "run a scan to find large files consuming storage space"}
-              </Text>
+        {loading && (
+          <View style={[styles.progressCard, styles.sectionSpacing]}>
+            <View style={styles.progressHeader}>
+              <ActivityIndicator color={theme.colors.primary} size="small" />
+              <Text style={styles.progressPercent}>{Math.min(100, Math.max(0, scanProgress.percent))}%</Text>
             </View>
-          )}
-        </View>
-      </View>
+            <Text style={styles.progressText}>{progressLabel}</Text>
+            <Text style={styles.progressSubtext}>{progressDetail}</Text>
+          </View>
+        )}
+
+        {!loading && resultsAvailable && (
+          <>
+            <View style={[styles.metricsRow, styles.sectionSpacing]}>
+              <View style={styles.metricCard}>
+                <Text style={styles.metricLabel}>
+                  {resultsAvailable ? "visible weight" : "total weight"}
+                </Text>
+                <Text style={styles.metricValue}>{formatBytes(summaryBytes)}</Text>
+              </View>
+              <View style={styles.metricCard}>
+                <Text style={styles.metricLabel}>files found</Text>
+                <Text style={styles.metricValue}>{filesInView}</Text>
+              </View>
+              <View style={styles.metricCard}>
+                <Text style={styles.metricLabel}>last scan</Text>
+                <Text style={styles.metricValue}>{lastScan ? formatLastScan(lastScan) : "—"}</Text>
+              </View>
+            </View>
+
+            <View style={[styles.resultsContainer, styles.sectionSpacing]}>
+              {sortedFiles.map((file) => renderFileItem(file))}
+            </View>
+
+            <View style={[styles.rescanContainer, styles.sectionSpacing]}>
+              <TouchableOpacity style={styles.rescanButton} onPress={handleScan} activeOpacity={0.8}>
+                <Text style={styles.rescanButtonText}>rescan</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+
+        {!loading && !resultsAvailable && error && (
+          <View style={[styles.emptyCard, styles.sectionSpacing]}>
+            <MaterialCommunityIcons
+              name="alert-circle-outline"
+              size={48}
+              color={theme.colors.error}
+              style={styles.emptyIcon}
+            />
+            <Text style={[styles.emptyTitle, styles.emptyTextError]}>{error}</Text>
+          </View>
+        )}
+
+        {!loading && !resultsAvailable && !error && (
+          <View style={[styles.emptyCard, styles.sectionSpacing]}>
+            <MaterialCommunityIcons
+              name="file-search-outline"
+              size={48}
+              color={theme.colors.textMuted}
+              style={styles.emptyIcon}
+            />
+            <Text style={styles.emptyTitle}>no large files detected</Text>
+            <Text style={styles.emptySubtitle}>
+              Run a scan to find large files consuming storage space
+            </Text>
+          </View>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -283,38 +285,41 @@ const createStyles = (theme: DefaultTheme) =>
       backgroundColor: theme.colors.background,
     },
     content: {
-      flex: 1,
       paddingHorizontal: theme.spacing.lg,
       paddingTop: theme.spacing.lg,
-      gap: theme.spacing.lg,
-      paddingBottom: theme.spacing.xl,
+      paddingBottom: theme.spacing.xl * 1.5,
     },
-    heroCard: {
+    sectionSpacing: {
+      marginBottom: theme.spacing.lg,
+    },
+    primaryButtonContainer: {
+      marginTop: theme.spacing.md,
+    },
+    primaryButton: {
+      backgroundColor: theme.colors.primary,
       borderRadius: theme.radii.xl,
-      padding: theme.spacing.lg,
-      backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: `${theme.colors.surfaceAlt}55`,
-      gap: theme.spacing.md,
+      paddingVertical: theme.spacing.md,
+      alignItems: "center",
+      justifyContent: "center",
+      shadowColor: "rgba(0,0,0,0.2)",
+      shadowOpacity: 0.2,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: 6,
     },
-    heroHeader: {
-      gap: theme.spacing.sm,
-    },
-    heroTitle: {
-      color: theme.colors.text,
-      fontSize: theme.fontSize.xl,
+    primaryButtonText: {
+      color: "#fff",
+      fontSize: theme.fontSize.md,
       fontWeight: theme.fontWeight.bold,
-      textTransform: "capitalize",
-    },
-    heroSubtitle: {
-      color: theme.colors.textMuted,
-      fontSize: theme.fontSize.sm,
-      lineHeight: 20,
+      textTransform: "uppercase",
+      letterSpacing: 0.8,
     },
     progressCard: {
-      backgroundColor: `${theme.colors.surfaceAlt}33`,
+      backgroundColor: theme.colors.surface,
       borderRadius: theme.radii.lg,
-      padding: theme.spacing.md,
+      padding: theme.spacing.lg,
+      borderWidth: 1,
+      borderColor: `${theme.colors.surfaceAlt}44`,
       gap: theme.spacing.xs,
     },
     progressHeader: {
@@ -336,23 +341,6 @@ const createStyles = (theme: DefaultTheme) =>
       fontSize: theme.fontSize.sm,
       color: theme.colors.textMuted,
     },
-    scanButton: {
-      backgroundColor: theme.colors.primary,
-      borderRadius: theme.radii.lg,
-      paddingVertical: theme.spacing.md,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    scanButtonDisabled: {
-      opacity: 0.6,
-    },
-    scanButtonText: {
-      color: theme.colors.background,
-      fontSize: theme.fontSize.md,
-      fontWeight: theme.fontWeight.bold,
-      letterSpacing: 0.4,
-      textTransform: "uppercase",
-    },
     metricsRow: {
       flexDirection: "row",
       gap: theme.spacing.md,
@@ -373,55 +361,26 @@ const createStyles = (theme: DefaultTheme) =>
     },
     metricValue: {
       color: theme.colors.text,
-      fontSize: theme.fontSize.xl,
-      fontWeight: theme.fontWeight.bold,
+      fontSize: 22,
+      fontWeight: "700",
       marginTop: theme.spacing.xs / 2,
     },
-    emptyTextError: {
-      color: theme.colors.error,
-    },
-    resultsCard: {
-      flex: 1,
-      borderRadius: theme.radii.xl,
-      backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: `${theme.colors.surfaceAlt}55`,
-      padding: theme.spacing.md,
-      minHeight: 200,
-    },
-    listContent: {
-      paddingBottom: theme.spacing.sm,
-    },
-    emptyState: {
-      flex: 1,
-      alignItems: "center",
-      justifyContent: "center",
-      paddingVertical: theme.spacing.xl * 2,
-      gap: theme.spacing.md,
-    },
-    emptyIcon: {
-      opacity: 0.5,
-    },
-    emptyText: {
-      color: theme.colors.textMuted,
-      fontSize: theme.fontSize.sm,
-      textAlign: "center",
-      paddingHorizontal: theme.spacing.lg,
-    },
-    fileCard: {
-      marginBottom: theme.spacing.md,
-      backgroundColor: theme.colors.surfaceAlt,
-      borderRadius: theme.radii.lg,
-      padding: theme.spacing.md,
+    resultsContainer: {
       gap: theme.spacing.xs,
     },
-    fileRow: {
+    itemWrapper: {
+      marginVertical: 0,
+    },
+    itemInner: {
+      width: "100%",
       flexDirection: "row",
+      alignItems: "center",
+      gap: theme.spacing.sm,
     },
     thumbnailWrapper: {
       width: 56,
       height: 56,
-      borderRadius: theme.radii.md,
+      borderRadius: 18,
       overflow: "hidden",
       backgroundColor: `${theme.colors.surfaceAlt}cc`,
       alignItems: "center",
@@ -438,9 +397,8 @@ const createStyles = (theme: DefaultTheme) =>
       justifyContent: "center",
       backgroundColor: `${theme.colors.primary}18`,
     },
-    fileContent: {
+    infoColumn: {
       flex: 1,
-      marginLeft: theme.spacing.md,
       gap: theme.spacing.xs / 2,
     },
     fileHeader: {
@@ -452,7 +410,7 @@ const createStyles = (theme: DefaultTheme) =>
       flex: 1,
       color: theme.colors.text,
       fontSize: theme.fontSize.md,
-      fontWeight: theme.fontWeight.semibold,
+      fontWeight: theme.fontWeight.bold,
     },
     fileSize: {
       color: theme.colors.accent,
@@ -486,6 +444,49 @@ const createStyles = (theme: DefaultTheme) =>
     pathText: {
       color: theme.colors.textMuted,
       fontSize: theme.fontSize.xs,
-      marginTop: theme.spacing.xs / 2,
+    },
+    rescanContainer: {
+      marginTop: theme.spacing.md,
+    },
+    rescanButton: {
+      alignSelf: "flex-start",
+      borderRadius: theme.radii.lg,
+      borderWidth: 1,
+      borderColor: theme.colors.primary,
+      paddingHorizontal: theme.spacing.lg,
+      paddingVertical: theme.spacing.sm,
+    },
+    rescanButtonText: {
+      color: theme.colors.primary,
+      fontSize: theme.fontSize.sm,
+      fontWeight: theme.fontWeight.semibold,
+      textTransform: "uppercase",
+    },
+    emptyCard: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.radii.xl,
+      padding: theme.spacing.lg,
+      borderWidth: 1,
+      borderColor: `${theme.colors.surfaceAlt}44`,
+      alignItems: "center",
+      gap: theme.spacing.sm,
+    },
+    emptyIcon: {
+      opacity: 0.5,
+    },
+    emptyTitle: {
+      color: theme.colors.text,
+      fontSize: theme.fontSize.lg,
+      fontWeight: theme.fontWeight.bold,
+      textTransform: "capitalize",
+      textAlign: "center",
+    },
+    emptySubtitle: {
+      color: theme.colors.textMuted,
+      fontSize: theme.fontSize.sm,
+      textAlign: "center",
+    },
+    emptyTextError: {
+      color: theme.colors.error,
     },
   });
