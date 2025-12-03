@@ -14,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
 import NeumorphicContainer from "../../../components/NeumorphicContainer";
+import ScreenWrapper from "../../../components/ScreenWrapper";
 import { scanUnusedApps, UnusedAppInfo } from "./UnusedAppsScanner";
 
 type SectionData = {
@@ -121,11 +122,12 @@ const UnusedAppsScreen = () => {
   const keyExtractor = useCallback((item: UnusedAppInfo) => item.packageName, []);
 
   return (
-    <SafeAreaView style={styles.screen} edges={['bottom', 'left', 'right']}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
+    <ScreenWrapper style={styles.screen}>
+      <SafeAreaView style={{ flex: 1 }} edges={['bottom', 'left', 'right']}>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+        >
         <AppHeader title="Unused Apps" subtitle="Detect and manage unused applications" />
 
         {!loading && apps.length === 0 && (
@@ -194,7 +196,8 @@ const UnusedAppsScreen = () => {
           </View>
         )}
       </ScrollView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </ScreenWrapper>
   );
 };
 
@@ -202,7 +205,6 @@ const createStyles = (theme: DefaultTheme) =>
   StyleSheet.create({
     screen: {
       flex: 1,
-      backgroundColor: theme.colors.background,
     },
     content: {
       paddingHorizontal: theme.spacing.lg,

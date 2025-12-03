@@ -5,6 +5,7 @@ import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
 import NeumorphicContainer from "../../../components/NeumorphicContainer";
 import ResultStatCard from "../../../components/ResultStatCard";
+import ScreenWrapper from "../../../components/ScreenWrapper";
 import { storageStats } from "../../../dummydata/features";
 
 const StorageDashboardScreen = () => {
@@ -12,8 +13,9 @@ const StorageDashboardScreen = () => {
   const styles = React.useMemo(() => createStyles(theme), [theme]);
 
   return (
-    <SafeAreaView style={styles.screen} edges={['bottom', 'left', 'right']}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScreenWrapper style={styles.screen}>
+      <SafeAreaView style={{ flex: 1 }} edges={['bottom', 'left', 'right']}>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <AppHeader title="Storage IQ" subtitle="visual dashboard" />
         <NeumorphicContainer padding={24} glass style={styles.sectionSpacing}>
           <View style={styles.bars}>
@@ -46,7 +48,8 @@ const StorageDashboardScreen = () => {
           ))}
         </View>
       </ScrollView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </ScreenWrapper>
   );
 };
 
@@ -56,7 +59,6 @@ const createStyles = (theme: DefaultTheme) =>
   StyleSheet.create({
     screen: {
       flex: 1,
-      backgroundColor: theme.colors.background,
     },
     content: {
       paddingHorizontal: theme.spacing.lg,

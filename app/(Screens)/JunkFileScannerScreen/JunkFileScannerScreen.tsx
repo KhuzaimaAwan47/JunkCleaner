@@ -20,6 +20,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Circle, Defs, Stop, LinearGradient as SvgGradient } from "react-native-svg";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
+import ScreenWrapper from "../../../components/ScreenWrapper";
 import formatBytes from "../../../constants/formatBytes";
 import { deleteJunkFiles, JunkFileItem, scanJunkFiles } from "./JunkFileScanner";
 
@@ -217,8 +218,9 @@ const JunkFileScannerScreen = () => {
   );
 
   return (
-    <SafeAreaView style={styles.screen} edges={['bottom', 'left', 'right']}>
-      <View style={styles.content}>
+    <ScreenWrapper style={styles.screen}>
+      <SafeAreaView style={{ flex: 1 }} edges={['bottom', 'left', 'right']}>
+        <View style={styles.content}>
         <AppHeader title="Junk Scanner" />
 
         <View style={styles.heroCard}>
@@ -317,7 +319,8 @@ const JunkFileScannerScreen = () => {
           )}
         </View>
       </View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </ScreenWrapper>
   );
 };
 
@@ -325,7 +328,6 @@ const createStyles = (theme: DefaultTheme) =>
   StyleSheet.create({
     screen: {
       flex: 1,
-      backgroundColor: theme.colors.background,
     },
     content: {
       flex: 1,

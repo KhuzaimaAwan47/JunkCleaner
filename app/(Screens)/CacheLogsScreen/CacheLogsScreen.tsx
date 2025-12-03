@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
+import ScreenWrapper from "../../../components/ScreenWrapper";
 import ThemedList from "../../../components/ThemedList";
 import { ScanResult, clearAll, scanCachesAndLogs } from "./CacheLogsScanner";
 
@@ -96,8 +97,9 @@ const CacheLogsScreen = () => {
   );
 
   return (
-    <SafeAreaView style={styles.screen} edges={['bottom', 'left', 'right']}>
-      <View style={styles.content}>
+    <ScreenWrapper style={styles.screen}>
+      <SafeAreaView style={{ flex: 1 }} edges={['bottom', 'left', 'right']}>
+        <View style={styles.content}>
         <AppHeader title="Cache & Logs" />
 
         <View style={styles.heroCard}>
@@ -167,7 +169,8 @@ const CacheLogsScreen = () => {
           </Pressable>
         </View>
       </View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </ScreenWrapper>
   );
 };
 
@@ -175,7 +178,6 @@ const createStyles = (theme: DefaultTheme) =>
   StyleSheet.create({
     screen: {
       flex: 1,
-      backgroundColor: theme.colors.background,
     },
     content: {
       flex: 1,

@@ -8,6 +8,7 @@ import AppHeader from "./AppHeader";
 import NeumorphicContainer from "./NeumorphicContainer";
 import ResultStatCard from "./ResultStatCard";
 import ScanButton from "./ScanButton";
+import ScreenWrapper from "./ScreenWrapper";
 
 type Props = {
   title: string;
@@ -32,8 +33,9 @@ const FeatureScreenTemplate: React.FC<Props> = ({
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   return (
-    <SafeAreaView style={styles.wrapper} edges={['bottom', 'left', 'right']}>
-      <ScrollView style={styles.screen} showsVerticalScrollIndicator={false}>
+    <ScreenWrapper style={styles.wrapper}>
+      <SafeAreaView style={{ flex: 1 }} edges={['bottom', 'left', 'right']}>
+        <ScrollView style={styles.screen} showsVerticalScrollIndicator={false}>
         <AppHeader title={title} subtitle={subtitle} />
         <View style={styles.progressWrap}>
           <NeumorphicContainer padding={20}>
@@ -63,7 +65,8 @@ const FeatureScreenTemplate: React.FC<Props> = ({
         <ScanButton label="Scan Now" onPress={onScan} />
         <AdPlaceholder />
       </ScrollView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </ScreenWrapper>
   );
 };
 
@@ -73,7 +76,6 @@ const createStyles = (theme: DefaultTheme) =>
   StyleSheet.create({
     wrapper: {
       flex: 1,
-      backgroundColor: theme.colors.background,
     },
     screen: {
       flex: 1,

@@ -4,6 +4,7 @@ import { ActivityIndicator, FlatList, ListRenderItem } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import styledNative, { useTheme } from 'styled-components/native';
 import AppHeader from '../../../components/AppHeader';
+import ScreenWrapper from '../../../components/ScreenWrapper';
 import formatBytes from '../../../constants/formatBytes';
 import {
   deleteSelected,
@@ -173,8 +174,9 @@ const WhatsAppRemoverScreen = () => {
   );
 
   return (
-    <Screen edges={['bottom', 'left', 'right']}>
-      <FlatList
+    <ScreenWrapper>
+      <Screen edges={['bottom', 'left', 'right']}>
+        <FlatList
         data={filteredFiles}
         keyExtractor={(item) => item.path}
         renderItem={renderItem}
@@ -300,7 +302,8 @@ const WhatsAppRemoverScreen = () => {
         }
         ListFooterComponent={<FooterSpacer />}
       />
-    </Screen>
+      </Screen>
+    </ScreenWrapper>
   );
 };
 
@@ -316,7 +319,6 @@ const isPreviewableMedia = (path: string) => {
 
 const Screen = styled(SafeAreaView)`
   flex: 1;
-  background-color: ${({ theme }) => theme.colors.background};
 `;
 
 const HeaderSection = styled.View`

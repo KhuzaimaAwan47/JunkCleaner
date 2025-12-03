@@ -9,6 +9,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
+import ScreenWrapper from "../../../components/ScreenWrapper";
 import ThemedList from "../../../components/ThemedList";
 import { OldFileInfo, scanOldFiles } from "./OldFilesScanner";
 
@@ -58,8 +59,9 @@ const OldFilesScreen = () => {
   );
 
   return (
-    <SafeAreaView style={styles.screen} edges={['bottom', 'left', 'right']}>
-      <View style={styles.content}>
+    <ScreenWrapper style={styles.screen}>
+      <SafeAreaView style={{ flex: 1 }} edges={['bottom', 'left', 'right']}>
+        <View style={styles.content}>
         <AppHeader title="Old Files" />
 
         <View style={styles.heroCard}>
@@ -96,10 +98,11 @@ const OldFilesScreen = () => {
             oldFiles.length ? "sorted by oldest first" : "start a scan to inspect storage"
           }
           loading={loading}
-          emptyText="tap “Scan Old Files” to analyze your storage."
+          emptyText='tap "Scan Old Files" to analyze your storage.'
         />
       </View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </ScreenWrapper>
   );
 };
 
@@ -107,7 +110,6 @@ const createStyles = (theme: DefaultTheme) =>
   StyleSheet.create({
     screen: {
       flex: 1,
-      backgroundColor: theme.colors.background,
     },
     content: {
       flex: 1,

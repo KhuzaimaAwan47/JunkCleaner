@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
+import ScreenWrapper from "../../../components/ScreenWrapper";
 import ToggleRow from "../../../components/ToggleRow";
 
 const NotificationReminderScreen = () => {
@@ -13,8 +14,9 @@ const NotificationReminderScreen = () => {
   const [whatsapp, setWhatsapp] = React.useState(true);
 
   return (
-    <SafeAreaView style={styles.screen} edges={['bottom', 'left', 'right']}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScreenWrapper style={styles.screen}>
+      <SafeAreaView style={{ flex: 1 }} edges={['bottom', 'left', 'right']}>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <AppHeader title="Reminders" subtitle="stay in sync" />
         <View style={styles.section}>
           <ToggleRow title="Daily digest" caption="Summary at 09:00" value={daily} onValueChange={setDaily} />
@@ -32,7 +34,8 @@ const NotificationReminderScreen = () => {
           />
         </View>
       </ScrollView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </ScreenWrapper>
   );
 };
 
@@ -42,7 +45,6 @@ const createStyles = (theme: DefaultTheme) =>
   StyleSheet.create({
     screen: {
       flex: 1,
-      backgroundColor: theme.colors.background,
     },
     content: {
       paddingHorizontal: theme.spacing.lg,

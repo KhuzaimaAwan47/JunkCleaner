@@ -9,6 +9,7 @@ import CircularStorageIndicator from "../../../components/CircularStorageIndicat
 import FeatureCard from "../../../components/FeatureCard";
 import NeumorphicContainer from "../../../components/NeumorphicContainer";
 import ScanButton from "../../../components/ScanButton";
+import ScreenWrapper from "../../../components/ScreenWrapper";
 import { useThemeMode } from "../../../context/ThemeContext";
 import type { Feature } from "../../../dummydata/features";
 import { featureCards, storageStats } from "../../../dummydata/features";
@@ -37,8 +38,9 @@ const HomeScreen = () => {
   );
 
   return (
-    <SafeAreaView style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+    <ScreenWrapper style={styles.screen}>
+      <SafeAreaView style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
         <View style={styles.themeToggleRow}>
           <View style={styles.themeToggleTextWrap}>
@@ -118,6 +120,7 @@ const HomeScreen = () => {
           </View>
         </ScrollView>
       </SafeAreaView>
+    </ScreenWrapper>
   );
 };
 
@@ -127,7 +130,6 @@ const createStyles = (theme: DefaultTheme) =>
   StyleSheet.create({
     screen: {
       flex: 1,
-      backgroundColor: theme.colors.background,
     },
     scrollContent: {
       paddingHorizontal: theme.spacing.lg,

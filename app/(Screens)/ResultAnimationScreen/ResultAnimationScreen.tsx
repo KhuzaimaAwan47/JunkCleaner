@@ -8,6 +8,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import ResultStatCard from "../../../components/ResultStatCard";
 import ScanButton from "../../../components/ScanButton";
+import ScreenWrapper from "../../../components/ScreenWrapper";
 import {
   cleanResultBreakdown,
   cleanResultInsights,
@@ -22,8 +23,9 @@ const ResultAnimationScreen = () => {
   const styles = React.useMemo(() => createStyles(theme), [theme]);
 
   return (
-    <SafeAreaView style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content}>
+    <ScreenWrapper style={styles.screen}>
+      <SafeAreaView style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.animationWrap}>
           <MotiView
             from={{ scale: 0.85, opacity: 0.4 }}
@@ -105,7 +107,8 @@ const ResultAnimationScreen = () => {
           style={styles.scanButton}
         />
       </ScrollView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </ScreenWrapper>
   );
 };
 
@@ -115,7 +118,6 @@ const createStyles = (theme: DefaultTheme) =>
   StyleSheet.create({
     screen: {
       flex: 1,
-      backgroundColor: theme.colors.background,
     },
     content: {
       paddingHorizontal: theme.spacing.lg,

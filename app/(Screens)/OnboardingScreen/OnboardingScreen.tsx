@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { DefaultTheme, useTheme } from "styled-components/native";
+import ScreenWrapper from "../../../components/ScreenWrapper";
 import { appRoutes } from "../../../routes";
 
 const slides = [
@@ -51,61 +52,63 @@ const OnboardingScreen = () => {
   const handleGetStarted = () => router.replace(appRoutes.home);
 
   return (
-    <SafeAreaView style={styles.screen}>
-      <View style={styles.slidesArea}>
-        <FlatList
-          ref={flatListRef}
-          data={slides}
-          keyExtractor={(item) => item.title}
-          renderItem={({ item }) => (
-            <View style={[styles.slideWrapper, { width }]}>
-              <View style={styles.iconHalo}>
-                <View style={styles.iconBubble}>
-                  <MaterialCommunityIcons
-                    name={item.icon as any}
-                    size={100}
-                    color={theme.colors.primary}
-                  />
+    <ScreenWrapper style={styles.screen}>
+      <SafeAreaView style={{ flex: 1 }}>
+        <View style={styles.slidesArea}>
+          <FlatList
+            ref={flatListRef}
+            data={slides}
+            keyExtractor={(item) => item.title}
+            renderItem={({ item }) => (
+              <View style={[styles.slideWrapper, { width }]}>
+                <View style={styles.iconHalo}>
+                  <View style={styles.iconBubble}>
+                    <MaterialCommunityIcons
+                      name={item.icon as any}
+                      size={100}
+                      color={theme.colors.primary}
+                    />
+                  </View>
                 </View>
+                <Text style={styles.title}>{item.title}</Text>
+                <Text style={styles.description}>{item.description}</Text>
               </View>
-              <Text style={styles.title}>{item.title}</Text>
-              <Text style={styles.description}>{item.description}</Text>
-            </View>
-          )}
-          horizontal
-          pagingEnabled
-          bounces={false}
-          showsHorizontalScrollIndicator={false}
-          snapToAlignment="center"
-          decelerationRate="fast"
-          onMomentumScrollEnd={handleMomentumEnd}
-          getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
-          contentContainerStyle={styles.slidesContent}
-        />
-      </View>
-      <View style={styles.footer}>
-        <View style={styles.dots}>
-          {slides.map((_, index) => (
-            <TouchableOpacity
-              key={index}
-              onPress={() => {
-                flatListRef.current?.scrollToOffset({ offset: width * index, animated: true });
-                setActiveIndex(index);
-              }}
-              accessibilityRole="button"
-              accessibilityLabel={`Go to slide ${index + 1}`}
-              style={styles.dotButton}
-            >
-              <View style={[styles.dot, index === activeIndex && styles.dotActive]} />
-            </TouchableOpacity>
-          ))}
+            )}
+            horizontal
+            pagingEnabled
+            bounces={false}
+            showsHorizontalScrollIndicator={false}
+            snapToAlignment="center"
+            decelerationRate="fast"
+            onMomentumScrollEnd={handleMomentumEnd}
+            getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
+            contentContainerStyle={styles.slidesContent}
+          />
         </View>
-        <TouchableOpacity style={styles.primaryButton} onPress={handleGetStarted} activeOpacity={0.9}>
-          <Text style={styles.buttonLabel}>get started</Text>
-          <MaterialCommunityIcons name="arrow-right" size={20} color="#fff" style={styles.buttonIcon} />
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+        <View style={styles.footer}>
+          <View style={styles.dots}>
+            {slides.map((_, index) => (
+              <TouchableOpacity
+                key={index}
+                onPress={() => {
+                  flatListRef.current?.scrollToOffset({ offset: width * index, animated: true });
+                  setActiveIndex(index);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={`Go to slide ${index + 1}`}
+                style={styles.dotButton}
+              >
+                <View style={[styles.dot, index === activeIndex && styles.dotActive]} />
+              </TouchableOpacity>
+            ))}
+          </View>
+          <TouchableOpacity style={styles.primaryButton} onPress={handleGetStarted} activeOpacity={0.9}>
+            <Text style={styles.buttonLabel}>get started</Text>
+            <MaterialCommunityIcons name="arrow-right" size={20} color="#fff" style={styles.buttonIcon} />
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    </ScreenWrapper>
   );
 };
 
@@ -115,7 +118,6 @@ const createStyles = (theme: DefaultTheme) =>
   StyleSheet.create({
     screen: {
       flex: 1,
-      backgroundColor: theme.colors.background,
       padding: theme.spacing.lg,
     },
     slidesArea: {

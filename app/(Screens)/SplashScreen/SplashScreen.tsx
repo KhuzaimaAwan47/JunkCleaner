@@ -5,6 +5,7 @@ import React, { useEffect } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { DefaultTheme, useTheme } from "styled-components/native";
+import ScreenWrapper from "../../../components/ScreenWrapper";
 import { appRoutes } from "../../../routes";
 
 const SplashScreen = () => {
@@ -16,19 +17,21 @@ const SplashScreen = () => {
   }, []);
 
   return (
-    <SafeAreaView style={styles.screen}>
-      <MotiView
-        from={{ scale: 0.8, opacity: 0.3 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ loop: true, type: "timing", duration: 1400 }}
-      >
-        <View style={styles.iconRing}>
-          <MaterialCommunityIcons name="robot-excited-outline" size={88} color={theme.colors.primary} />
-        </View>
-      </MotiView>
-      <Text style={styles.title}>ai junk cleaner</Text>
-      <Text style={styles.subtitle}>digitally spotless in seconds</Text>
-    </SafeAreaView>
+    <ScreenWrapper style={styles.screen}>
+      <SafeAreaView style={{ flex: 1 }}>
+        <MotiView
+          from={{ scale: 0.8, opacity: 0.3 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ loop: true, type: "timing", duration: 1400 }}
+        >
+          <View style={styles.iconRing}>
+            <MaterialCommunityIcons name="robot-excited-outline" size={88} color={theme.colors.primary} />
+          </View>
+        </MotiView>
+        <Text style={styles.title}>ai junk cleaner</Text>
+        <Text style={styles.subtitle}>digitally spotless in seconds</Text>
+      </SafeAreaView>
+    </ScreenWrapper>
   );
 };
 
@@ -40,7 +43,6 @@ const createStyles = (theme: DefaultTheme) =>
       flex: 1,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: theme.colors.background,
       padding: theme.spacing.lg,
     },
     iconRing: {

@@ -7,6 +7,7 @@ import { DefaultTheme, useTheme } from 'styled-components/native';
 import AppHeader from '../../../components/AppHeader';
 import DuplicateCard, { DuplicateFileItem } from '../../../components/DuplicateCard';
 import ProgressBar from '../../../components/ProgressBar';
+import ScreenWrapper from '../../../components/ScreenWrapper';
 import { useScanner } from './DuplicateImageScanner';
 
 function formatTime(seconds: number): string {
@@ -246,8 +247,9 @@ export default function DuplicateImagesScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.screen} edges={['bottom', 'left', 'right']}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScreenWrapper style={styles.screen}>
+      <SafeAreaView style={{ flex: 1 }} edges={['bottom', 'left', 'right']}>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <AppHeader title="Duplicate Images" subtitle="Review and clean identical photos quickly" />
 
         <View style={[styles.filterRow, styles.sectionSpacing]}>
@@ -408,7 +410,8 @@ export default function DuplicateImagesScreen() {
           </TouchableOpacity>
         </View>
       </Modal>
-    </SafeAreaView>
+      </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 
@@ -416,7 +419,6 @@ const createStyles = (theme: DefaultTheme) =>
   StyleSheet.create({
     screen: {
       flex: 1,
-      backgroundColor: theme.colors.background,
     },
     content: {
       paddingHorizontal: theme.spacing.lg,
