@@ -202,7 +202,7 @@ const HomeScreen = () => {
             ) : (
               <ScanButton
                 onPress={handleSmartScan}
-                label={isScanning ? "scanning..." : "smart scan"}
+                label={isScanning ? "scanning..." : "Smart Scan"}
                 style={styles.scanButton}
                 disabled={isScanning}
               />
