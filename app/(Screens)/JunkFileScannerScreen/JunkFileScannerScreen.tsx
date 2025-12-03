@@ -22,6 +22,7 @@ import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
 import ScreenWrapper from "../../../components/ScreenWrapper";
 import formatBytes from "../../../constants/formatBytes";
+import { loadJunkFileResults, saveJunkFileResults, initDatabase } from "../../../utils/db";
 import { deleteJunkFiles, JunkFileItem, scanJunkFiles } from "./JunkFileScanner";
 
 
@@ -126,6 +127,22 @@ const JunkFileScannerScreen = () => {
   });
   const [showSuccess, setShowSuccess] = useState(false);
 
+  // Load saved results on mount
+  useEffect(() => {
+    const loadSavedResults = async () => {
+      try {
+        await initDatabase();
+        const savedResults = await loadJunkFileResults();
+        if (savedResults.length > 0) {
+          setItems(savedResults);
+        }
+      } catch (error) {
+        console.error("Failed to load saved junk file results:", error);
+      }
+    };
+    loadSavedResults();
+  }, []);
+
   const scan = useCallback(async () => {
     setLoading(true);
     setShowSuccess(false);
@@ -137,6 +154,8 @@ const JunkFileScannerScreen = () => {
       };
       const result = await scanJunkFiles(progressCallback);
       setItems(result.items);
+      // Save results to database
+      await saveJunkFileResults(result.items);
     } catch (error) {
       console.warn("Junk file scan failed", error);
       Alert.alert("Scan Failed", "Unable to scan for junk files. Please try again.");

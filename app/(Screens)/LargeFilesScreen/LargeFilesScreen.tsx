@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -15,6 +15,7 @@ import AppHeader from "../../../components/AppHeader";
 import NeumorphicContainer from "../../../components/NeumorphicContainer";
 import ScreenWrapper from "../../../components/ScreenWrapper";
 import formatBytes from "../../../constants/formatBytes";
+import { loadLargeFileResults, saveLargeFileResults, initDatabase } from "../../../utils/db";
 import {
   LargeFileResult,
   LargeFileSource,
@@ -85,6 +86,22 @@ const LargeFilesScreen: React.FC = () => {
   }, [scanProgress.phase]);
   const progressDetail = scanProgress.detail ?? "downloads · dcim · movies · whatsapp media";
 
+  // Load saved results on mount
+  useEffect(() => {
+    const loadSavedResults = async () => {
+      try {
+        await initDatabase();
+        const savedResults = await loadLargeFileResults();
+        if (savedResults.length > 0) {
+          setFiles(savedResults);
+        }
+      } catch (error) {
+        console.error("Failed to load saved large file results:", error);
+      }
+    };
+    loadSavedResults();
+  }, []);
+
   const handleScan = useCallback(async () => {
     if (loading) {
       return;
@@ -94,7 +111,7 @@ const LargeFilesScreen: React.FC = () => {
     setThumbnailFallbacks({});
     setScanProgress({ percent: 0, phase: "permissions", detail: "requesting access" });
     try {
-      const results = await scanLargeFiles(undefined, (snapshot) => {
+      const results = await scanLargeFiles(512 * 1024 * 1024, (snapshot) => {
         setScanProgress({
           percent: Math.round(snapshot.ratio * 100),
           phase: snapshot.phase,
@@ -103,6 +120,8 @@ const LargeFilesScreen: React.FC = () => {
       });
       setFiles(results);
       setLastScan(Date.now());
+      // Save results to database
+      await saveLargeFileResults(results);
       if (results.length === 0) {
         setError("no large files detected yet. grant storage permission in settings for more coverage.");
       }

@@ -1,5 +1,5 @@
 ﻿import { MaterialCommunityIcons } from "@expo/vector-icons";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -15,6 +15,7 @@ import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
 import NeumorphicContainer from "../../../components/NeumorphicContainer";
 import ScreenWrapper from "../../../components/ScreenWrapper";
+import { loadUnusedAppsResults, saveUnusedAppsResults, initDatabase } from "../../../utils/db";
 import { scanUnusedApps, UnusedAppInfo } from "./UnusedAppsScanner";
 
 type SectionData = {
@@ -29,6 +30,23 @@ const UnusedAppsScreen = () => {
   const [loading, setLoading] = useState(false);
   const [hasScanned, setHasScanned] = useState(false);
 
+  // Load saved results on mount
+  useEffect(() => {
+    const loadSavedResults = async () => {
+      try {
+        await initDatabase();
+        const savedResults = await loadUnusedAppsResults();
+        if (savedResults.length > 0) {
+          setApps(savedResults);
+          setHasScanned(true);
+        }
+      } catch (error) {
+        console.error("Failed to load saved unused apps results:", error);
+      }
+    };
+    loadSavedResults();
+  }, []);
+
   const scan = useCallback(async () => {
     setLoading(true);
     setApps([]);
@@ -36,6 +54,8 @@ const UnusedAppsScreen = () => {
       const result = await scanUnusedApps();
       setApps(result);
       setHasScanned(true);
+      // Save results to database
+      await saveUnusedAppsResults(result);
     } catch (error) {
       console.warn("Unused apps scan failed", error);
       Alert.alert("Scan Failed", "Unable to scan for unused apps. Please try again.");

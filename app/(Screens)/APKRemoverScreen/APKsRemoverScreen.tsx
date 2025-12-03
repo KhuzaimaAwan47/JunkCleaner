@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -15,6 +15,7 @@ import AppHeader from "../../../components/AppHeader";
 import NeumorphicContainer from "../../../components/NeumorphicContainer";
 import ScreenWrapper from "../../../components/ScreenWrapper";
 import formatBytes from "../../../constants/formatBytes";
+import { loadApkScanResults, saveApkScanResults, initDatabase } from "../../../utils/db";
 import { ApkFile, deleteApkFile, scanForAPKs } from "./APKScanner";
 
 const APKsRemoverScreen = () => {
@@ -25,6 +26,23 @@ const APKsRemoverScreen = () => {
   const [deleting, setDeleting] = useState<Set<string>>(new Set());
   const [hasScanned, setHasScanned] = useState(false);
 
+  // Load saved results on mount
+  useEffect(() => {
+    const loadSavedResults = async () => {
+      try {
+        await initDatabase();
+        const savedResults = await loadApkScanResults();
+        if (savedResults.length > 0) {
+          setApkFiles(savedResults);
+          setHasScanned(true);
+        }
+      } catch (error) {
+        console.error("Failed to load saved APK results:", error);
+      }
+    };
+    loadSavedResults();
+  }, []);
+
   const scan = useCallback(async () => {
     setLoading(true);
     setApkFiles([]);
@@ -32,6 +50,8 @@ const APKsRemoverScreen = () => {
       const result = await scanForAPKs();
       setApkFiles(result);
       setHasScanned(true);
+      // Save results to database
+      await saveApkScanResults(result);
     } catch (error) {
       console.warn("APK scan failed", error);
       Alert.alert("Scan Failed", "Unable to scan for APK files. Please try again.");

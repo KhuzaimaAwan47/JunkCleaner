@@ -1,11 +1,12 @@
 ﻿import { MaterialCommunityIcons } from '@expo/vector-icons';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, ListRenderItem } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import styledNative, { useTheme } from 'styled-components/native';
 import AppHeader from '../../../components/AppHeader';
 import ScreenWrapper from '../../../components/ScreenWrapper';
 import formatBytes from '../../../constants/formatBytes';
+import { loadWhatsAppResults, saveWhatsAppResults, initDatabase } from '../../../utils/db';
 import {
   deleteSelected,
   scanWhatsApp,
@@ -41,6 +42,22 @@ const WhatsAppRemoverScreen = () => {
   const [filterType, setFilterType] = useState<FilterType>('All');
   const [thumbnailFallbacks, setThumbnailFallbacks] = useState<Record<string, boolean>>({});
 
+  // Load saved results on mount
+  useEffect(() => {
+    const loadSavedResults = async () => {
+      try {
+        await initDatabase();
+        const savedResults = await loadWhatsAppResults();
+        if (savedResults.length > 0) {
+          setFiles(savedResults);
+        }
+      } catch (error) {
+        console.error('Failed to load saved WhatsApp results:', error);
+      }
+    };
+    loadSavedResults();
+  }, []);
+
   const onScan = useCallback(async () => {
     setIsScanning(true);
     setError(null);
@@ -49,6 +66,8 @@ const WhatsAppRemoverScreen = () => {
       const results = await scanWhatsApp();
       setFiles(results);
       setSelected(new Set());
+      // Save results to database
+      await saveWhatsAppResults(results);
     } catch (err) {
       setError((err as Error).message || 'scan failed');
     } finally {

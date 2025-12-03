@@ -1,6 +1,12 @@
 import * as SQLite from 'expo-sqlite';
 import type { ApkFile } from '../app/(Screens)/APKRemoverScreen/APKScanner';
+import type { ScanResult } from '../app/(Screens)/CacheLogsScreen/CacheLogsScanner';
 import type { DuplicateGroup } from '../app/(Screens)/DuplicateImagesScreen/DuplicateImageScanner';
+import type { JunkFileItem } from '../app/(Screens)/JunkFileScannerScreen/JunkFileScanner';
+import type { LargeFileResult } from '../app/(Screens)/LargeFilesScreen/LargeFileScanner';
+import type { OldFileInfo } from '../app/(Screens)/OldFilesScreen/OldFilesScanner';
+import type { UnusedAppInfo } from '../app/(Screens)/UnusedAppsScreen/UnusedAppsScanner';
+import type { WhatsAppScanResult } from '../app/(Screens)/WhatsAppRemoverScreen/WhatsAppScanner';
 
 export interface FileCacheEntry {
   path: string;
@@ -40,6 +46,48 @@ export async function initDatabase(): Promise<void> {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       saved_at INTEGER NOT NULL,
       results_data TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS whatsapp_scan_results (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      saved_at INTEGER NOT NULL,
+      results_data TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS large_file_scan_results (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      saved_at INTEGER NOT NULL,
+      results_data TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS junk_file_scan_results (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      saved_at INTEGER NOT NULL,
+      results_data TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS old_file_scan_results (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      saved_at INTEGER NOT NULL,
+      results_data TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS cache_logs_scan_results (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      saved_at INTEGER NOT NULL,
+      results_data TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS unused_apps_scan_results (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      saved_at INTEGER NOT NULL,
+      results_data TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS smart_scan_status (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      completed_at INTEGER NOT NULL,
+      status_data TEXT NOT NULL
     );
   `);
 }
@@ -175,4 +223,306 @@ export async function clearApkScanResults(): Promise<void> {
   if (!db) await initDatabase();
 
   await db!.runAsync('DELETE FROM apk_scan_results');
+}
+
+// WhatsApp Scanner Results
+export async function saveWhatsAppResults(results: WhatsAppScanResult[]): Promise<void> {
+  if (!db) await initDatabase();
+
+  try {
+    await db!.runAsync('DELETE FROM whatsapp_scan_results');
+    await db!.runAsync(
+      'INSERT INTO whatsapp_scan_results (saved_at, results_data) VALUES (?, ?)',
+      [Date.now(), JSON.stringify(results)]
+    );
+  } catch (error) {
+    console.error('Failed to persist WhatsApp scan results:', error);
+    throw error;
+  }
+}
+
+export async function loadWhatsAppResults(): Promise<WhatsAppScanResult[]> {
+  if (!db) await initDatabase();
+
+  const result = await db!.getFirstAsync<{ results_data: string }>(
+    'SELECT results_data FROM whatsapp_scan_results ORDER BY saved_at DESC LIMIT 1'
+  );
+
+  if (!result) {
+    return [];
+  }
+
+  try {
+    return JSON.parse(result.results_data) as WhatsAppScanResult[];
+  } catch (error) {
+    console.error('Failed to parse cached WhatsApp scan results:', error);
+    return [];
+  }
+}
+
+export async function clearWhatsAppResults(): Promise<void> {
+  if (!db) await initDatabase();
+
+  await db!.runAsync('DELETE FROM whatsapp_scan_results');
+}
+
+// Large Files Scanner Results
+export async function saveLargeFileResults(results: LargeFileResult[]): Promise<void> {
+  if (!db) await initDatabase();
+
+  try {
+    await db!.runAsync('DELETE FROM large_file_scan_results');
+    await db!.runAsync(
+      'INSERT INTO large_file_scan_results (saved_at, results_data) VALUES (?, ?)',
+      [Date.now(), JSON.stringify(results)]
+    );
+  } catch (error) {
+    console.error('Failed to persist large file scan results:', error);
+    throw error;
+  }
+}
+
+export async function loadLargeFileResults(): Promise<LargeFileResult[]> {
+  if (!db) await initDatabase();
+
+  const result = await db!.getFirstAsync<{ results_data: string }>(
+    'SELECT results_data FROM large_file_scan_results ORDER BY saved_at DESC LIMIT 1'
+  );
+
+  if (!result) {
+    return [];
+  }
+
+  try {
+    return JSON.parse(result.results_data) as LargeFileResult[];
+  } catch (error) {
+    console.error('Failed to parse cached large file scan results:', error);
+    return [];
+  }
+}
+
+export async function clearLargeFileResults(): Promise<void> {
+  if (!db) await initDatabase();
+
+  await db!.runAsync('DELETE FROM large_file_scan_results');
+}
+
+// Junk Files Scanner Results
+export async function saveJunkFileResults(results: JunkFileItem[]): Promise<void> {
+  if (!db) await initDatabase();
+
+  try {
+    await db!.runAsync('DELETE FROM junk_file_scan_results');
+    await db!.runAsync(
+      'INSERT INTO junk_file_scan_results (saved_at, results_data) VALUES (?, ?)',
+      [Date.now(), JSON.stringify(results)]
+    );
+  } catch (error) {
+    console.error('Failed to persist junk file scan results:', error);
+    throw error;
+  }
+}
+
+export async function loadJunkFileResults(): Promise<JunkFileItem[]> {
+  if (!db) await initDatabase();
+
+  const result = await db!.getFirstAsync<{ results_data: string }>(
+    'SELECT results_data FROM junk_file_scan_results ORDER BY saved_at DESC LIMIT 1'
+  );
+
+  if (!result) {
+    return [];
+  }
+
+  try {
+    return JSON.parse(result.results_data) as JunkFileItem[];
+  } catch (error) {
+    console.error('Failed to parse cached junk file scan results:', error);
+    return [];
+  }
+}
+
+export async function clearJunkFileResults(): Promise<void> {
+  if (!db) await initDatabase();
+
+  await db!.runAsync('DELETE FROM junk_file_scan_results');
+}
+
+// Old Files Scanner Results
+export async function saveOldFileResults(results: OldFileInfo[]): Promise<void> {
+  if (!db) await initDatabase();
+
+  try {
+    await db!.runAsync('DELETE FROM old_file_scan_results');
+    await db!.runAsync(
+      'INSERT INTO old_file_scan_results (saved_at, results_data) VALUES (?, ?)',
+      [Date.now(), JSON.stringify(results)]
+    );
+  } catch (error) {
+    console.error('Failed to persist old file scan results:', error);
+    throw error;
+  }
+}
+
+export async function loadOldFileResults(): Promise<OldFileInfo[]> {
+  if (!db) await initDatabase();
+
+  const result = await db!.getFirstAsync<{ results_data: string }>(
+    'SELECT results_data FROM old_file_scan_results ORDER BY saved_at DESC LIMIT 1'
+  );
+
+  if (!result) {
+    return [];
+  }
+
+  try {
+    return JSON.parse(result.results_data) as OldFileInfo[];
+  } catch (error) {
+    console.error('Failed to parse cached old file scan results:', error);
+    return [];
+  }
+}
+
+export async function clearOldFileResults(): Promise<void> {
+  if (!db) await initDatabase();
+
+  await db!.runAsync('DELETE FROM old_file_scan_results');
+}
+
+// Cache Logs Scanner Results
+export async function saveCacheLogsResults(results: ScanResult[]): Promise<void> {
+  if (!db) await initDatabase();
+
+  try {
+    await db!.runAsync('DELETE FROM cache_logs_scan_results');
+    await db!.runAsync(
+      'INSERT INTO cache_logs_scan_results (saved_at, results_data) VALUES (?, ?)',
+      [Date.now(), JSON.stringify(results)]
+    );
+  } catch (error) {
+    console.error('Failed to persist cache logs scan results:', error);
+    throw error;
+  }
+}
+
+export async function loadCacheLogsResults(): Promise<ScanResult[]> {
+  if (!db) await initDatabase();
+
+  const result = await db!.getFirstAsync<{ results_data: string }>(
+    'SELECT results_data FROM cache_logs_scan_results ORDER BY saved_at DESC LIMIT 1'
+  );
+
+  if (!result) {
+    return [];
+  }
+
+  try {
+    return JSON.parse(result.results_data) as ScanResult[];
+  } catch (error) {
+    console.error('Failed to parse cached cache logs scan results:', error);
+    return [];
+  }
+}
+
+export async function clearCacheLogsResults(): Promise<void> {
+  if (!db) await initDatabase();
+
+  await db!.runAsync('DELETE FROM cache_logs_scan_results');
+}
+
+// Unused Apps Scanner Results
+export async function saveUnusedAppsResults(results: UnusedAppInfo[]): Promise<void> {
+  if (!db) await initDatabase();
+
+  try {
+    await db!.runAsync('DELETE FROM unused_apps_scan_results');
+    await db!.runAsync(
+      'INSERT INTO unused_apps_scan_results (saved_at, results_data) VALUES (?, ?)',
+      [Date.now(), JSON.stringify(results)]
+    );
+  } catch (error) {
+    console.error('Failed to persist unused apps scan results:', error);
+    throw error;
+  }
+}
+
+export async function loadUnusedAppsResults(): Promise<UnusedAppInfo[]> {
+  if (!db) await initDatabase();
+
+  const result = await db!.getFirstAsync<{ results_data: string }>(
+    'SELECT results_data FROM unused_apps_scan_results ORDER BY saved_at DESC LIMIT 1'
+  );
+
+  if (!result) {
+    return [];
+  }
+
+  try {
+    return JSON.parse(result.results_data) as UnusedAppInfo[];
+  } catch (error) {
+    console.error('Failed to parse cached unused apps scan results:', error);
+    return [];
+  }
+}
+
+export async function clearUnusedAppsResults(): Promise<void> {
+  if (!db) await initDatabase();
+
+  await db!.runAsync('DELETE FROM unused_apps_scan_results');
+}
+
+// Smart Scan Status
+export interface SmartScanStatus {
+  completed: boolean;
+  completedAt: number | null;
+  scannerProgress: {
+    apk: boolean;
+    whatsapp: boolean;
+    duplicates: boolean;
+    largeFiles: boolean;
+    junkFiles: boolean;
+    oldFiles: boolean;
+    cacheLogs: boolean;
+    unusedApps: boolean;
+  };
+}
+
+export async function saveSmartScanStatus(status: SmartScanStatus): Promise<void> {
+  if (!db) await initDatabase();
+
+  try {
+    await db!.runAsync('DELETE FROM smart_scan_status');
+    await db!.runAsync(
+      'INSERT INTO smart_scan_status (completed_at, status_data) VALUES (?, ?)',
+      [Date.now(), JSON.stringify(status)]
+    );
+  } catch (error) {
+    console.error('Failed to persist smart scan status:', error);
+    throw error;
+  }
+}
+
+export async function loadSmartScanStatus(): Promise<SmartScanStatus | null> {
+  if (!db) await initDatabase();
+
+  const result = await db!.getFirstAsync<{ status_data: string }>(
+    'SELECT status_data FROM smart_scan_status ORDER BY completed_at DESC LIMIT 1'
+  );
+
+  if (!result) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(result.status_data) as SmartScanStatus;
+  } catch (error) {
+    console.error('Failed to parse smart scan status:', error);
+    return null;
+  }
+}
+
+export async function clearSmartScanStatus(): Promise<void> {
+  if (!db) await initDatabase();
+
+  await db!.runAsync('DELETE FROM smart_scan_status');
 }

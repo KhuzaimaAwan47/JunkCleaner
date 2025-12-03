@@ -12,6 +12,7 @@ import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
 import ScreenWrapper from "../../../components/ScreenWrapper";
 import ThemedList from "../../../components/ThemedList";
+import { loadCacheLogsResults, saveCacheLogsResults, initDatabase } from "../../../utils/db";
 import { ScanResult, clearAll, scanCachesAndLogs } from "./CacheLogsScanner";
 
 const formatSize = (bytes: number) => {
@@ -27,21 +28,35 @@ const CacheLogsScreen = () => {
   const [loading, setLoading] = useState(false);
   const [clearing, setClearing] = useState(false);
 
+  // Load saved results on mount
+  useEffect(() => {
+    const loadSavedResults = async () => {
+      try {
+        await initDatabase();
+        const savedResults = await loadCacheLogsResults();
+        if (savedResults.length > 0) {
+          setItems(savedResults);
+        }
+      } catch (error) {
+        console.error("Failed to load saved cache logs results:", error);
+      }
+    };
+    loadSavedResults();
+  }, []);
+
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
       const data = await scanCachesAndLogs();
       setItems(data);
+      // Save results to database
+      await saveCacheLogsResults(data);
     } catch (error) {
       console.warn("CacheLogs scan failed", error);
     } finally {
       setLoading(false);
     }
   }, []);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
 
   const handleClearAll = useCallback(() => {
     if (!items.length || clearing) {

@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useMemo, useState } from "react";
+﻿import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -11,6 +11,7 @@ import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
 import ScreenWrapper from "../../../components/ScreenWrapper";
 import ThemedList from "../../../components/ThemedList";
+import { loadOldFileResults, saveOldFileResults, initDatabase } from "../../../utils/db";
 import { OldFileInfo, scanOldFiles } from "./OldFilesScanner";
 
 const formatSize = (bytes: number) => {
@@ -28,11 +29,29 @@ const OldFilesScreen = () => {
   const [oldFiles, setOldFiles] = useState<OldFileInfo[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // Load saved results on mount
+  useEffect(() => {
+    const loadSavedResults = async () => {
+      try {
+        await initDatabase();
+        const savedResults = await loadOldFileResults();
+        if (savedResults.length > 0) {
+          setOldFiles(savedResults);
+        }
+      } catch (error) {
+        console.error("Failed to load saved old file results:", error);
+      }
+    };
+    loadSavedResults();
+  }, []);
+
   const handleScan = useCallback(async () => {
     setLoading(true);
     try {
-      const files = await scanOldFiles(30);
+      const files = await scanOldFiles(90);
       setOldFiles(files);
+      // Save results to database
+      await saveOldFileResults(files);
     } catch (error) {
       console.warn("OldFiles scan failed", error);
     } finally {
