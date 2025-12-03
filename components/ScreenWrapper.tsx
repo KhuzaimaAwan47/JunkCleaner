@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View, type TextProps, type ViewProps } from 'react-native';
+import { useTheme } from 'styled-components/native';
 
 import { useThemeColor } from '../theme/theme';
 
@@ -25,7 +26,11 @@ type ScreenWrapperComponent = React.FC<ScreenWrapperProps> & {
 };
 
 const BaseScreenWrapper: React.FC<ScreenWrapperProps> = ({ children, style, lightColor, darkColor, ...rest }) => {
-  const backgroundColor = useThemeColor({ light: lightColor, dark: darkColor }, 'background');
+  const theme = useTheme();
+  const themeBackgroundColor = useThemeColor({ light: lightColor, dark: darkColor }, 'background');
+  const backgroundColor = lightColor || darkColor 
+    ? themeBackgroundColor
+    : theme.colors.background;
 
   return (
     <View style={[styles.container, { backgroundColor }, style]} {...rest}>
@@ -35,7 +40,18 @@ const BaseScreenWrapper: React.FC<ScreenWrapperProps> = ({ children, style, ligh
 };
 
 const ScreenText: React.FC<ScreenTextProps> = ({ style, lightColor, darkColor, type = 'default', ...rest }) => {
-  const color = useThemeColor({ light: lightColor, dark: darkColor }, 'text');
+  const theme = useTheme();
+  const themeTextColor = useThemeColor({ light: lightColor, dark: darkColor }, 'text');
+  let color: string;
+  
+  if (lightColor || darkColor) {
+    color = themeTextColor;
+  } else if (type === 'link') {
+    // Use primary color for links, which works well in both themes
+    color = theme.colors.primary;
+  } else {
+    color = theme.colors.text;
+  }
 
   return (
     <Text
@@ -54,7 +70,11 @@ const ScreenText: React.FC<ScreenTextProps> = ({ style, lightColor, darkColor, t
 };
 
 const ScreenView: React.FC<ScreenViewProps> = ({ style, lightColor, darkColor, ...otherProps }) => {
-  const backgroundColor = useThemeColor({ light: lightColor, dark: darkColor }, 'background');
+  const theme = useTheme();
+  const themeBackgroundColor = useThemeColor({ light: lightColor, dark: darkColor }, 'background');
+  const backgroundColor = lightColor || darkColor
+    ? themeBackgroundColor
+    : theme.colors.background;
 
   return <View style={[{ backgroundColor }, style]} {...otherProps} />;
 };
@@ -87,7 +107,7 @@ const textStyles = StyleSheet.create({
   link: {
     lineHeight: 30,
     fontSize: 16,
-    color: '#0a7ea4',
+    // Color is now set dynamically via theme in ScreenText component
   },
 });
 
