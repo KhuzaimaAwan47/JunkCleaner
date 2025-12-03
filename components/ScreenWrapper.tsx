@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View, type TextProps, type ViewProps } from 'react-native';
 
-import { useThemeColor } from '@/theme/theme';
+import { useThemeColor } from '../theme/theme';
 
 export type ScreenWrapperProps = ViewProps & {
   lightColor?: string;
