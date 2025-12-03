@@ -104,7 +104,7 @@ const OnboardingScreen = () => {
           </View>
           <TouchableOpacity style={styles.primaryButton} onPress={handleGetStarted} activeOpacity={0.9}>
             <Text style={styles.buttonLabel}>get started</Text>
-            <MaterialCommunityIcons name="arrow-right" size={20} color="#fff" style={styles.buttonIcon} />
+            <MaterialCommunityIcons name="arrow-right" size={20} color={theme.colors.white} style={styles.buttonIcon} />
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -148,8 +148,8 @@ const createStyles = (theme: DefaultTheme) =>
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: theme.colors.surface,
-      shadowColor: "#000",
-      shadowOpacity: 0.1,
+      shadowColor: theme.mode === "dark" ? "#000000" : "#000",
+      shadowOpacity: theme.mode === "dark" ? 0.3 : 0.1,
       shadowRadius: 24,
       shadowOffset: { width: 0, height: 12 },
       elevation: 12,
@@ -200,7 +200,7 @@ const createStyles = (theme: DefaultTheme) =>
       paddingHorizontal: theme.spacing.lg,
     },
     buttonLabel: {
-      color: "#fff",
+      color: theme.colors.white,
       fontSize: theme.fontSize.md,
       fontWeight: theme.fontWeight.semibold,
       textTransform: "uppercase",

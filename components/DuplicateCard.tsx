@@ -123,8 +123,8 @@ export default function DuplicateCard({ file, isSelected, onToggleSelect, onPrev
                   ? {
                       borderColor: theme.colors.primary,
                       backgroundColor: theme.colors.primary,
-                      shadowColor: 'rgba(0, 0, 0, 0.15)',
-                      shadowOpacity: 0.2,
+                      shadowColor: theme.mode === 'dark' ? '#000000' : 'rgba(0, 0, 0, 0.15)',
+                      shadowOpacity: theme.mode === 'dark' ? 0.4 : 0.2,
                       shadowRadius: 6,
                       elevation: 4,
                     }
@@ -139,7 +139,7 @@ export default function DuplicateCard({ file, isSelected, onToggleSelect, onPrev
               ]}
             >
               {isSelected ? (
-                <MaterialCommunityIcons name="check" size={16} color="#ffffff" />
+                <MaterialCommunityIcons name="check" size={16} color={theme.colors.white} />
               ) : (
                 <View
                   style={[

@@ -317,7 +317,7 @@ const JunkFileScannerScreen = () => {
                 ]}
               >
                 {clearing ? (
-                  <ActivityIndicator color={theme.colors.background} />
+                  <ActivityIndicator color={theme.colors.white} />
                 ) : (
                   <Text style={styles.scanButtonText}>Clean Junk</Text>
                 )}
@@ -360,7 +360,7 @@ const createStyles = (theme: DefaultTheme) =>
       padding: theme.spacing.lg,
       backgroundColor: theme.colors.surface,
       borderWidth: 1,
-      borderColor: `${theme.colors.surfaceAlt}55`,
+      borderColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}77` : `${theme.colors.surfaceAlt}55`,
       gap: theme.spacing.md,
     },
     heroHeader: {
@@ -400,7 +400,7 @@ const createStyles = (theme: DefaultTheme) =>
       gap: theme.spacing.sm,
     },
     successText: {
-      color: "#4CAF50",
+      color: theme.colors.success,
       fontSize: 18,
       fontWeight: "700",
       marginTop: theme.spacing.xs,
@@ -419,7 +419,7 @@ const createStyles = (theme: DefaultTheme) =>
       opacity: 0.6,
     },
     scanButtonText: {
-      color: theme.colors.background,
+      color: theme.colors.white,
       fontSize: 16,
       fontWeight: "700",
       letterSpacing: 0.4,
@@ -435,7 +435,7 @@ const createStyles = (theme: DefaultTheme) =>
       borderRadius: theme.radii.lg,
       backgroundColor: theme.colors.surface,
       borderWidth: 1,
-      borderColor: `${theme.colors.surfaceAlt}55`,
+      borderColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}77` : `${theme.colors.surfaceAlt}55`,
     },
     metricLabel: {
       color: theme.colors.textMuted,
@@ -454,7 +454,7 @@ const createStyles = (theme: DefaultTheme) =>
       borderRadius: theme.radii.xl,
       backgroundColor: theme.colors.surface,
       borderWidth: 1,
-      borderColor: `${theme.colors.surfaceAlt}55`,
+      borderColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}77` : `${theme.colors.surfaceAlt}55`,
       padding: theme.spacing.md,
       gap: theme.spacing.md,
     },

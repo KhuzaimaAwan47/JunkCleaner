@@ -131,9 +131,9 @@ const APKsRemoverScreen = () => {
                 activeOpacity={0.7}
               >
                 {isDeleting ? (
-                  <ActivityIndicator size="small" color={theme.colors.background} />
+                  <ActivityIndicator size="small" color={theme.colors.white} />
                 ) : (
-                  <MaterialCommunityIcons name="delete" size={20} color={theme.colors.background} />
+                  <MaterialCommunityIcons name="delete" size={20} color={theme.colors.white} />
                 )}
               </TouchableOpacity>
             </View>
@@ -226,14 +226,14 @@ const createStyles = (theme: DefaultTheme) =>
       paddingVertical: theme.spacing.md,
       alignItems: "center",
       justifyContent: "center",
-      shadowColor: "rgba(0,0,0,0.2)",
-      shadowOpacity: 0.2,
+      shadowColor: theme.mode === "dark" ? "#000000" : "rgba(0,0,0,0.2)",
+      shadowOpacity: theme.mode === "dark" ? 0.4 : 0.2,
       shadowRadius: 12,
       shadowOffset: { width: 0, height: 6 },
       elevation: 6,
     },
     primaryButtonText: {
-      color: "#fff",
+      color: theme.colors.white,
       fontSize: theme.fontSize.md,
       fontWeight: theme.fontWeight.bold,
       textTransform: "uppercase",
@@ -244,7 +244,7 @@ const createStyles = (theme: DefaultTheme) =>
       borderRadius: theme.radii.lg,
       padding: theme.spacing.lg,
       borderWidth: 1,
-      borderColor: `${theme.colors.surfaceAlt}44`,
+      borderColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}66` : `${theme.colors.surfaceAlt}44`,
       alignItems: "center",
       justifyContent: "center",
       gap: theme.spacing.sm,
@@ -265,7 +265,7 @@ const createStyles = (theme: DefaultTheme) =>
       borderRadius: theme.radii.lg,
       backgroundColor: theme.colors.surface,
       borderWidth: 1,
-      borderColor: `${theme.colors.surfaceAlt}55`,
+      borderColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}77` : `${theme.colors.surfaceAlt}55`,
     },
     metricLabel: {
       color: theme.colors.textMuted,
@@ -354,7 +354,7 @@ const createStyles = (theme: DefaultTheme) =>
       borderRadius: theme.radii.xl,
       padding: theme.spacing.lg,
       borderWidth: 1,
-      borderColor: `${theme.colors.surfaceAlt}44`,
+      borderColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}66` : `${theme.colors.surfaceAlt}44`,
       alignItems: "center",
       gap: theme.spacing.sm,
     },

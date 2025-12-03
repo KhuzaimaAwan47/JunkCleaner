@@ -63,7 +63,7 @@ export const darkColors = {
   warning: "#F59E0B",
   error: "#EF4444",
   info: "#3B82F6",
-  background: "#000000",
+  background: "#171717",
   surface: "#1C1C1E",
   surfaceAlt: "#2A2A2D",
   border: "#2F2F32",

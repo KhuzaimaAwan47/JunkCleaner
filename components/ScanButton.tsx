@@ -21,12 +21,12 @@ const staticButtonStyle: ViewStyle = {
   borderRadius: 999,
 };
 
-const staticLabelStyle = {
-  color: "#fff",
+const staticLabelStyle = (theme: ReturnType<typeof useTheme>) => ({
+  color: theme.colors.white,
   fontSize: 18,
   fontWeight: "600" as const,
   marginLeft: 10,
-};
+});
 
 const resolveStyle = (
   style: Props["style"],
@@ -62,8 +62,8 @@ const ScanButton: React.FC<Props> = ({
         resolveStyle(style, state),
       ]}
     >
-      <MaterialCommunityIcons name="lightning-bolt" size={24} color="#fff" />
-      <Text style={staticLabelStyle}>{label}</Text>
+      <MaterialCommunityIcons name="lightning-bolt" size={24} color={theme.colors.white} />
+      <Text style={staticLabelStyle(theme)}>{label}</Text>
     </Pressable>
   );
 };

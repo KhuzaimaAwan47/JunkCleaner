@@ -178,7 +178,7 @@ const WhatsAppRemoverScreen = () => {
             )}
             {isActive ? (
               <SelectionBadge>
-                <MaterialCommunityIcons name="check" size={16} color="#fff" />
+                <MaterialCommunityIcons name="check" size={16} color={theme.colors.white} />
               </SelectionBadge>
             ) : null}
           </ThumbWrapper>
@@ -212,7 +212,7 @@ const WhatsAppRemoverScreen = () => {
                 accessibilityRole="button"
               >
                 {isScanning ? (
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator color={theme.colors.white} />
                 ) : (
                   <ActionLabel>scan whatsapp</ActionLabel>
                 )}
@@ -224,7 +224,7 @@ const WhatsAppRemoverScreen = () => {
                 accessibilityRole="button"
               >
                 {isDeleting ? (
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator color={theme.colors.white} />
                 ) : (
                   <ActionLabel>delete selected</ActionLabel>
                 )}
@@ -363,7 +363,7 @@ const ActionButton = styled.TouchableOpacity<{ tone: 'primary' | 'danger'; disab
 `;
 
 const ActionLabel = styled.Text`
-  color: #fff;
+  color: ${({ theme }) => theme.colors.white};
   font-size: 14px;
   font-weight: 600;
   text-transform: uppercase;

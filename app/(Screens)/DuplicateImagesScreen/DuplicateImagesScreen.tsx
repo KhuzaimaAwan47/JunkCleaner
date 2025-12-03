@@ -280,7 +280,7 @@ export default function DuplicateImagesScreen() {
               ]}
             >
                 {selectionState === 'all' ? (
-                  <MaterialCommunityIcons name="check" size={16} color="#ffffff" />
+                  <MaterialCommunityIcons name="check" size={16} color={theme.colors.white} />
                 ) : (
                 <View
                   style={[
@@ -442,7 +442,7 @@ const createStyles = (theme: DefaultTheme) =>
       paddingVertical: theme.spacing.sm,
       paddingHorizontal: theme.spacing.md,
       borderWidth: 1,
-      borderColor: `${theme.colors.surfaceAlt}55`,
+      borderColor: theme.mode === 'dark' ? `${theme.colors.surfaceAlt}77` : `${theme.colors.surfaceAlt}55`,
     },
     smartFilterText: {
       flex: 1,
@@ -468,7 +468,7 @@ const createStyles = (theme: DefaultTheme) =>
       paddingVertical: theme.spacing.sm,
       paddingHorizontal: theme.spacing.md,
       borderWidth: 1,
-      borderColor: `${theme.colors.surfaceAlt}55`,
+      borderColor: theme.mode === 'dark' ? `${theme.colors.surfaceAlt}77` : `${theme.colors.surfaceAlt}55`,
     },
     filterButtonDisabled: {
       opacity: 0.5,
@@ -523,14 +523,14 @@ const createStyles = (theme: DefaultTheme) =>
       paddingVertical: theme.spacing.md,
       alignItems: 'center',
       justifyContent: 'center',
-      shadowColor: 'rgba(0,0,0,0.2)',
-      shadowOpacity: 0.2,
+      shadowColor: theme.mode === 'dark' ? '#000000' : 'rgba(0,0,0,0.2)',
+      shadowOpacity: theme.mode === 'dark' ? 0.4 : 0.2,
       shadowRadius: 12,
       shadowOffset: { width: 0, height: 6 },
       elevation: 6,
     },
     primaryButtonText: {
-      color: '#fff',
+      color: theme.colors.white,
       fontSize: theme.fontSize.md,
       fontWeight: theme.fontWeight.bold,
       textTransform: 'uppercase',
@@ -541,7 +541,7 @@ const createStyles = (theme: DefaultTheme) =>
       borderRadius: theme.radii.lg,
       padding: theme.spacing.lg,
       borderWidth: 1,
-      borderColor: `${theme.colors.surfaceAlt}44`,
+      borderColor: theme.mode === 'dark' ? `${theme.colors.surfaceAlt}66` : `${theme.colors.surfaceAlt}44`,
       gap: theme.spacing.md,
     },
     timerRow: {
@@ -565,7 +565,7 @@ const createStyles = (theme: DefaultTheme) =>
       alignItems: 'center',
     },
     stopButtonText: {
-      color: '#fff',
+      color: theme.colors.white,
       fontSize: theme.fontSize.sm,
       fontWeight: theme.fontWeight.semibold,
       textTransform: 'uppercase',
@@ -591,10 +591,10 @@ const createStyles = (theme: DefaultTheme) =>
       borderRadius: theme.radii.xl,
       padding: theme.spacing.lg,
       borderWidth: 1,
-      borderColor: `${theme.colors.surfaceAlt}55`,
+      borderColor: theme.mode === 'dark' ? `${theme.colors.surfaceAlt}77` : `${theme.colors.surfaceAlt}55`,
       gap: theme.spacing.xs,
-      shadowColor: 'rgba(0,0,0,0.08)',
-      shadowOpacity: 0.1,
+      shadowColor: theme.mode === 'dark' ? '#000000' : 'rgba(0,0,0,0.08)',
+      shadowOpacity: theme.mode === 'dark' ? 0.3 : 0.1,
       shadowRadius: 12,
       shadowOffset: { width: 0, height: 6 },
       elevation: 4,
@@ -629,7 +629,7 @@ const createStyles = (theme: DefaultTheme) =>
       borderRadius: theme.radii.xl,
       padding: theme.spacing.lg,
       borderWidth: 1,
-      borderColor: `${theme.colors.surfaceAlt}44`,
+      borderColor: theme.mode === 'dark' ? `${theme.colors.surfaceAlt}66` : `${theme.colors.surfaceAlt}44`,
       alignItems: 'center',
       gap: theme.spacing.sm,
     },
@@ -660,13 +660,13 @@ const createStyles = (theme: DefaultTheme) =>
       backgroundColor: `${theme.colors.surfaceAlt}55`,
     },
     footerButtonText: {
-      color: '#fff',
+      color: theme.colors.white,
       fontSize: theme.fontSize.md,
       fontWeight: theme.fontWeight.bold,
       textTransform: 'capitalize',
     },
     footerButtonMeta: {
-      color: '#fff',
+      color: theme.colors.white,
       fontSize: theme.fontSize.sm,
       opacity: 0.85,
     },

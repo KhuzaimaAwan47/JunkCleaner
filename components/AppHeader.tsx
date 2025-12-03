@@ -82,6 +82,6 @@ const createStyles = (theme: DefaultTheme) =>
       borderRadius: 16,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: `${theme.colors.surfaceAlt}99`,
+      backgroundColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}88` : `${theme.colors.surfaceAlt}99`,
     },
   });

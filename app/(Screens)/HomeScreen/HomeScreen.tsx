@@ -164,7 +164,7 @@ const HomeScreen = () => {
               accessibilityLabel="toggle app theme"
               value={isDarkMode}
               onValueChange={toggleTheme}
-              thumbColor={isDarkMode ? theme.colors.primary : "#ffffff"}
+              thumbColor={isDarkMode ? theme.colors.primary : theme.colors.white}
               trackColor={{
                 false: `${theme.colors.surfaceAlt}aa`,
                 true: `${theme.colors.primary}55`,
@@ -342,8 +342,8 @@ const createStyles = (theme: DefaultTheme) =>
       marginBottom: theme.spacing.lg,
       borderRadius: theme.radii.xl,
       backgroundColor: theme.colors.surface,
-      shadowColor: "rgba(0,0,0,0.25)",
-      shadowOpacity: 0.15,
+      shadowColor: theme.mode === "dark" ? "#000000" : "rgba(0,0,0,0.25)",
+      shadowOpacity: theme.mode === "dark" ? 0.3 : 0.15,
       shadowRadius: 24,
       shadowOffset: { width: 0, height: 8 },
       elevation: 12,
