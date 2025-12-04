@@ -15,6 +15,7 @@ import AppHeader from "../../../components/AppHeader";
 import DeleteButton from "../../../components/DeleteButton";
 import NeumorphicContainer from "../../../components/NeumorphicContainer";
 import ScreenWrapper from "../../../components/ScreenWrapper";
+import SelectAll from "../../../components/SelectAll";
 import formatBytes from "../../../constants/formatBytes";
 import { initDatabase, loadLargeFileResults, saveLargeFileResults } from "../../../utils/db";
 import {
@@ -340,21 +341,11 @@ const LargeFilesScreen: React.FC = () => {
                     {selectedStats.items} files · {formatBytes(selectedStats.size)}
                   </Text>
                 </View>
-                <TouchableOpacity
-                  style={[styles.selectAllButton, isAllSelected && styles.selectAllButtonActive]}
-                  onPress={toggleSelectAll}
+                <SelectAll
+                  isAllSelected={isAllSelected}
                   disabled={!sortedFiles.length}
-                  activeOpacity={sortedFiles.length ? 0.85 : 1}
-                >
-                  <MaterialCommunityIcons
-                    name={isAllSelected ? "check-all" : "selection"}
-                    size={18}
-                    color={isAllSelected ? theme.colors.secondary : theme.colors.text}
-                  />
-                  <Text style={[styles.selectAllLabel, isAllSelected && styles.selectAllLabelActive]}>
-                    {isAllSelected ? "clear all" : "select all"}
-                  </Text>
-                </TouchableOpacity>
+                  onPress={toggleSelectAll}
+                />
               </View>
             )}
 
@@ -541,30 +532,6 @@ const createStyles = (theme: DefaultTheme) =>
       fontSize: theme.fontSize.md,
       fontWeight: theme.fontWeight.semibold,
       marginTop: 4,
-    },
-    selectAllButton: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 6,
-      paddingVertical: theme.spacing.xs,
-      paddingHorizontal: theme.spacing.sm,
-      borderRadius: 999,
-      borderWidth: 1,
-      borderColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}99` : `${theme.colors.surfaceAlt}77`,
-      backgroundColor: theme.colors.surface,
-    },
-    selectAllButtonActive: {
-      borderColor: theme.colors.secondary,
-      backgroundColor: `${theme.colors.secondary}22`,
-    },
-    selectAllLabel: {
-      color: theme.colors.text,
-      fontWeight: theme.fontWeight.semibold,
-      fontSize: theme.fontSize.sm,
-      textTransform: "capitalize",
-    },
-    selectAllLabelActive: {
-      color: theme.colors.secondary,
     },
     itemWrapper: {
       marginVertical: 0,

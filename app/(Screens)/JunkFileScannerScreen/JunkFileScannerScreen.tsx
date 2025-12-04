@@ -1,14 +1,13 @@
 ﻿import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   FlatList,
   ListRenderItem,
-  Pressable,
   StyleSheet,
   Text,
-  View,
+  TouchableOpacity,
+  View
 } from "react-native";
 import Animated, {
   useAnimatedStyle,
@@ -20,9 +19,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Circle, Defs, Stop, LinearGradient as SvgGradient } from "react-native-svg";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
+import DeleteButton from "../../../components/DeleteButton";
+import NeumorphicContainer from "../../../components/NeumorphicContainer";
 import ScreenWrapper from "../../../components/ScreenWrapper";
+import SelectAll from "../../../components/SelectAll";
 import formatBytes from "../../../constants/formatBytes";
-import { loadJunkFileResults, saveJunkFileResults, initDatabase } from "../../../utils/db";
+import { initDatabase, loadJunkFileResults, saveJunkFileResults } from "../../../utils/db";
 import { deleteJunkFiles, JunkFileItem, scanJunkFiles } from "./JunkFileScanner";
 
 
@@ -126,6 +128,7 @@ const JunkFileScannerScreen = () => {
     progress: 0,
   });
   const [showSuccess, setShowSuccess] = useState(false);
+  const [selectedFilePaths, setSelectedFilePaths] = useState<Set<string>>(new Set());
 
   // Load saved results on mount
   useEffect(() => {
@@ -167,14 +170,59 @@ const JunkFileScannerScreen = () => {
 
   const totalSize = useMemo(() => items.reduce((sum, item) => sum + (item.size || 0), 0), [items]);
 
+  const selectedStats = useMemo(() => {
+    const stats = { items: 0, size: 0 };
+    items.forEach((item) => {
+      if (selectedFilePaths.has(item.path)) {
+        stats.items += 1;
+        stats.size += item.size || 0;
+      }
+    });
+    return stats;
+  }, [selectedFilePaths, items]);
+
+  const isAllSelected = useMemo(() => {
+    return items.length > 0 && items.every((item) => selectedFilePaths.has(item.path));
+  }, [items, selectedFilePaths]);
+
+  const toggleFileSelection = useCallback((path: string) => {
+    setSelectedFilePaths((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) {
+        next.delete(path);
+      } else {
+        next.add(path);
+      }
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedFilePaths((prev) => {
+      const next = new Set(prev);
+      if (isAllSelected) {
+        // Deselect all
+        items.forEach((item) => next.delete(item.path));
+      } else {
+        // Select all
+        items.forEach((item) => next.add(item.path));
+      }
+      return next;
+    });
+  }, [isAllSelected, items]);
+
   const handleClean = useCallback(() => {
-    if (!items.length || clearing) {
+    const itemsToDelete = selectedStats.items > 0 
+      ? items.filter((item) => selectedFilePaths.has(item.path))
+      : items;
+    
+    if (!itemsToDelete.length || clearing) {
       return;
     }
-    const size = items.reduce((sum, item) => sum + (item.size || 0), 0);
+    const size = itemsToDelete.reduce((sum, item) => sum + (item.size || 0), 0);
     Alert.alert(
       "Clean Junk Files?",
-      `This will permanently delete ${items.length} junk file${items.length > 1 ? "s" : ""} (${formatBytes(size)}).`,
+      `This will permanently delete ${itemsToDelete.length} junk file${itemsToDelete.length > 1 ? "s" : ""} (${formatBytes(size)}).`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -183,11 +231,12 @@ const JunkFileScannerScreen = () => {
           onPress: async () => {
             setClearing(true);
             try {
-              await deleteJunkFiles(items);
+              await deleteJunkFiles(itemsToDelete);
               setShowSuccess(true);
               setTimeout(() => {
                 setShowSuccess(false);
-                setItems([]);
+                setItems((prev) => prev.filter((item) => !itemsToDelete.some((deleted) => deleted.path === item.path)));
+                setSelectedFilePaths(new Set());
               }, 2000);
             } catch (error) {
               console.warn("Clean failed", error);
@@ -199,7 +248,21 @@ const JunkFileScannerScreen = () => {
         },
       ]
     );
-  }, [items, clearing]);
+  }, [items, clearing, selectedStats.items, selectedFilePaths]);
+
+  // Clear selection when items change
+  useEffect(() => {
+    setSelectedFilePaths((prev) => {
+      const availablePaths = new Set(items.map((item) => item.path));
+      const next = new Set<string>();
+      prev.forEach((path) => {
+        if (availablePaths.has(path)) {
+          next.add(path);
+        }
+      });
+      return next;
+    });
+  }, [items]);
 
   const formatModifiedDate = (timestamp: number): string => {
     const date = new Date(timestamp);
@@ -216,86 +279,79 @@ const JunkFileScannerScreen = () => {
   };
 
   const renderItem = useCallback<ListRenderItem<JunkFileItem>>(
-    ({ item }) => (
-      <View style={styles.item}>
-        <View style={styles.itemHeader}>
-          <Text style={styles.fileName} numberOfLines={1}>
-            {item.path.split("/").pop() || item.path}
-          </Text>
-          <Text style={styles.size}>{formatBytes(item.size)}</Text>
-        </View>
-        <Text style={styles.path} numberOfLines={1}>
-          {item.path}
-        </Text>
-        <View style={styles.itemMeta}>
-          <Text style={styles.badge}>{item.type}</Text>
-          <Text style={styles.dateText}>{formatModifiedDate(item.modified)}</Text>
-        </View>
-      </View>
-    ),
-    [styles]
+    ({ item }) => {
+      const isSelected = selectedFilePaths.has(item.path);
+      return (
+        <TouchableOpacity
+          style={styles.itemWrapper}
+          onPress={() => toggleFileSelection(item.path)}
+          activeOpacity={0.85}
+        >
+          <NeumorphicContainer 
+            padding={theme.spacing.md}
+            style={[styles.item, isSelected && styles.itemSelected]}
+          >
+            <View style={styles.itemHeader}>
+              <Text style={styles.fileName} numberOfLines={1}>
+                {item.path.split("/").pop() || item.path}
+              </Text>
+              <View style={styles.sizeRow}>
+                {isSelected && (
+                  <View style={styles.selectionBadge}>
+                    <MaterialCommunityIcons
+                      name="check"
+                      size={16}
+                      color={theme.colors.white}
+                    />
+                  </View>
+                )}
+                <Text style={styles.size}>{formatBytes(item.size)}</Text>
+              </View>
+            </View>
+            <Text style={styles.path} numberOfLines={1}>
+              {item.path}
+            </Text>
+            <View style={styles.itemMeta}>
+              <Text style={styles.badge}>{item.type}</Text>
+              <Text style={styles.dateText}>{formatModifiedDate(item.modified)}</Text>
+            </View>
+          </NeumorphicContainer>
+        </TouchableOpacity>
+      );
+    },
+    [styles, theme, selectedFilePaths, toggleFileSelection]
   );
 
   return (
     <ScreenWrapper style={styles.screen}>
       <SafeAreaView style={{ flex: 1 }} edges={['bottom', 'left', 'right']}>
         <View style={styles.content}>
-        <AppHeader title="Junk Scanner" />
+        <AppHeader 
+          title="Junk Scanner" 
+          totalSize={items.length > 0 ? totalSize : undefined}
+          totalFiles={items.length > 0 ? items.length : undefined}
+        />
 
-        <View style={styles.heroCard}>
-          <View style={styles.heroHeader}>
-            <Text style={styles.heroTitle}>ultra-fast junk cleanup</Text>
-            <Text style={styles.heroSubtitle}>
-              Deep scan for cache, temp files, logs, and other junk cluttering your storage.
-            </Text>
-          </View>
+        
 
-          {loading ? (
-            <View style={styles.progressCard}>
-              <CircularProgress progress={scanProgress.progress} />
-              <Text style={styles.progressText}>Scanning...</Text>
-              {scanProgress.detail && (
-                <Text style={styles.progressSubtext} numberOfLines={1}>
-                  {scanProgress.detail}
-                </Text>
-              )}
-            </View>
-          ) : showSuccess ? (
-            <View style={styles.successCard}>
-              <SuccessCheckmark />
-              <Text style={styles.successText}>Cleanup Complete!</Text>
-            </View>
-          ) : (
-            <Pressable
-              onPress={scan}
-              style={({ pressed }) => [
-                styles.scanButton,
-                pressed && styles.scanButtonPressed,
-                loading && styles.scanButtonDisabled,
-              ]}
-              disabled={loading}
-            >
-              <Text style={styles.scanButtonText}>
-                {items.length > 0 ? "Rescan Storage" : "Start Scan"}
-              </Text>
-            </Pressable>
-          )}
-        </View>
-
-        <View style={styles.metricsRow}>
-          <View style={styles.metricCard}>
-            <Text style={styles.metricLabel}>files found</Text>
-            <Text style={styles.metricValue}>{items.length}</Text>
-          </View>
-          <View style={styles.metricCard}>
-            <Text style={styles.metricLabel}>total size</Text>
-            <Text style={styles.metricValue}>{formatBytes(totalSize)}</Text>
-          </View>
-        </View>
+       
 
         <View style={styles.resultsCard}>
           {items.length > 0 ? (
             <>
+              <View style={styles.selectionMetaCard}>
+                <View style={styles.selectionTextWrap}>
+                  <Text style={styles.selectionLabel}>selected</Text>
+                  <Text style={styles.selectionValue}>
+                    {selectedStats.items} files · {formatBytes(selectedStats.size)}
+                  </Text>
+                </View>
+                <SelectAll
+                  isAllSelected={isAllSelected}
+                  disabled={!items.length}
+                  onPress={toggleSelectAll}
+                />
+              </View>
               <FlatList
                 data={items}
                 keyExtractor={(item) => item.path}
@@ -308,20 +364,14 @@ const JunkFileScannerScreen = () => {
                   </View>
                 }
               />
-              <Pressable
-                onPress={handleClean}
-                disabled={clearing || !items.length}
-                style={[
-                  styles.cleanButton,
-                  (clearing || !items.length) && styles.scanButtonDisabled,
-                ]}
-              >
-                {clearing ? (
-                  <ActivityIndicator color={theme.colors.white} />
-                ) : (
-                  <Text style={styles.scanButtonText}>Clean Junk</Text>
-                )}
-              </Pressable>
+              {selectedStats.items > 0 && (
+                <DeleteButton
+                  items={selectedStats.items}
+                  size={selectedStats.size}
+                  disabled={clearing}
+                  onPress={handleClean}
+                />
+              )}
             </>
           ) : (
             <View style={styles.emptyState}>
@@ -458,15 +508,45 @@ const createStyles = (theme: DefaultTheme) =>
       padding: theme.spacing.md,
       gap: theme.spacing.md,
     },
-    listContent: {
-      paddingBottom: theme.spacing.sm,
-    },
-    item: {
+    selectionMetaCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
       padding: theme.spacing.md,
       borderRadius: theme.radii.lg,
       backgroundColor: theme.colors.surfaceAlt,
-      gap: theme.spacing.xs,
+      borderWidth: 1,
+      borderColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}66` : `${theme.colors.surfaceAlt}44`,
+    },
+    selectionTextWrap: {
+      flex: 1,
+      marginRight: theme.spacing.sm,
+    },
+    selectionLabel: {
+      color: theme.colors.textMuted,
+      fontSize: theme.fontSize.xs,
+      textTransform: "uppercase",
+      letterSpacing: 0.8,
+    },
+    selectionValue: {
+      color: theme.colors.text,
+      fontSize: theme.fontSize.md,
+      fontWeight: theme.fontWeight.semibold,
+      marginTop: 4,
+    },
+    listContent: {
+      paddingBottom: theme.spacing.sm,
+    },
+    itemWrapper: {
       marginBottom: theme.spacing.sm,
+    },
+    item: {
+      borderRadius: theme.radii.lg,
+      gap: theme.spacing.xs,
+    },
+    itemSelected: {
+      borderWidth: 1,
+      borderColor: theme.colors.secondary,
     },
     itemHeader: {
       flexDirection: "row",
@@ -479,9 +559,27 @@ const createStyles = (theme: DefaultTheme) =>
       color: theme.colors.text,
       fontWeight: "600",
     },
+    sizeRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: theme.spacing.xs,
+    },
     size: {
       color: theme.colors.accent,
       fontWeight: "700",
+    },
+    selectionBadge: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: theme.colors.secondary,
+      alignItems: "center",
+      justifyContent: "center",
+      shadowColor: "rgba(0, 0, 0, 0.25)",
+      shadowOpacity: 0.3,
+      shadowRadius: 4,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 4,
     },
     path: {
       color: theme.colors.textMuted,
