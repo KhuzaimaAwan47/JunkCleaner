@@ -291,50 +291,58 @@ export default function DuplicateImagesScreen() {
         <View style={styles.headerContainer}>
           <AppHeader title="Duplicate Images" subtitle="Review and clean identical photos quickly" />
         </View>
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={[styles.filterRow, styles.sectionSpacing]}>
-          <TouchableOpacity
-            onPress={handleSelectAll}
-            disabled={selectAllDisabled}
-            activeOpacity={selectAllDisabled ? 1 : 0.85}
-            style={[styles.filterButton, selectAllDisabled && styles.filterButtonDisabled]}
-          >
-            <View
-              style={[
-                styles.selectIndicator,
-                selectionState === 'all' && styles.selectIndicatorAll,
-                selectionState === 'partial' && styles.selectIndicatorPartial,
-              ]}
+        <View style={styles.stickyFilterContainer}>
+          <View style={styles.filterRow}>
+            <TouchableOpacity
+              onPress={handleSelectAll}
+              disabled={selectAllDisabled}
+              activeOpacity={selectAllDisabled ? 1 : 0.85}
+              style={[styles.filterButton, selectAllDisabled && styles.filterButtonDisabled]}
             >
-              {selectionState === 'all' ? (
-                <MaterialCommunityIcons name="check" size={14} color={theme.colors.white} />
-              ) : (
-                <View
-                  style={[
-                    styles.selectIndicatorInner,
-                    selectionState === 'partial' && styles.selectIndicatorInnerPartial,
-                  ]}
-                />
-              )}
-            </View>
-            <View style={styles.filterText}>
-              <Text style={styles.filterLabel}>{selectAllActionLabel}</Text>
-              <Text style={styles.filterHint}>{selectAllHint}</Text>
-            </View>
-          </TouchableOpacity>
+              <View
+                style={[
+                  styles.selectIndicator,
+                  selectionState === 'all' && styles.selectIndicatorAll,
+                  selectionState === 'partial' && styles.selectIndicatorPartial,
+                ]}
+              >
+                {selectionState === 'all' ? (
+                  <MaterialCommunityIcons name="check" size={14} color={theme.colors.white} />
+                ) : (
+                  <View
+                    style={[
+                      styles.selectIndicatorInner,
+                      selectionState === 'partial' && styles.selectIndicatorInnerPartial,
+                    ]}
+                  />
+                )}
+              </View>
+              <View style={styles.filterText}>
+                <Text style={styles.filterLabel}>{selectAllActionLabel}</Text>
+                <Text style={styles.filterHint}>{selectAllHint}</Text>
+              </View>
+            </TouchableOpacity>
 
-          <View style={styles.smartFilterCard}>
-            <View style={styles.smartFilterText}>
-              <Text style={styles.smartFilterLabel}>smart filtering</Text>
+            <View style={styles.smartFilterCard}>
+              <View style={styles.smartFilterText}>
+                <Text style={styles.smartFilterLabel}>smart filtering</Text>
+              </View>
+              <Switch
+                value={smartFiltering}
+                onValueChange={handleSmartFilteringToggle}
+                trackColor={{ false: `${theme.colors.surfaceAlt}55`, true: `${theme.colors.secondary}55` }}
+                thumbColor={theme.colors.secondary}
+              />
             </View>
-            <Switch
-              value={smartFiltering}
-              onValueChange={handleSmartFilteringToggle}
-              trackColor={{ false: `${theme.colors.surfaceAlt}55`, true: `${theme.colors.primary}55` }}
-              thumbColor={theme.colors.primary}
-            />
           </View>
         </View>
+         <ScrollView 
+           contentContainerStyle={[
+             styles.content,
+             !isScanning && duplicateFiles.length > 0 && styles.contentWithFixedButton
+           ]} 
+           showsVerticalScrollIndicator={false}
+         >
 
           {!isScanning && duplicateFiles.length === 0 && (
           <Animated.View style={[buttonAnimatedStyle, styles.sectionSpacing]}>
@@ -485,15 +493,17 @@ export default function DuplicateImagesScreen() {
             </Text>
           </View>
           )}
-
-          {!isScanning && duplicateFiles.length > 0 && (
-            <DeleteButton
-              items={selectedStats.items}
-              size={selectedStats.size}
-              disabled={deleteDisabled}
-            />
-          )}
       </ScrollView>
+
+      {!isScanning && duplicateFiles.length > 0 && !deleteDisabled && (
+        <View style={styles.fixedDeleteButtonContainer}>
+          <DeleteButton
+            items={selectedStats.items}
+            size={selectedStats.size}
+            disabled={deleteDisabled}
+          />
+        </View>
+      )}
 
       <Modal visible={!!previewFile} transparent animationType="fade" onRequestClose={handlePreviewClose}>
         <View style={styles.previewBackdrop}>
@@ -526,14 +536,25 @@ const createStyles = (theme: DefaultTheme) =>
     screen: {
       flex: 1,
     },
-    headerContainer: {
-      paddingHorizontal: theme.spacing.lg,
-      paddingTop: theme.spacing.lg,
-    },
-    content: {
-      paddingHorizontal: theme.spacing.lg,
-      paddingTop: theme.spacing.lg,
-      paddingBottom: theme.spacing.xl * 1.5,
+     headerContainer: {
+       paddingHorizontal: theme.spacing.lg,
+       paddingTop: theme.spacing.lg,
+     },
+     stickyFilterContainer: {
+       paddingHorizontal: theme.spacing.lg,
+       paddingBottom: theme.spacing.md,
+       backgroundColor: theme.colors.background,
+       borderBottomWidth: 1,
+       borderBottomColor: theme.mode === 'dark' ? `${theme.colors.surfaceAlt}33` : `${theme.colors.surfaceAlt}22`,
+       zIndex: 10,
+     },
+     content: {
+       paddingHorizontal: theme.spacing.lg,
+       paddingTop: theme.spacing.md,
+       paddingBottom: theme.spacing.xl * 1.5,
+     },
+    contentWithFixedButton: {
+      paddingBottom: theme.spacing.xl * 3,
     },
     sectionSpacing: {
       marginBottom: theme.spacing.lg,
@@ -583,36 +604,36 @@ const createStyles = (theme: DefaultTheme) =>
     filterButtonDisabled: {
       opacity: 0.5,
     },
-    selectIndicator: {
-      width: 24,
-      height: 24,
-      borderRadius: 12,
-      borderWidth: 1.5,
-      borderColor: `${theme.colors.primary}66`,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginRight: theme.spacing.xs,
-      backgroundColor: theme.colors.surface,
-    },
-    selectIndicatorAll: {
-      backgroundColor: theme.colors.primary,
-      borderColor: theme.colors.primary,
-    },
-    selectIndicatorPartial: {
-      borderColor: `${theme.colors.primary}aa`,
-    },
-    selectIndicatorInner: {
-      width: 6,
-      height: 6,
-      borderRadius: 3,
-      backgroundColor: `${theme.colors.primary}66`,
-    },
-    selectIndicatorInnerPartial: {
-      width: 10,
-      height: 3,
-      borderRadius: 1.5,
-      backgroundColor: theme.colors.primary,
-    },
+     selectIndicator: {
+       width: 24,
+       height: 24,
+       borderRadius: 12,
+       borderWidth: 1.5,
+       borderColor: `${theme.colors.secondary}66`,
+       alignItems: 'center',
+       justifyContent: 'center',
+       marginRight: theme.spacing.xs,
+       backgroundColor: theme.colors.surface,
+     },
+     selectIndicatorAll: {
+       backgroundColor: theme.colors.secondary,
+       borderColor: theme.colors.secondary,
+     },
+     selectIndicatorPartial: {
+       borderColor: `${theme.colors.secondary}aa`,
+     },
+     selectIndicatorInner: {
+       width: 6,
+       height: 6,
+       borderRadius: 3,
+       backgroundColor: `${theme.colors.secondary}66`,
+     },
+     selectIndicatorInnerPartial: {
+       width: 10,
+       height: 3,
+       borderRadius: 1.5,
+       backgroundColor: theme.colors.secondary,
+     },
     filterText: {
       flex: 1,
     },
@@ -769,20 +790,20 @@ const createStyles = (theme: DefaultTheme) =>
       color: theme.colors.textMuted,
       fontSize: theme.fontSize.xs,
     },
-    fileCheckbox: {
-      width: 24,
-      height: 24,
-      borderRadius: 6,
-      borderWidth: 2,
-      borderColor: `${theme.colors.primary}66`,
-      backgroundColor: theme.colors.surface,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    fileCheckboxSelected: {
-      backgroundColor: theme.colors.primary,
-      borderColor: theme.colors.primary,
-    },
+     fileCheckbox: {
+       width: 24,
+       height: 24,
+       borderRadius: 6,
+       borderWidth: 2,
+       borderColor: `${theme.colors.secondary}66`,
+       backgroundColor: theme.colors.surface,
+       alignItems: 'center',
+       justifyContent: 'center',
+     },
+     fileCheckboxSelected: {
+       backgroundColor: theme.colors.secondary,
+       borderColor: theme.colors.secondary,
+     },
     duplicateWrapper: {
       marginBottom: theme.spacing.xs,
     },
@@ -868,6 +889,16 @@ const createStyles = (theme: DefaultTheme) =>
       color: theme.colors.textMuted,
       fontSize: theme.fontSize.md,
       textAlign: 'center',
+    },
+    fixedDeleteButtonContainer: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      paddingHorizontal: theme.spacing.lg,
+      backgroundColor: theme.colors.background,
+      borderTopWidth: 1,
+      borderTopColor: theme.mode === 'dark' ? `${theme.colors.surfaceAlt}33` : `${theme.colors.surfaceAlt}22`,
     },
   });
 
