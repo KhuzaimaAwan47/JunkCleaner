@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
+import DeleteButton from "../../../components/DeleteButton";
 import NeumorphicContainer from "../../../components/NeumorphicContainer";
 import ScreenWrapper from "../../../components/ScreenWrapper";
 import formatBytes from "../../../constants/formatBytes";
@@ -40,6 +41,7 @@ const LargeFilesScreen: React.FC = () => {
     percent: 0,
     phase: "idle",
   });
+  const [selectedFilePaths, setSelectedFilePaths] = useState<Set<string>>(new Set());
 
   const filteredFiles = useMemo(() => {
     if (sourceFilter === "all") {
@@ -67,6 +69,40 @@ const LargeFilesScreen: React.FC = () => {
   const resultsAvailable = sortedFiles.length > 0;
   const filesInView = resultsAvailable ? sortedFiles.length : files.length;
   const summaryBytes = resultsAvailable ? visibleBytes : totalBytes;
+
+  const selectedStats = useMemo(() => {
+    const stats = { items: 0, size: 0 };
+    sortedFiles.forEach((file) => {
+      if (selectedFilePaths.has(file.path)) {
+        stats.items += 1;
+        stats.size += file.size;
+      }
+    });
+    return stats;
+  }, [selectedFilePaths, sortedFiles]);
+
+  const toggleFileSelection = useCallback((path: string) => {
+    setSelectedFilePaths((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) {
+        next.delete(path);
+      } else {
+        next.add(path);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleDelete = useCallback(async () => {
+    if (selectedStats.items === 0) {
+      return;
+    }
+    // TODO: Implement actual file deletion logic
+    console.log("Deleting files:", Array.from(selectedFilePaths));
+    // After deletion, remove from state and update files
+    setFiles((prev) => prev.filter((file) => !selectedFilePaths.has(file.path)));
+    setSelectedFilePaths(new Set());
+  }, [selectedFilePaths, selectedStats.items]);
 
   const progressLabel = useMemo(() => {
     switch (scanProgress.phase) {
@@ -143,6 +179,20 @@ const LargeFilesScreen: React.FC = () => {
     });
   }, []);
 
+  // Clear selection when files change
+  useEffect(() => {
+    setSelectedFilePaths((prev) => {
+      const availablePaths = new Set(sortedFiles.map((file) => file.path));
+      const next = new Set<string>();
+      prev.forEach((path) => {
+        if (availablePaths.has(path)) {
+          next.add(path);
+        }
+      });
+      return next;
+    });
+  }, [sortedFiles]);
+
   const renderFileItem = useCallback(
     (item: LargeFileResult) => {
       const filename = item.path.split("/").pop() || item.path;
@@ -150,10 +200,19 @@ const LargeFilesScreen: React.FC = () => {
       const fileIcon = getFileTypeIcon(item.path);
       const isVideo = isVideoFile(item.path);
       const isImage = isImageFile(item.path);
+      const isSelected = selectedFilePaths.has(item.path);
       
       return (
-        <View key={item.path} style={styles.itemWrapper}>
-          <NeumorphicContainer padding={theme.spacing.md}>
+        <TouchableOpacity
+          key={item.path}
+          style={styles.itemWrapper}
+          onPress={() => toggleFileSelection(item.path)}
+          activeOpacity={0.85}
+        >
+          <NeumorphicContainer 
+            padding={theme.spacing.md}
+            style={isSelected ? styles.itemSelected : undefined}
+          >
             <View style={styles.itemInner}>
               <View style={styles.thumbnailWrapper}>
                 {previewable ? (
@@ -172,7 +231,16 @@ const LargeFilesScreen: React.FC = () => {
                     />
                   </View>
                 )}
-                {isVideo && (
+                {isSelected && (
+                  <View style={styles.selectionBadge}>
+                    <MaterialCommunityIcons
+                      name="check"
+                      size={16}
+                      color={theme.colors.white}
+                    />
+                  </View>
+                )}
+                {isVideo && !isSelected && (
                   <View style={styles.fileTypeBadge}>
                     <MaterialCommunityIcons
                       name="play-circle"
@@ -181,7 +249,7 @@ const LargeFilesScreen: React.FC = () => {
                     />
                   </View>
                 )}
-                {isImage && !previewable && (
+                {isImage && !previewable && !isSelected && (
                   <View style={styles.fileTypeBadge}>
                     <MaterialCommunityIcons
                       name="image"
@@ -210,10 +278,10 @@ const LargeFilesScreen: React.FC = () => {
               </View>
             </View>
           </NeumorphicContainer>
-        </View>
+        </TouchableOpacity>
       );
     },
-    [recordThumbnailError, theme.colors.primary, theme.colors.white, theme.spacing.md, thumbnailFallbacks, styles],
+    [recordThumbnailError, theme.colors.primary, theme.colors.white, theme.spacing.md, thumbnailFallbacks, styles, selectedFilePaths, toggleFileSelection],
   );
 
   return (
@@ -244,28 +312,31 @@ const LargeFilesScreen: React.FC = () => {
 
         {!loading && resultsAvailable && (
           <>
-            <View style={[styles.metricsRow, styles.sectionSpacing]}>
-              <View style={styles.metricCard}>
-                <View style={styles.metricIconContainer}>
+            <View style={[styles.metricsCard, styles.sectionSpacing]}>
+              <View style={styles.metricRow}>
+                <View style={styles.metricItem}>
                   <MaterialCommunityIcons
                     name="harddisk"
-                    size={20}
-                    color={theme.colors.primary}
+                    size={16}
+                    color={theme.colors.textMuted}
                   />
+                  <Text style={styles.metricText}>
+                    <Text style={styles.metricValue}>{formatBytes(summaryBytes)}</Text>
+                    <Text style={styles.metricLabel}> total</Text>
+                  </Text>
                 </View>
-                <Text style={styles.metricLabel}>total size</Text>
-                <Text style={styles.metricValue}>{formatBytes(summaryBytes)}</Text>
-              </View>
-              <View style={styles.metricCard}>
-                <View style={styles.metricIconContainer}>
+                <View style={styles.metricDivider} />
+                <View style={styles.metricItem}>
                   <MaterialCommunityIcons
                     name="file-multiple-outline"
-                    size={20}
-                    color={theme.colors.primary}
+                    size={16}
+                    color={theme.colors.textMuted}
                   />
+                  <Text style={styles.metricText}>
+                    <Text style={styles.metricValue}>{filesInView}</Text>
+                    <Text style={styles.metricLabel}> files</Text>
+                  </Text>
                 </View>
-                <Text style={styles.metricLabel}>files found</Text>
-                <Text style={styles.metricValue}>{filesInView}</Text>
               </View>
             </View>
 
@@ -279,6 +350,15 @@ const LargeFilesScreen: React.FC = () => {
                   <Text style={styles.rescanButtonText}>rescan</Text>
                 </TouchableOpacity>
               </View>
+            )}
+
+            {selectedStats.items > 0 && (
+              <DeleteButton
+                items={selectedStats.items}
+                size={selectedStats.size}
+                disabled={false}
+                onPress={handleDelete}
+              />
             )}
           </>
         )}
@@ -415,41 +495,44 @@ const createStyles = (theme: DefaultTheme) =>
       fontSize: theme.fontSize.sm,
       color: theme.colors.textMuted,
     },
-    metricsRow: {
-      flexDirection: "row",
-      gap: theme.spacing.md,
-    },
-    metricCard: {
-      flex: 1,
-      padding: theme.spacing.lg,
-      borderRadius: theme.radii.xl,
+    metricsCard: {
       backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}77` : `${theme.colors.surfaceAlt}55`,
-      alignItems: "center",
-    },
-    metricIconContainer: {
-      width: 40,
-      height: 40,
       borderRadius: theme.radii.lg,
-      backgroundColor: `${theme.colors.primary}15`,
+      padding: theme.spacing.md,
+      borderWidth: 1,
+      borderColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}66` : `${theme.colors.surfaceAlt}44`,
+    },
+    metricRow: {
+      flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
-      marginBottom: theme.spacing.sm,
+    },
+    metricItem: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: theme.spacing.xs,
+    },
+    metricDivider: {
+      width: 1,
+      height: 24,
+      backgroundColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}66` : `${theme.colors.surfaceAlt}44`,
+      marginHorizontal: theme.spacing.md,
+    },
+    metricText: {
+      flexDirection: "row",
+      alignItems: "baseline",
     },
     metricLabel: {
       color: theme.colors.textMuted,
-      fontSize: theme.fontSize.xs,
-      textTransform: "uppercase",
-      letterSpacing: 0.8,
-      fontWeight: theme.fontWeight.semibold,
-      marginBottom: theme.spacing.xs / 2,
+      fontSize: theme.fontSize.sm,
+      fontWeight: theme.fontWeight.normal,
     },
     metricValue: {
       color: theme.colors.text,
-      fontSize: 20,
-      fontWeight: "700",
-      textAlign: "center",
+      fontSize: theme.fontSize.md,
+      fontWeight: theme.fontWeight.bold,
     },
     resultsContainer: {
       gap: theme.spacing.xs,
@@ -463,6 +546,10 @@ const createStyles = (theme: DefaultTheme) =>
       alignItems: "center",
       gap: theme.spacing.sm,
     },
+    itemSelected: {
+      borderWidth: 1,
+      borderColor: theme.colors.secondary,
+    },
     thumbnailWrapper: {
       width: 56,
       height: 56,
@@ -471,6 +558,7 @@ const createStyles = (theme: DefaultTheme) =>
       backgroundColor: `${theme.colors.surfaceAlt}cc`,
       alignItems: "center",
       justifyContent: "center",
+      position: "relative",
     },
     thumbnailImage: {
       width: "100%",
@@ -482,6 +570,22 @@ const createStyles = (theme: DefaultTheme) =>
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: `${theme.colors.primary}18`,
+    },
+    selectionBadge: {
+      position: "absolute",
+      top: 6,
+      right: 6,
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: theme.colors.secondary,
+      alignItems: "center",
+      justifyContent: "center",
+      shadowColor: "rgba(0, 0, 0, 0.25)",
+      shadowOpacity: 0.3,
+      shadowRadius: 4,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 4,
     },
     fileTypeBadge: {
       position: "absolute",
