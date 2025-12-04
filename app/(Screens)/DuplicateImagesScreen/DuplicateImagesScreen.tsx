@@ -1,12 +1,12 @@
 ﻿import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Dimensions, Image, Modal, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { Dimensions, Image, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DefaultTheme, useTheme } from 'styled-components/native';
 import AppHeader from '../../../components/AppHeader';
 import DeleteButton from '../../../components/DeleteButton';
-import DuplicateCard, { DuplicateFileItem } from '../../../components/DuplicateCard';
+import { DuplicateFileItem } from '../../../components/DuplicateCard';
 import ProgressBar from '../../../components/ProgressBar';
 import ScreenWrapper from '../../../components/ScreenWrapper';
 import { useScanner } from './DuplicateImageScanner';
@@ -15,6 +15,36 @@ function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
+}
+
+function formatDate(timestamp: number): string {
+  const date = new Date(timestamp > 1e12 ? timestamp : timestamp * 1000);
+  if (isNaN(date.getTime())) return 'unknown date';
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  const year = date.getFullYear();
+  return `${month}/${day}/${year}`;
+}
+
+function getFileName(path: string): string {
+  return path.split('/').pop() || path.split('\\').pop() || path;
+}
+
+function getFileSource(path: string): string {
+  const lowerPath = path.toLowerCase();
+  if (lowerPath.includes('whatsapp')) return 'From:WhatsApp';
+  if (lowerPath.includes('android')) return 'From:Android';
+  if (lowerPath.includes('dcim') || lowerPath.includes('camera')) return 'From:Camera';
+  if (lowerPath.includes('downloads')) return 'From:Downloads';
+  return 'From:Android';
 }
 
 function guessOriginalPath(files: { path: string }[]): string | null {
@@ -51,6 +81,7 @@ export default function DuplicateImagesScreen() {
   const [smartFiltering, setSmartFiltering] = useState(false);
   const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(() => new Set());
   const [previewFile, setPreviewFile] = useState<DuplicateFileItem | null>(null);
+  const [imageLoadErrors, setImageLoadErrors] = useState<Set<string>>(() => new Set());
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<number | null>(null);
   const smartFilterMemoryRef = useRef<Set<string>>(new Set());
@@ -219,6 +250,22 @@ export default function DuplicateImagesScreen() {
     setSelectedFileIds(new Set(duplicateFiles.map((file) => file.id)));
   };
 
+  const handleGroupSelectAll = (groupHash: string) => {
+    const groupFiles = duplicateFiles.filter((file) => file.groupHash === groupHash);
+    const groupFileIds = new Set(groupFiles.map((file) => file.id));
+    const allGroupSelected = groupFiles.every((file) => selectedFileIds.has(file.id));
+
+    setSelectedFileIds((prev) => {
+      const next = new Set(prev);
+      if (allGroupSelected) {
+        groupFileIds.forEach((id) => next.delete(id));
+      } else {
+        groupFileIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  };
+
   const deleteDisabled = selectedStats.items === 0;
   const allSelected = duplicateFiles.length > 0 && selectedFileIds.size === duplicateFiles.length;
   const noneSelected = selectedFileIds.size === 0;
@@ -322,16 +369,90 @@ export default function DuplicateImagesScreen() {
 
           {!isScanning && (duplicateFiles.length > 0 || totalDuplicates > 0) && (
           <View style={[styles.resultsContainer, styles.sectionSpacing]}>
-              {duplicateFiles.map((file: DuplicateFileItem) => (
-              <View key={file.id} style={styles.duplicateWrapper}>
-                <DuplicateCard
-                  file={file}
-                  isSelected={selectedFileIds.has(file.id)}
-                  onToggleSelect={() => toggleFileSelection(file.id)}
-                  onPreview={handlePreview}
-                />
-              </View>
-              ))}
+              {duplicates.map((group) => {
+                const groupFiles = duplicateFiles.filter((file) => file.groupHash === group.hash);
+                const groupTotalSize = groupFiles.reduce((sum, file) => sum + file.size, 0);
+
+                return (
+                  <View key={group.hash} style={styles.groupContainer}>
+                    <View style={styles.groupHeader}>
+                      <Text style={styles.groupHeaderText}>
+                        {groupFiles.length} item{groupFiles.length !== 1 ? 's' : ''}, {formatBytes(groupTotalSize)}
+                      </Text>
+                      <TouchableOpacity
+                        onPress={() => handleGroupSelectAll(group.hash)}
+                        activeOpacity={0.85}
+                        style={styles.groupSelectAllButton}
+                      >
+                        <Text style={styles.groupSelectAllText}>Select all</Text>
+                      </TouchableOpacity>
+                    </View>
+                    {groupFiles.map((file: DuplicateFileItem) => {
+                      const imageUri = ensurePreviewUri(file.path);
+                      const hasLoadError = imageLoadErrors.has(file.path);
+                      const showImage = !!imageUri && !hasLoadError;
+                      const isSelected = selectedFileIds.has(file.id);
+
+                      return (
+                        <TouchableOpacity
+                          key={file.id}
+                          style={styles.fileItem}
+                          onPress={() => toggleFileSelection(file.id)}
+                          activeOpacity={0.85}
+                        >
+                          <View style={styles.fileItemContent}>
+                            {showImage ? (
+                              <Pressable
+                                onPress={(e) => {
+                                  e.stopPropagation();
+                                  handlePreview(file);
+                                }}
+                                style={styles.fileThumbnail}
+                              >
+                                <Image
+                                  source={{ uri: imageUri }}
+                                  resizeMode="cover"
+                                  onError={() => {
+                                    setImageLoadErrors((prev) => new Set(prev).add(file.path));
+                                  }}
+                                  style={styles.fileThumbnailImage}
+                                />
+                              </Pressable>
+                            ) : (
+                              <View style={styles.fileIcon}>
+                                <MaterialCommunityIcons
+                                  name="image-outline"
+                                  size={24}
+                                  color={theme.colors.primary}
+                                />
+                              </View>
+                            )}
+                            <View style={styles.fileInfo}>
+                              <Text style={styles.fileName} numberOfLines={1}>
+                                {getFileName(file.path)}
+                              </Text>
+                              <Text style={styles.fileMeta}>
+                                {formatBytes(file.size)} | {formatDate(file.modifiedDate)}
+                              </Text>
+                              <Text style={styles.fileSource}>{getFileSource(file.path)}</Text>
+                            </View>
+                            <View
+                              style={[
+                                styles.fileCheckbox,
+                                isSelected && styles.fileCheckboxSelected,
+                              ]}
+                            >
+                              {isSelected && (
+                                <MaterialCommunityIcons name="check" size={16} color={theme.colors.white} />
+                              )}
+                            </View>
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                );
+              })}
           </View>
           )}
 
@@ -571,7 +692,97 @@ const createStyles = (theme: DefaultTheme) =>
       fontSize: theme.fontSize.sm,
       textAlign: 'center',
     },
-    resultsContainer: {},
+    resultsContainer: {
+      gap: theme.spacing.lg,
+    },
+    groupContainer: {
+      marginBottom: theme.spacing.lg,
+    },
+    groupHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: theme.spacing.sm,
+      paddingHorizontal: theme.spacing.xs,
+    },
+    groupHeaderText: {
+      color: theme.colors.text,
+      fontSize: theme.fontSize.sm,
+      fontWeight: theme.fontWeight.semibold,
+    },
+    groupSelectAllButton: {
+      paddingVertical: theme.spacing.xs / 2,
+      paddingHorizontal: theme.spacing.sm,
+    },
+    groupSelectAllText: {
+      color: theme.colors.primary,
+      fontSize: theme.fontSize.sm,
+      fontWeight: theme.fontWeight.semibold,
+      textTransform: 'capitalize',
+    },
+    fileItem: {
+      marginBottom: theme.spacing.xs,
+    },
+    fileItemContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.radii.md,
+      padding: theme.spacing.md,
+      borderWidth: 1,
+      borderColor: theme.mode === 'dark' ? `${theme.colors.surfaceAlt}77` : `${theme.colors.surfaceAlt}55`,
+      gap: theme.spacing.sm,
+    },
+    fileThumbnail: {
+      width: 48,
+      height: 48,
+      borderRadius: theme.radii.sm,
+      overflow: 'hidden',
+      backgroundColor: `${theme.colors.surfaceAlt}cc`,
+    },
+    fileThumbnailImage: {
+      width: '100%',
+      height: '100%',
+    },
+    fileIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: theme.radii.sm,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: `${theme.colors.primary}18`,
+    },
+    fileInfo: {
+      flex: 1,
+      gap: theme.spacing.xs / 2,
+    },
+    fileName: {
+      color: theme.colors.text,
+      fontSize: theme.fontSize.md,
+      fontWeight: theme.fontWeight.semibold,
+    },
+    fileMeta: {
+      color: theme.colors.textMuted,
+      fontSize: theme.fontSize.xs,
+    },
+    fileSource: {
+      color: theme.colors.textMuted,
+      fontSize: theme.fontSize.xs,
+    },
+    fileCheckbox: {
+      width: 24,
+      height: 24,
+      borderRadius: 6,
+      borderWidth: 2,
+      borderColor: `${theme.colors.primary}66`,
+      backgroundColor: theme.colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    fileCheckboxSelected: {
+      backgroundColor: theme.colors.primary,
+      borderColor: theme.colors.primary,
+    },
     duplicateWrapper: {
       marginBottom: theme.spacing.xs,
     },
