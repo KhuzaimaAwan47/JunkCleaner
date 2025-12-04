@@ -9,14 +9,8 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  withTiming,
-} from "react-native-reanimated";
+
 import { SafeAreaView } from "react-native-safe-area-context";
-import Svg, { Circle, Defs, Stop, LinearGradient as SvgGradient } from "react-native-svg";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
 import DeleteButton from "../../../components/DeleteButton";
@@ -24,110 +18,21 @@ import NeumorphicContainer from "../../../components/NeumorphicContainer";
 import ScreenWrapper from "../../../components/ScreenWrapper";
 import SelectAll from "../../../components/SelectAll";
 import formatBytes from "../../../constants/formatBytes";
-import { initDatabase, loadJunkFileResults, saveJunkFileResults } from "../../../utils/db";
-import { deleteJunkFiles, JunkFileItem, scanJunkFiles } from "./JunkFileScanner";
+import { initDatabase, loadJunkFileResults } from "../../../utils/db";
+import { deleteJunkFiles, JunkFileItem } from "./JunkFileScanner";
 
 
-const CircularProgress: React.FC<{ progress: number; size?: number }> = ({ progress, size = 120 }) => {
-  const theme = useTheme();
-  const strokeWidth = 8;
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const progressValue = Math.min(1, Math.max(0, progress));
-  const strokeDashoffset = circumference - progressValue * circumference;
-  const gradientId = useMemo(() => `progressGradient-${Math.random().toString(36).slice(2, 9)}`, []);
 
-  return (
-    <View style={{ width: size, height: size }}>
-      <Svg width={size} height={size}>
-        <Defs>
-          <SvgGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
-            <Stop offset="0%" stopColor={theme.colors.primary} stopOpacity={0.95} />
-            <Stop offset="100%" stopColor={theme.colors.accent} stopOpacity={0.9} />
-          </SvgGradient>
-        </Defs>
-        <Circle
-          stroke={`${theme.colors.surfaceAlt}55`}
-          fill="none"
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          strokeWidth={strokeWidth}
-        />
-        <Circle
-          stroke={`url(#${gradientId})`}
-          fill="none"
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          strokeWidth={strokeWidth}
-          strokeDasharray={`${circumference} ${circumference}`}
-          strokeDashoffset={strokeDashoffset}
-          strokeLinecap="round"
-          transform={`rotate(-90 ${size / 2} ${size / 2})`}
-        />
-      </Svg>
-      <View
-        style={{
-          position: "absolute",
-          width: size,
-          height: size,
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <Text style={{ fontSize: 20, fontWeight: "700", color: theme.colors.text }}>
-          {Math.round(progressValue * 100)}%
-        </Text>
-      </View>
-    </View>
-  );
-};
 
-const SuccessCheckmark: React.FC = () => {
-  const scale = useSharedValue(0);
-  const opacity = useSharedValue(0);
-
-  useEffect(() => {
-    scale.value = withSpring(1, { damping: 10, stiffness: 100 });
-    opacity.value = withTiming(1, { duration: 300 });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-    opacity: opacity.value,
-  }));
-
-  return (
-    <Animated.View
-      style={[
-        {
-          width: 80,
-          height: 80,
-          borderRadius: 40,
-          backgroundColor: "#4CAF50",
-          alignItems: "center",
-          justifyContent: "center",
-        },
-        animatedStyle,
-      ]}
-    >
-      <MaterialCommunityIcons name="check" size={48} color="#FFFFFF" />
-    </Animated.View>
-  );
-};
 
 const JunkFileScannerScreen = () => {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [items, setItems] = useState<JunkFileItem[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading,] = useState(false);
   const [clearing, setClearing] = useState(false);
-  const [scanProgress, setScanProgress] = useState<{ progress: number; detail?: string }>({
-    progress: 0,
-  });
-  const [showSuccess, setShowSuccess] = useState(false);
+
+  const [, setShowSuccess] = useState(false);
   const [selectedFilePaths, setSelectedFilePaths] = useState<Set<string>>(new Set());
 
   // Load saved results on mount
@@ -146,27 +51,7 @@ const JunkFileScannerScreen = () => {
     loadSavedResults();
   }, []);
 
-  const scan = useCallback(async () => {
-    setLoading(true);
-    setShowSuccess(false);
-    setItems([]);
-    setScanProgress({ progress: 0, detail: "initializing..." });
-    try {
-      const progressCallback: (progress: number, detail?: string) => void = (progress, detail) => {
-        setScanProgress({ progress, detail });
-      };
-      const result = await scanJunkFiles(progressCallback);
-      setItems(result.items);
-      // Save results to database
-      await saveJunkFileResults(result.items);
-    } catch (error) {
-      console.warn("Junk file scan failed", error);
-      Alert.alert("Scan Failed", "Unable to scan for junk files. Please try again.");
-    } finally {
-      setLoading(false);
-      setScanProgress({ progress: 0 });
-    }
-  }, []);
+
 
   const totalSize = useMemo(() => items.reduce((sum, item) => sum + (item.size || 0), 0), [items]);
 
@@ -212,10 +97,10 @@ const JunkFileScannerScreen = () => {
   }, [isAllSelected, items]);
 
   const handleClean = useCallback(() => {
-    const itemsToDelete = selectedStats.items > 0 
+    const itemsToDelete = selectedStats.items > 0
       ? items.filter((item) => selectedFilePaths.has(item.path))
       : items;
-    
+
     if (!itemsToDelete.length || clearing) {
       return;
     }
@@ -269,7 +154,7 @@ const JunkFileScannerScreen = () => {
     const now = Date.now();
     const diffMs = now - timestamp;
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays === 0) return "today";
     if (diffDays === 1) return "yesterday";
     if (diffDays < 7) return `${diffDays} days ago`;
@@ -287,7 +172,7 @@ const JunkFileScannerScreen = () => {
           onPress={() => toggleFileSelection(item.path)}
           activeOpacity={0.85}
         >
-          <NeumorphicContainer 
+          <NeumorphicContainer
             padding={theme.spacing.md}
             style={[styles.item, isSelected && styles.itemSelected]}
           >
@@ -326,17 +211,17 @@ const JunkFileScannerScreen = () => {
     <ScreenWrapper style={styles.screen}>
       <SafeAreaView style={{ flex: 1 }} edges={['bottom', 'left', 'right']}>
         <View style={styles.content}>
-        <AppHeader 
-          title="Junk Scanner" 
-          totalSize={items.length > 0 ? totalSize : undefined}
-          totalFiles={items.length > 0 ? items.length : undefined}
-        />
+          <AppHeader
+            title="Junk Scanner"
+            totalSize={items.length > 0 ? totalSize : undefined}
+            totalFiles={items.length > 0 ? items.length : undefined}
+          />
 
-        
 
-       
 
-        <View style={styles.resultsCard}>
+
+
+
           {items.length > 0 ? (
             <>
               <View style={styles.selectionMetaCard}>
@@ -387,7 +272,7 @@ const JunkFileScannerScreen = () => {
             </View>
           )}
         </View>
-      </View>
+
       </SafeAreaView>
     </ScreenWrapper>
   );
