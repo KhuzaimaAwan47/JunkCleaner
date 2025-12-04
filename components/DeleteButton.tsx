@@ -30,9 +30,8 @@ export default function DeleteButton({ items, size, disabled, onPress }: DeleteB
         onPress={onPress}
       >
         <Text style={styles.footerButtonText}>
-          delete {items} item{items !== 1 ? 's' : ''}
+          delete {items} item{items !== 1 ? 's' : ''}, {formatBytes(size)}
         </Text>
-        <Text style={styles.footerButtonMeta}>{formatBytes(size)}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -51,7 +50,6 @@ const createDeleteButtonStyles = (theme: DefaultTheme) =>
       backgroundColor: theme.colors.secondary,
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 4,
     },
     footerButtonDisabled: {
       backgroundColor: `${theme.colors.surfaceAlt}55`,
@@ -61,11 +59,6 @@ const createDeleteButtonStyles = (theme: DefaultTheme) =>
       fontSize: theme.fontSize.md,
       fontWeight: theme.fontWeight.bold,
       textTransform: 'capitalize',
-    },
-    footerButtonMeta: {
-      color: theme.colors.white,
-      fontSize: theme.fontSize.sm,
-      opacity: 0.85,
     },
   });
 
