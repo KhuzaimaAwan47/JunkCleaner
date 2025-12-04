@@ -15,7 +15,7 @@ import AppHeader from "../../../components/AppHeader";
 import NeumorphicContainer from "../../../components/NeumorphicContainer";
 import ScreenWrapper from "../../../components/ScreenWrapper";
 import formatBytes from "../../../constants/formatBytes";
-import { loadLargeFileResults, saveLargeFileResults, initDatabase } from "../../../utils/db";
+import { initDatabase, loadLargeFileResults, saveLargeFileResults } from "../../../utils/db";
 import {
   LargeFileResult,
   LargeFileSource,
@@ -33,6 +33,7 @@ const LargeFilesScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastScan, setLastScan] = useState<number | null>(null);
+  const [hasDatabaseResults, setHasDatabaseResults] = useState<boolean>(false);
   const sortMode: "size" | "recent" | "category" = "size";
   const sourceFilter: SourceFilter = "all";
   const [thumbnailFallbacks, setThumbnailFallbacks] = useState<Record<string, boolean>>({});
@@ -92,11 +93,13 @@ const LargeFilesScreen: React.FC = () => {
       try {
         await initDatabase();
         const savedResults = await loadLargeFileResults();
+        setHasDatabaseResults(savedResults.length > 0);
         if (savedResults.length > 0) {
           setFiles(savedResults);
         }
       } catch (error) {
         console.error("Failed to load saved large file results:", error);
+        setHasDatabaseResults(false);
       }
     };
     loadSavedResults();
@@ -122,6 +125,7 @@ const LargeFilesScreen: React.FC = () => {
       setLastScan(Date.now());
       // Save results to database
       await saveLargeFileResults(results);
+      setHasDatabaseResults(results.length > 0);
       if (results.length === 0) {
         setError("no large files detected yet. grant storage permission in settings for more coverage.");
       }
@@ -241,11 +245,13 @@ const LargeFilesScreen: React.FC = () => {
               {sortedFiles.map((file) => renderFileItem(file))}
             </View>
 
-            <View style={[styles.rescanContainer, styles.sectionSpacing]}>
-              <TouchableOpacity style={styles.rescanButton} onPress={handleScan} activeOpacity={0.8}>
-                <Text style={styles.rescanButtonText}>rescan</Text>
-              </TouchableOpacity>
-            </View>
+            {!hasDatabaseResults && (
+              <View style={[styles.rescanContainer, styles.sectionSpacing]}>
+                <TouchableOpacity style={styles.rescanButton} onPress={handleScan} activeOpacity={0.8}>
+                  <Text style={styles.rescanButtonText}>rescan</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </>
         )}
 
