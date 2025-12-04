@@ -3,12 +3,15 @@ import { useRouter } from "expo-router";
 import React, { useMemo } from "react";
 import { Pressable, PressableProps, StyleSheet, Text, View } from "react-native";
 import { DefaultTheme, useTheme } from "styled-components/native";
+import formatBytes from "../constants/formatBytes";
 
 type Props = {
   title: string;
   subtitle?: string;
   rightIcon?: string;
   onRightPress?: PressableProps["onPress"];
+  totalSize?: number;
+  totalFiles?: number;
 };
 
 const AppHeader: React.FC<Props> = ({
@@ -16,6 +19,8 @@ const AppHeader: React.FC<Props> = ({
   subtitle: _subtitle,
   rightIcon = "chevron-left",
   onRightPress,
+  totalSize,
+  totalFiles,
 }) => {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -49,6 +54,19 @@ const AppHeader: React.FC<Props> = ({
 
         <View style={styles.titleContent}>
           <Text style={styles.heading}>{title}</Text>
+          {totalSize !== undefined && totalFiles !== undefined && (
+            <View style={styles.metaRow}>
+              <Text style={styles.metaText}>
+                <Text style={styles.metaValue}>{formatBytes(totalSize)}</Text>
+                <Text style={styles.metaLabel}> total</Text>
+              </Text>
+              <Text style={styles.metaDivider}> · </Text>
+              <Text style={styles.metaText}>
+                <Text style={styles.metaValue}>{totalFiles}</Text>
+                <Text style={styles.metaLabel}> files</Text>
+              </Text>
+            </View>
+          )}
         </View>
       </View>
     </View>
@@ -75,6 +93,30 @@ const createStyles = (theme: DefaultTheme) =>
       color: theme.colors.text,
       fontSize: 20,
       fontWeight: "700",
+    },
+    metaRow: {
+      flexDirection: "row",
+      alignItems: "baseline",
+      marginTop: 4,
+    },
+    metaText: {
+      flexDirection: "row",
+      alignItems: "baseline",
+    },
+    metaValue: {
+      color: theme.colors.text,
+      fontSize: theme.fontSize.sm,
+      fontWeight: theme.fontWeight.semibold,
+    },
+    metaLabel: {
+      color: theme.colors.textMuted,
+      fontSize: theme.fontSize.sm,
+      fontWeight: theme.fontWeight.normal,
+    },
+    metaDivider: {
+      color: theme.colors.textMuted,
+      fontSize: theme.fontSize.sm,
+      marginHorizontal: 4,
     },
     iconButton: {
       width: 48,

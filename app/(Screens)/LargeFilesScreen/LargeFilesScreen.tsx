@@ -81,6 +81,10 @@ const LargeFilesScreen: React.FC = () => {
     return stats;
   }, [selectedFilePaths, sortedFiles]);
 
+  const isAllSelected = useMemo(() => {
+    return sortedFiles.length > 0 && sortedFiles.every((file) => selectedFilePaths.has(file.path));
+  }, [sortedFiles, selectedFilePaths]);
+
   const toggleFileSelection = useCallback((path: string) => {
     setSelectedFilePaths((prev) => {
       const next = new Set(prev);
@@ -92,6 +96,20 @@ const LargeFilesScreen: React.FC = () => {
       return next;
     });
   }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedFilePaths((prev) => {
+      const next = new Set(prev);
+      if (isAllSelected) {
+        // Deselect all
+        sortedFiles.forEach((file) => next.delete(file.path));
+      } else {
+        // Select all
+        sortedFiles.forEach((file) => next.add(file.path));
+      }
+      return next;
+    });
+  }, [isAllSelected, sortedFiles]);
 
   const handleDelete = useCallback(async () => {
     if (selectedStats.items === 0) {
@@ -288,7 +306,12 @@ const LargeFilesScreen: React.FC = () => {
     <ScreenWrapper style={styles.screen}>
       <SafeAreaView style={{ flex: 1 }} edges={['bottom', 'left', 'right']}>
         <View style={styles.headerContainer}>
-          <AppHeader title="Large Files" subtitle="Find and manage storage hogs" />
+          <AppHeader 
+            title="Large Files" 
+            subtitle="Find and manage storage hogs"
+            totalSize={resultsAvailable ? summaryBytes : undefined}
+            totalFiles={resultsAvailable ? filesInView : undefined}
+          />
         </View>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {!loading && !resultsAvailable && (
@@ -312,33 +335,31 @@ const LargeFilesScreen: React.FC = () => {
 
         {!loading && resultsAvailable && (
           <>
-            <View style={[styles.metricsCard, styles.sectionSpacing]}>
-              <View style={styles.metricRow}>
-                <View style={styles.metricItem}>
-                  <MaterialCommunityIcons
-                    name="harddisk"
-                    size={16}
-                    color={theme.colors.textMuted}
-                  />
-                  <Text style={styles.metricText}>
-                    <Text style={styles.metricValue}>{formatBytes(summaryBytes)}</Text>
-                    <Text style={styles.metricLabel}> total</Text>
+            {resultsAvailable && (
+              <View style={[styles.selectionMetaCard, styles.sectionSpacing]}>
+                <View style={styles.selectionTextWrap}>
+                  <Text style={styles.selectionLabel}>selected</Text>
+                  <Text style={styles.selectionValue}>
+                    {selectedStats.items} files · {formatBytes(selectedStats.size)}
                   </Text>
                 </View>
-                <View style={styles.metricDivider} />
-                <View style={styles.metricItem}>
+                <TouchableOpacity
+                  style={[styles.selectAllButton, isAllSelected && styles.selectAllButtonActive]}
+                  onPress={toggleSelectAll}
+                  disabled={!sortedFiles.length}
+                  activeOpacity={sortedFiles.length ? 0.85 : 1}
+                >
                   <MaterialCommunityIcons
-                    name="file-multiple-outline"
-                    size={16}
-                    color={theme.colors.textMuted}
+                    name={isAllSelected ? "check-all" : "selection"}
+                    size={18}
+                    color={isAllSelected ? theme.colors.secondary : theme.colors.text}
                   />
-                  <Text style={styles.metricText}>
-                    <Text style={styles.metricValue}>{filesInView}</Text>
-                    <Text style={styles.metricLabel}> files</Text>
+                  <Text style={[styles.selectAllLabel, isAllSelected && styles.selectAllLabelActive]}>
+                    {isAllSelected ? "clear all" : "select all"}
                   </Text>
-                </View>
+                </TouchableOpacity>
               </View>
-            </View>
+            )}
 
             <View style={[styles.resultsContainer, styles.sectionSpacing]}>
               {sortedFiles.map((file) => renderFileItem(file))}
@@ -495,47 +516,58 @@ const createStyles = (theme: DefaultTheme) =>
       fontSize: theme.fontSize.sm,
       color: theme.colors.textMuted,
     },
-    metricsCard: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.lg,
+    resultsContainer: {
+      gap: theme.spacing.xs,
+    },
+    selectionMetaCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
       padding: theme.spacing.md,
+      borderRadius: theme.radii.lg,
+      backgroundColor: theme.colors.surface,
       borderWidth: 1,
       borderColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}66` : `${theme.colors.surfaceAlt}44`,
     },
-    metricRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    metricItem: {
+    selectionTextWrap: {
       flex: 1,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: theme.spacing.xs,
+      marginRight: theme.spacing.sm,
     },
-    metricDivider: {
-      width: 1,
-      height: 24,
-      backgroundColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}66` : `${theme.colors.surfaceAlt}44`,
-      marginHorizontal: theme.spacing.md,
-    },
-    metricText: {
-      flexDirection: "row",
-      alignItems: "baseline",
-    },
-    metricLabel: {
+    selectionLabel: {
       color: theme.colors.textMuted,
-      fontSize: theme.fontSize.sm,
-      fontWeight: theme.fontWeight.normal,
+      fontSize: theme.fontSize.xs,
+      textTransform: "uppercase",
+      letterSpacing: 0.8,
     },
-    metricValue: {
+    selectionValue: {
       color: theme.colors.text,
       fontSize: theme.fontSize.md,
-      fontWeight: theme.fontWeight.bold,
+      fontWeight: theme.fontWeight.semibold,
+      marginTop: 4,
     },
-    resultsContainer: {
-      gap: theme.spacing.xs,
+    selectAllButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      paddingVertical: theme.spacing.xs,
+      paddingHorizontal: theme.spacing.sm,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}99` : `${theme.colors.surfaceAlt}77`,
+      backgroundColor: theme.colors.surface,
+    },
+    selectAllButtonActive: {
+      borderColor: theme.colors.secondary,
+      backgroundColor: `${theme.colors.secondary}22`,
+    },
+    selectAllLabel: {
+      color: theme.colors.text,
+      fontWeight: theme.fontWeight.semibold,
+      fontSize: theme.fontSize.sm,
+      textTransform: "capitalize",
+    },
+    selectAllLabelActive: {
+      color: theme.colors.secondary,
     },
     itemWrapper: {
       marginVertical: 0,
