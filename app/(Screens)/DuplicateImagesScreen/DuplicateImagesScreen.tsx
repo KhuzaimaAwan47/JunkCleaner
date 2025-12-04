@@ -5,6 +5,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, w
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DefaultTheme, useTheme } from 'styled-components/native';
 import AppHeader from '../../../components/AppHeader';
+import DeleteButton from '../../../components/DeleteButton';
 import DuplicateCard, { DuplicateFileItem } from '../../../components/DuplicateCard';
 import ProgressBar from '../../../components/ProgressBar';
 import ScreenWrapper from '../../../components/ScreenWrapper';
@@ -40,7 +41,6 @@ function ensurePreviewUri(path: string): string | null {
   }
   return `file://${path}`;
 }
-
 
 export default function DuplicateImagesScreen() {
   const { isScanning, progress, duplicates, error, startScan, stopScan } = useScanner();
@@ -179,14 +179,6 @@ export default function DuplicateImagesScreen() {
     return stats;
   }, [selectedFileIds, duplicateFiles]);
 
-  const formatBytes = (bytes: number): string => {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
-  };
-
   const toggleFileSelection = (id: string) => {
     setSelectedFileIds((prev) => {
       const next = new Set(prev);
@@ -249,9 +241,10 @@ export default function DuplicateImagesScreen() {
   return (
     <ScreenWrapper style={styles.screen}>
       <SafeAreaView style={{ flex: 1 }} edges={['bottom', 'left', 'right']}>
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.headerContainer}>
           <AppHeader title="Duplicate Images" subtitle="Review and clean identical photos quickly" />
-
+        </View>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={[styles.filterRow, styles.sectionSpacing]}>
           <View style={styles.smartFilterCard}>
             <View style={styles.smartFilterText}>
@@ -374,19 +367,12 @@ export default function DuplicateImagesScreen() {
           )}
 
           {!isScanning && duplicateFiles.length > 0 && (
-          <View style={[styles.footerAction, styles.sectionSpacing]}>
-            <TouchableOpacity
-              style={[styles.footerButton, deleteDisabled && styles.footerButtonDisabled]}
-                disabled={deleteDisabled}
-                activeOpacity={deleteDisabled ? 1 : 0.9}
-              >
-              <Text style={styles.footerButtonText}>
-                  delete {selectedStats.items} item{selectedStats.items !== 1 ? 's' : ''}
-              </Text>
-              <Text style={styles.footerButtonMeta}>{formatBytes(selectedStats.size)}</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+            <DeleteButton
+              items={selectedStats.items}
+              size={selectedStats.size}
+              disabled={deleteDisabled}
+            />
+          )}
       </ScrollView>
 
       <Modal visible={!!previewFile} transparent animationType="fade" onRequestClose={handlePreviewClose}>
@@ -419,6 +405,10 @@ const createStyles = (theme: DefaultTheme) =>
   StyleSheet.create({
     screen: {
       flex: 1,
+    },
+    headerContainer: {
+      paddingHorizontal: theme.spacing.lg,
+      paddingTop: theme.spacing.lg,
     },
     content: {
       paddingHorizontal: theme.spacing.lg,
@@ -643,32 +633,6 @@ const createStyles = (theme: DefaultTheme) =>
       color: theme.colors.textMuted,
       fontSize: theme.fontSize.sm,
       textAlign: 'center',
-    },
-    footerAction: {
-      marginTop: theme.spacing.md,
-    },
-    footerButton: {
-      borderRadius: theme.radii.xl,
-      paddingVertical: theme.spacing.md,
-      paddingHorizontal: theme.spacing.lg,
-      backgroundColor: theme.colors.secondary,
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 4,
-    },
-    footerButtonDisabled: {
-      backgroundColor: `${theme.colors.surfaceAlt}55`,
-    },
-    footerButtonText: {
-      color: theme.colors.white,
-      fontSize: theme.fontSize.md,
-      fontWeight: theme.fontWeight.bold,
-      textTransform: 'capitalize',
-    },
-    footerButtonMeta: {
-      color: theme.colors.white,
-      fontSize: theme.fontSize.sm,
-      opacity: 0.85,
     },
     previewBackdrop: {
       flex: 1,
