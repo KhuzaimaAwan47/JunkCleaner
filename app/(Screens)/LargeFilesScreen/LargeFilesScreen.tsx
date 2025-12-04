@@ -290,9 +290,6 @@ const LargeFilesScreen: React.FC = () => {
                     <Text style={styles.metaText}>{formatTimestamp(item.modified)}</Text>
                   ) : null}
                 </View>
-                <Text style={styles.pathText} numberOfLines={1}>
-                  {item.path}
-                </Text>
               </View>
             </View>
           </NeumorphicContainer>
