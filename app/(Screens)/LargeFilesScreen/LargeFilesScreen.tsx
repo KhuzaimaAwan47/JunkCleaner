@@ -219,9 +219,10 @@ const LargeFilesScreen: React.FC = () => {
   return (
     <ScreenWrapper style={styles.screen}>
       <SafeAreaView style={{ flex: 1 }} edges={['bottom', 'left', 'right']}>
+        <View style={styles.headerContainer}>
+          <AppHeader title="Large Files" subtitle="Find and manage storage hogs" />
+        </View>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <AppHeader title="Large Files" subtitle="Find and manage storage hogs" />
-
         {!loading && !resultsAvailable && (
           <View style={[styles.primaryButtonContainer, styles.sectionSpacing]}>
             <TouchableOpacity style={styles.primaryButton} onPress={handleScan} activeOpacity={0.8}>
@@ -352,6 +353,10 @@ const createStyles = (theme: DefaultTheme) =>
   StyleSheet.create({
     screen: {
       flex: 1,
+    },
+    headerContainer: {
+      paddingHorizontal: theme.spacing.lg,
+      paddingTop: theme.spacing.lg,
     },
     content: {
       paddingHorizontal: theme.spacing.lg,
