@@ -1,4 +1,5 @@
-import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { useColorScheme } from "react-native";
 import type { DefaultTheme } from "styled-components/native";
 import { ThemeProvider } from "styled-components/native";
 import { darkTheme, lightTheme } from "../theme/theme";
@@ -8,26 +9,24 @@ type ThemeMode = "light" | "dark";
 type ThemeContextValue = {
   mode: ThemeMode;
   theme: DefaultTheme;
-  toggleTheme: () => void;
-  setMode: (mode: ThemeMode) => void;
 };
 
 const ThemeModeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 type ThemeModeProviderProps = {
   children: React.ReactNode;
-  initialMode?: ThemeMode;
 };
 
-export const ThemeModeProvider: React.FC<ThemeModeProviderProps> = ({
-  children,
-  initialMode = "light",
-}) => {
-  const [mode, setMode] = useState<ThemeMode>(initialMode);
+export const ThemeModeProvider: React.FC<ThemeModeProviderProps> = ({ children }) => {
+  const systemColorScheme = useColorScheme();
+  const [mode, setMode] = useState<ThemeMode>(systemColorScheme === "dark" ? "dark" : "light");
 
-  const toggleTheme = useCallback(() => {
-    setMode((prev) => (prev === "light" ? "dark" : "light"));
-  }, []);
+  // Update theme when system color scheme changes
+  useEffect(() => {
+    if (systemColorScheme) {
+      setMode(systemColorScheme === "dark" ? "dark" : "light");
+    }
+  }, [systemColorScheme]);
 
   const theme = mode === "dark" ? darkTheme : lightTheme;
 
@@ -35,10 +34,8 @@ export const ThemeModeProvider: React.FC<ThemeModeProviderProps> = ({
     () => ({
       mode,
       theme,
-      toggleTheme,
-      setMode,
     }),
-    [mode, theme, toggleTheme],
+    [mode, theme],
   );
 
   return (

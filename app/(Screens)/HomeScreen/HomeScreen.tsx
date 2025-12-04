@@ -1,7 +1,7 @@
 ﻿import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
-import { Alert, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { DefaultTheme, useTheme } from "styled-components/native";
@@ -11,7 +11,6 @@ import FeatureCard from "../../../components/FeatureCard";
 import NeumorphicContainer from "../../../components/NeumorphicContainer";
 import ScanButton from "../../../components/ScanButton";
 import ScreenWrapper from "../../../components/ScreenWrapper";
-import { useThemeMode } from "../../../context/ThemeContext";
 import type { Feature } from "../../../dummydata/features";
 import { featureCards } from "../../../dummydata/features";
 import {
@@ -32,7 +31,6 @@ import { getStorageInfo } from "../../../utils/storage";
 const HomeScreen = () => {
   const router = useRouter();
   const theme = useTheme();
-  const { mode, toggleTheme } = useThemeMode();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const topFeatures = featureCards.slice(0, 4);
   const remainingFeatures = featureCards.slice(4);
@@ -43,7 +41,6 @@ const HomeScreen = () => {
     }
     return rows;
   }, [remainingFeatures]);
-  const isDarkMode = mode === "dark";
 
   const [storageInfo, setStorageInfo] = React.useState({ total: 0, used: 0, free: 0 });
   const [isScanning, setIsScanning] = React.useState(false);
@@ -154,23 +151,6 @@ const HomeScreen = () => {
     <ScreenWrapper style={styles.screen}>
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-
-        <View style={styles.themeToggleRow}>
-          <View style={styles.themeToggleTextWrap}>
-            <Text style={styles.themeToggleLabel}>{isDarkMode ? "dark mode" : "light mode"}</Text>
-            <Text style={styles.themeToggleSubtitle}>adjust the interface instantly</Text>
-          </View>
-            <Switch
-              accessibilityLabel="toggle app theme"
-              value={isDarkMode}
-              onValueChange={toggleTheme}
-              thumbColor={isDarkMode ? theme.colors.primary : theme.colors.white}
-              trackColor={{
-                false: `${theme.colors.surfaceAlt}aa`,
-                true: `${theme.colors.primary}55`,
-              }}
-            />
-          </View>
           <View style={styles.indicatorCard}>
             <CircularStorageIndicator total={storageInfo.total || 256} used={storageInfo.used || 0} />
             <Text style={styles.scoreLabel}>your system is in good condition</Text>
@@ -314,27 +294,6 @@ const createStyles = (theme: DefaultTheme) =>
     scrollContent: {
       paddingHorizontal: theme.spacing.lg,
       paddingBottom: theme.spacing.xl * 2,
-    },
-    themeToggleRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      paddingVertical: theme.spacing.md,
-    },
-    themeToggleTextWrap: {
-      flex: 1,
-      marginRight: theme.spacing.md,
-    },
-    themeToggleLabel: {
-      color: theme.colors.text,
-      fontSize: theme.fontSize.lg,
-      fontWeight: theme.fontWeight.semibold,
-      textTransform: "capitalize",
-    },
-    themeToggleSubtitle: {
-      color: theme.colors.textMuted,
-      marginTop: 2,
-      fontSize: theme.fontSize.sm,
     },
     indicatorCard: {
       alignItems: "center",
