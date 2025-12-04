@@ -1,21 +1,22 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
+import DeleteButton from "../../../components/DeleteButton";
 import NeumorphicContainer from "../../../components/NeumorphicContainer";
 import ScreenWrapper from "../../../components/ScreenWrapper";
 import formatBytes from "../../../constants/formatBytes";
-import { loadApkScanResults, saveApkScanResults, initDatabase } from "../../../utils/db";
+import { initDatabase, loadApkScanResults, saveApkScanResults } from "../../../utils/db";
 import { ApkFile, deleteApkFile, scanForAPKs } from "./APKScanner";
 
 const APKsRemoverScreen = () => {
@@ -25,6 +26,7 @@ const APKsRemoverScreen = () => {
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState<Set<string>>(new Set());
   const [hasScanned, setHasScanned] = useState(false);
+  const [selectedFilePaths, setSelectedFilePaths] = useState<Set<string>>(new Set());
 
   // Load saved results on mount
   useEffect(() => {
@@ -63,45 +65,137 @@ const APKsRemoverScreen = () => {
 
   const totalSize = useMemo(() => apkFiles.reduce((sum, item) => sum + (item.size || 0), 0), [apkFiles]);
 
-  const handleDelete = useCallback(
-    async (file: ApkFile) => {
-      Alert.alert(
-        "Delete APK?",
-        `This will permanently delete ${file.name} (${formatBytes(file.size)}).`,
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Delete",
-            style: "destructive",
-            onPress: async () => {
-              setDeleting((prev) => new Set(prev).add(file.path));
+  const selectedStats = useMemo(() => {
+    const stats = { items: 0, size: 0 };
+    apkFiles.forEach((file) => {
+      if (selectedFilePaths.has(file.path)) {
+        stats.items += 1;
+        stats.size += file.size || 0;
+      }
+    });
+    return stats;
+  }, [selectedFilePaths, apkFiles]);
+
+  const isAllSelected = useMemo(() => {
+    return apkFiles.length > 0 && apkFiles.every((file) => selectedFilePaths.has(file.path));
+  }, [apkFiles, selectedFilePaths]);
+
+  const toggleFileSelection = useCallback((path: string) => {
+    setSelectedFilePaths((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) {
+        next.delete(path);
+      } else {
+        next.add(path);
+      }
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedFilePaths((prev) => {
+      const next = new Set(prev);
+      if (isAllSelected) {
+        // Deselect all
+        apkFiles.forEach((file) => next.delete(file.path));
+      } else {
+        // Select all
+        apkFiles.forEach((file) => next.add(file.path));
+      }
+      return next;
+    });
+  }, [isAllSelected, apkFiles]);
+
+  const handleDelete = useCallback(async () => {
+    if (selectedStats.items === 0) {
+      return;
+    }
+
+    const filesToDelete = apkFiles.filter((file) => selectedFilePaths.has(file.path));
+    const totalSizeToDelete = filesToDelete.reduce((sum, file) => sum + (file.size || 0), 0);
+
+    Alert.alert(
+      "Delete APKs?",
+      `This will permanently delete ${selectedStats.items} APK file${selectedStats.items !== 1 ? 's' : ''} (${formatBytes(totalSizeToDelete)}).`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            const pathsToDelete = Array.from(selectedFilePaths);
+            setDeleting((prev) => {
+              const next = new Set(prev);
+              pathsToDelete.forEach((path) => next.add(path));
+              return next;
+            });
+
+            let successCount = 0;
+            let failCount = 0;
+
+            for (const path of pathsToDelete) {
               try {
-                await deleteApkFile(file.path);
-                setApkFiles((prev) => prev.filter((item) => item.path !== file.path));
+                await deleteApkFile(path);
+                successCount++;
               } catch (error) {
-                console.warn("Delete failed", error);
-                Alert.alert("Delete Failed", "Unable to delete the file.");
-              } finally {
-                setDeleting((prev) => {
-                  const next = new Set(prev);
-                  next.delete(file.path);
-                  return next;
-                });
+                console.warn("Delete failed for", path, error);
+                failCount++;
               }
-            },
+            }
+
+            // Remove successfully deleted files from state
+            setApkFiles((prev) => prev.filter((item) => !pathsToDelete.includes(item.path)));
+            setSelectedFilePaths(new Set());
+
+            if (failCount > 0) {
+              Alert.alert(
+                "Delete Complete",
+                `Deleted ${successCount} file${successCount !== 1 ? 's' : ''}. ${failCount} file${failCount !== 1 ? 's' : ''} could not be deleted.`
+              );
+            }
+
+            setDeleting((prev) => {
+              const next = new Set(prev);
+              pathsToDelete.forEach((path) => next.delete(path));
+              return next;
+            });
           },
-        ]
-      );
-    },
-    []
-  );
+        },
+      ]
+    );
+  }, [selectedFilePaths, selectedStats.items, apkFiles]);
+
+  // Clear selection when files change
+  useEffect(() => {
+    setSelectedFilePaths((prev) => {
+      const availablePaths = new Set(apkFiles.map((file) => file.path));
+      const next = new Set<string>();
+      prev.forEach((path) => {
+        if (availablePaths.has(path)) {
+          next.add(path);
+        }
+      });
+      return next;
+    });
+  }, [apkFiles]);
 
   const renderItem = useCallback(
     (item: ApkFile) => {
       const isDeleting = deleting.has(item.path);
+      const isSelected = selectedFilePaths.has(item.path);
+      
       return (
-        <View key={item.path} style={styles.itemWrapper}>
-          <NeumorphicContainer padding={theme.spacing.md}>
+        <TouchableOpacity
+          key={item.path}
+          style={styles.itemWrapper}
+          onPress={() => toggleFileSelection(item.path)}
+          disabled={isDeleting}
+          activeOpacity={0.85}
+        >
+          <NeumorphicContainer 
+            padding={theme.spacing.md}
+            style={isSelected ? styles.itemSelected : undefined}
+          >
             <View style={styles.itemInner}>
               <View style={styles.iconBubble}>
                 <MaterialCommunityIcons
@@ -109,48 +203,50 @@ const APKsRemoverScreen = () => {
                   size={28}
                   color={theme.colors.primary}
                 />
+                {isSelected && (
+                  <View style={styles.selectionBadge}>
+                    <MaterialCommunityIcons
+                      name="check"
+                      size={16}
+                      color={theme.colors.white}
+                    />
+                  </View>
+                )}
               </View>
               <View style={styles.infoColumn}>
-                <Text style={styles.fileName} numberOfLines={1}>
-                  {item.name}
-                </Text>
-                <View style={styles.metaRow}>
-                  <Text style={styles.metaText}>{formatBytes(item.size)}</Text>
+                <View style={styles.fileHeader}>
+                  <Text style={styles.fileName} numberOfLines={1}>
+                    {item.name}
+                  </Text>
+                  <Text style={styles.fileSize}>{formatBytes(item.size || 0)}</Text>
                 </View>
                 <Text style={styles.path} numberOfLines={1}>
                   {item.path}
                 </Text>
               </View>
-              <TouchableOpacity
-                onPress={() => handleDelete(item)}
-                disabled={isDeleting}
-                style={[
-                  styles.deleteButton,
-                  isDeleting && styles.deleteButtonDisabled,
-                ]}
-                activeOpacity={0.7}
-              >
-                {isDeleting ? (
-                  <ActivityIndicator size="small" color={theme.colors.white} />
-                ) : (
-                  <MaterialCommunityIcons name="delete" size={20} color={theme.colors.white} />
-                )}
-              </TouchableOpacity>
             </View>
           </NeumorphicContainer>
-        </View>
+        </TouchableOpacity>
       );
     },
-    [styles, theme, deleting, handleDelete]
+    [styles, theme, deleting, selectedFilePaths, toggleFileSelection]
   );
+
+  const resultsAvailable = apkFiles.length > 0;
 
   return (
     <ScreenWrapper style={styles.screen}>
       <SafeAreaView style={{ flex: 1 }} edges={['bottom', 'left', 'right']}>
+        <View style={styles.headerContainer}>
+          <AppHeader 
+            title="APK Remover" 
+            subtitle="Scan and remove APK installer files"
+            totalSize={resultsAvailable ? totalSize : undefined}
+            totalFiles={resultsAvailable ? apkFiles.length : undefined}
+          />
+        </View>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <AppHeader title="APK Remover" subtitle="Scan and remove APK installer files" />
-
-        {!loading && apkFiles.length === 0 && (
+        {!loading && !resultsAvailable && (
           <View style={[styles.primaryButtonContainer, styles.sectionSpacing]}>
             <TouchableOpacity style={styles.primaryButton} onPress={scan} activeOpacity={0.8}>
               <Text style={styles.primaryButtonText}>start scan</Text>
@@ -160,38 +256,73 @@ const APKsRemoverScreen = () => {
 
         {loading && (
           <View style={[styles.progressCard, styles.sectionSpacing]}>
-            <ActivityIndicator size="large" color={theme.colors.primary} />
-            <Text style={styles.progressText}>Scanning...</Text>
+            <View style={styles.progressHeader}>
+              <ActivityIndicator color={theme.colors.primary} size="small" />
+            </View>
+            <Text style={styles.progressText}>Scanning for APK files...</Text>
+            <Text style={styles.progressSubtext}>checking common installation directories</Text>
           </View>
         )}
 
-        {!loading && apkFiles.length > 0 && (
+        {!loading && resultsAvailable && (
           <>
-            <View style={[styles.metricsRow, styles.sectionSpacing]}>
-              <View style={styles.metricCard}>
-                <Text style={styles.metricLabel}>files found</Text>
-                <Text style={styles.metricValue}>{apkFiles.length}</Text>
+            {resultsAvailable && (
+              <View style={[styles.selectionMetaCard, styles.sectionSpacing]}>
+                <View style={styles.selectionTextWrap}>
+                  <Text style={styles.selectionLabel}>selected</Text>
+                  <Text style={styles.selectionValue}>
+                    {selectedStats.items} files · {formatBytes(selectedStats.size)}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.selectAllButton, isAllSelected && styles.selectAllButtonActive]}
+                  onPress={toggleSelectAll}
+                  disabled={!apkFiles.length}
+                  activeOpacity={apkFiles.length ? 0.85 : 1}
+                >
+                  <MaterialCommunityIcons
+                    name={isAllSelected ? "check-all" : "selection"}
+                    size={18}
+                    color={isAllSelected ? theme.colors.secondary : theme.colors.text}
+                  />
+                  <Text style={[styles.selectAllLabel, isAllSelected && styles.selectAllLabelActive]}>
+                    {isAllSelected ? "clear all" : "select all"}
+                  </Text>
+                </TouchableOpacity>
               </View>
-              <View style={styles.metricCard}>
-                <Text style={styles.metricLabel}>total size</Text>
-                <Text style={styles.metricValue}>{formatBytes(totalSize)}</Text>
-              </View>
-            </View>
+            )}
 
             <View style={[styles.resultsContainer, styles.sectionSpacing]}>
               {apkFiles.map((file) => renderItem(file))}
             </View>
 
-            <View style={[styles.rescanContainer, styles.sectionSpacing]}>
-              <TouchableOpacity style={styles.rescanButton} onPress={scan} activeOpacity={0.8}>
-                <Text style={styles.rescanButtonText}>rescan</Text>
-              </TouchableOpacity>
-            </View>
+            {!hasScanned && (
+              <View style={[styles.rescanContainer, styles.sectionSpacing]}>
+                <TouchableOpacity style={styles.rescanButton} onPress={scan} activeOpacity={0.8}>
+                  <Text style={styles.rescanButtonText}>rescan</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {selectedStats.items > 0 && (
+              <DeleteButton
+                items={selectedStats.items}
+                size={selectedStats.size}
+                disabled={false}
+                onPress={handleDelete}
+              />
+            )}
           </>
         )}
 
         {!loading && hasScanned && apkFiles.length === 0 && (
           <View style={[styles.emptyCard, styles.sectionSpacing]}>
+            <MaterialCommunityIcons
+              name="package-variant-closed"
+              size={48}
+              color={theme.colors.textMuted}
+              style={styles.emptyIcon}
+            />
             <Text style={styles.emptyTitle}>no APK files found</Text>
             <Text style={styles.emptySubtitle}>
               No APK installer files were found on your device.
@@ -208,6 +339,10 @@ const createStyles = (theme: DefaultTheme) =>
   StyleSheet.create({
     screen: {
       flex: 1,
+    },
+    headerContainer: {
+      paddingHorizontal: theme.spacing.lg,
+      paddingTop: theme.spacing.lg,
     },
     content: {
       paddingHorizontal: theme.spacing.lg,
@@ -245,39 +380,71 @@ const createStyles = (theme: DefaultTheme) =>
       padding: theme.spacing.lg,
       borderWidth: 1,
       borderColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}66` : `${theme.colors.surfaceAlt}44`,
+      gap: theme.spacing.xs,
+    },
+    progressHeader: {
+      flexDirection: "row",
       alignItems: "center",
-      justifyContent: "center",
-      gap: theme.spacing.sm,
+      justifyContent: "space-between",
     },
     progressText: {
-      color: theme.colors.text,
       fontSize: theme.fontSize.md,
+      color: theme.colors.text,
       fontWeight: theme.fontWeight.semibold,
-      marginTop: theme.spacing.xs,
     },
-    metricsRow: {
+    progressSubtext: {
+      fontSize: theme.fontSize.sm,
+      color: theme.colors.textMuted,
+    },
+    selectionMetaCard: {
       flexDirection: "row",
-      gap: theme.spacing.md,
-    },
-    metricCard: {
-      flex: 1,
+      alignItems: "center",
+      justifyContent: "space-between",
       padding: theme.spacing.md,
       borderRadius: theme.radii.lg,
       backgroundColor: theme.colors.surface,
       borderWidth: 1,
-      borderColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}77` : `${theme.colors.surfaceAlt}55`,
+      borderColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}66` : `${theme.colors.surfaceAlt}44`,
     },
-    metricLabel: {
+    selectionTextWrap: {
+      flex: 1,
+      marginRight: theme.spacing.sm,
+    },
+    selectionLabel: {
       color: theme.colors.textMuted,
       fontSize: theme.fontSize.xs,
       textTransform: "uppercase",
-      letterSpacing: 0.6,
+      letterSpacing: 0.8,
     },
-    metricValue: {
+    selectionValue: {
       color: theme.colors.text,
-      fontSize: 22,
-      fontWeight: "700",
-      marginTop: theme.spacing.xs / 2,
+      fontSize: theme.fontSize.md,
+      fontWeight: theme.fontWeight.semibold,
+      marginTop: 4,
+    },
+    selectAllButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      paddingVertical: theme.spacing.xs,
+      paddingHorizontal: theme.spacing.sm,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}99` : `${theme.colors.surfaceAlt}77`,
+      backgroundColor: theme.colors.surface,
+    },
+    selectAllButtonActive: {
+      borderColor: theme.colors.secondary,
+      backgroundColor: `${theme.colors.secondary}22`,
+    },
+    selectAllLabel: {
+      color: theme.colors.text,
+      fontWeight: theme.fontWeight.semibold,
+      fontSize: theme.fontSize.sm,
+      textTransform: "capitalize",
+    },
+    selectAllLabelActive: {
+      color: theme.colors.secondary,
     },
     resultsContainer: {
       gap: theme.spacing.xs,
@@ -291,6 +458,10 @@ const createStyles = (theme: DefaultTheme) =>
       alignItems: "center",
       gap: theme.spacing.sm,
     },
+    itemSelected: {
+      borderWidth: 1,
+      borderColor: theme.colors.secondary,
+    },
     iconBubble: {
       width: 56,
       height: 56,
@@ -298,39 +469,47 @@ const createStyles = (theme: DefaultTheme) =>
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: `${theme.colors.primary}18`,
+      position: "relative",
+    },
+    selectionBadge: {
+      position: "absolute",
+      top: 6,
+      right: 6,
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: theme.colors.secondary,
+      alignItems: "center",
+      justifyContent: "center",
+      shadowColor: "rgba(0, 0, 0, 0.25)",
+      shadowOpacity: 0.3,
+      shadowRadius: 4,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 4,
     },
     infoColumn: {
       flex: 1,
       gap: theme.spacing.xs / 2,
     },
+    fileHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "baseline",
+    },
     fileName: {
+      flex: 1,
       color: theme.colors.text,
       fontSize: theme.fontSize.md,
       fontWeight: theme.fontWeight.bold,
     },
-    metaRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: theme.spacing.xs,
-    },
-    metaText: {
-      color: theme.colors.textMuted,
+    fileSize: {
+      color: theme.colors.accent,
       fontSize: theme.fontSize.sm,
+      fontWeight: theme.fontWeight.bold,
     },
     path: {
       color: theme.colors.textMuted,
       fontSize: theme.fontSize.xs,
-    },
-    deleteButton: {
-      width: 40,
-      height: 40,
-      borderRadius: theme.radii.lg,
-      backgroundColor: theme.colors.accent,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    deleteButtonDisabled: {
-      opacity: 0.6,
     },
     rescanContainer: {
       marginTop: theme.spacing.md,
@@ -358,11 +537,15 @@ const createStyles = (theme: DefaultTheme) =>
       alignItems: "center",
       gap: theme.spacing.sm,
     },
+    emptyIcon: {
+      opacity: 0.5,
+    },
     emptyTitle: {
       color: theme.colors.text,
       fontSize: theme.fontSize.lg,
       fontWeight: theme.fontWeight.bold,
       textTransform: "capitalize",
+      textAlign: "center",
     },
     emptySubtitle: {
       color: theme.colors.textMuted,
