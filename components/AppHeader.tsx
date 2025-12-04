@@ -1,7 +1,7 @@
 ﻿import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useMemo } from "react";
-import { Pressable, PressableProps, StyleSheet, Text, View } from "react-native";
+import { Pressable, PressableProps, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import formatBytes from "../constants/formatBytes";
 
@@ -12,6 +12,9 @@ type Props = {
   onRightPress?: PressableProps["onPress"];
   totalSize?: number;
   totalFiles?: number;
+  isAllSelected?: boolean;
+  onSelectAllPress?: () => void;
+  selectAllDisabled?: boolean;
 };
 
 const AppHeader: React.FC<Props> = ({
@@ -21,6 +24,9 @@ const AppHeader: React.FC<Props> = ({
   onRightPress,
   totalSize,
   totalFiles,
+  isAllSelected,
+  onSelectAllPress,
+  selectAllDisabled = false,
 }) => {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -68,6 +74,27 @@ const AppHeader: React.FC<Props> = ({
             </View>
           )}
         </View>
+
+        {onSelectAllPress !== undefined && (
+          <TouchableOpacity
+            style={[
+              styles.selectAllButton,
+              isAllSelected && styles.selectAllButtonActive,
+            ]}
+            onPress={onSelectAllPress}
+            disabled={selectAllDisabled}
+            activeOpacity={selectAllDisabled ? 1 : 0.85}
+          >
+            <MaterialCommunityIcons
+              name={isAllSelected ? "check-all" : "selection"}
+              size={18}
+              color={isAllSelected ? theme.colors.secondary : theme.colors.text}
+            />
+            <Text style={[styles.selectAllLabel, isAllSelected && styles.selectAllLabelActive]}>
+              {isAllSelected ? "clear all" : "select all"}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -125,5 +152,29 @@ const createStyles = (theme: DefaultTheme) =>
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}88` : `${theme.colors.surfaceAlt}99`,
+    },
+    selectAllButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      paddingVertical: theme.spacing.xs,
+      paddingHorizontal: theme.spacing.sm,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}99` : `${theme.colors.surfaceAlt}77`,
+      backgroundColor: theme.colors.surface,
+    },
+    selectAllButtonActive: {
+      borderColor: theme.colors.secondary,
+      backgroundColor: `${theme.colors.secondary}22`,
+    },
+    selectAllLabel: {
+      color: theme.colors.text,
+      fontWeight: theme.fontWeight.semibold,
+      fontSize: theme.fontSize.sm,
+      textTransform: "capitalize",
+    },
+    selectAllLabelActive: {
+      color: theme.colors.secondary,
     },
   });

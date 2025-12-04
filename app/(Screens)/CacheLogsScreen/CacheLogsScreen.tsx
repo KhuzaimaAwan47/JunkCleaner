@@ -15,7 +15,6 @@ import AppHeader from "../../../components/AppHeader";
 import DeleteButton from "../../../components/DeleteButton";
 import NeumorphicContainer from "../../../components/NeumorphicContainer";
 import ScreenWrapper from "../../../components/ScreenWrapper";
-import SelectAll from "../../../components/SelectAll";
 import formatBytes from "../../../constants/formatBytes";
 import { initDatabase, loadCacheLogsResults, saveCacheLogsResults } from "../../../utils/db";
 import { ScanResult, deleteFile, scanCachesAndLogs } from "./CacheLogsScanner";
@@ -231,6 +230,9 @@ const CacheLogsScreen = () => {
             subtitle="Find and clean cache clutter"
             totalSize={resultsAvailable ? totalBytes : undefined}
             totalFiles={resultsAvailable ? sortedItems.length : undefined}
+            isAllSelected={resultsAvailable ? isAllSelected : undefined}
+            onSelectAllPress={resultsAvailable ? toggleSelectAll : undefined}
+            selectAllDisabled={resultsAvailable ? !sortedItems.length : undefined}
           />
         </View>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -254,21 +256,7 @@ const CacheLogsScreen = () => {
 
           {!loading && resultsAvailable && (
             <>
-              {resultsAvailable && (
-                <View style={[styles.selectionMetaCard, styles.sectionSpacing]}>
-                  <View style={styles.selectionTextWrap}>
-                    <Text style={styles.selectionLabel}>selected</Text>
-                    <Text style={styles.selectionValue}>
-                      {selectedStats.items} files · {formatBytes(selectedStats.size)}
-                    </Text>
-                  </View>
-                  <SelectAll
-                    isAllSelected={isAllSelected}
-                    disabled={!sortedItems.length}
-                    onPress={toggleSelectAll}
-                  />
-                </View>
-              )}
+              
 
               <View style={[styles.resultsContainer, styles.sectionSpacing]}>
                 {sortedItems.map((item) => renderItem(item))}

@@ -16,7 +16,6 @@ import AppHeader from "../../../components/AppHeader";
 import DeleteButton from "../../../components/DeleteButton";
 import NeumorphicContainer from "../../../components/NeumorphicContainer";
 import ScreenWrapper from "../../../components/ScreenWrapper";
-import SelectAll from "../../../components/SelectAll";
 import formatBytes from "../../../constants/formatBytes";
 import { initDatabase, loadJunkFileResults } from "../../../utils/db";
 import { deleteJunkFiles, JunkFileItem } from "./JunkFileScanner";
@@ -215,6 +214,9 @@ const JunkFileScannerScreen = () => {
             title="Junk Scanner"
             totalSize={items.length > 0 ? totalSize : undefined}
             totalFiles={items.length > 0 ? items.length : undefined}
+            isAllSelected={items.length > 0 ? isAllSelected : undefined}
+            onSelectAllPress={items.length > 0 ? toggleSelectAll : undefined}
+            selectAllDisabled={items.length > 0 ? !items.length : undefined}
           />
 
 
@@ -231,11 +233,6 @@ const JunkFileScannerScreen = () => {
                     {selectedStats.items} files · {formatBytes(selectedStats.size)}
                   </Text>
                 </View>
-                <SelectAll
-                  isAllSelected={isAllSelected}
-                  disabled={!items.length}
-                  onPress={toggleSelectAll}
-                />
               </View>
               <FlatList
                 data={items}

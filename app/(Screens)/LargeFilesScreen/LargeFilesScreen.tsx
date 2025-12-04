@@ -15,7 +15,6 @@ import AppHeader from "../../../components/AppHeader";
 import DeleteButton from "../../../components/DeleteButton";
 import NeumorphicContainer from "../../../components/NeumorphicContainer";
 import ScreenWrapper from "../../../components/ScreenWrapper";
-import SelectAll from "../../../components/SelectAll";
 import formatBytes from "../../../constants/formatBytes";
 import { initDatabase, loadLargeFileResults, saveLargeFileResults } from "../../../utils/db";
 import {
@@ -309,6 +308,9 @@ const LargeFilesScreen: React.FC = () => {
             subtitle="Find and manage storage hogs"
             totalSize={resultsAvailable ? summaryBytes : undefined}
             totalFiles={resultsAvailable ? filesInView : undefined}
+            isAllSelected={resultsAvailable ? isAllSelected : undefined}
+            onSelectAllPress={resultsAvailable ? toggleSelectAll : undefined}
+            selectAllDisabled={resultsAvailable ? !sortedFiles.length : undefined}
           />
         </View>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -333,21 +335,7 @@ const LargeFilesScreen: React.FC = () => {
 
         {!loading && resultsAvailable && (
           <>
-            {resultsAvailable && (
-              <View style={[styles.selectionMetaCard, styles.sectionSpacing]}>
-                <View style={styles.selectionTextWrap}>
-                  <Text style={styles.selectionLabel}>selected</Text>
-                  <Text style={styles.selectionValue}>
-                    {selectedStats.items} files · {formatBytes(selectedStats.size)}
-                  </Text>
-                </View>
-                <SelectAll
-                  isAllSelected={isAllSelected}
-                  disabled={!sortedFiles.length}
-                  onPress={toggleSelectAll}
-                />
-              </View>
-            )}
+           
 
             <View style={[styles.resultsContainer, styles.sectionSpacing]}>
               {sortedFiles.map((file) => renderFileItem(file))}
