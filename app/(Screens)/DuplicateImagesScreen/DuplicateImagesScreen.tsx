@@ -246,23 +246,10 @@ export default function DuplicateImagesScreen() {
         </View>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={[styles.filterRow, styles.sectionSpacing]}>
-          <View style={styles.smartFilterCard}>
-            <View style={styles.smartFilterText}>
-              <Text style={styles.smartFilterLabel}>smart filtering</Text>
-              {/* <Text style={styles.smartFilterCaption}>auto-select safe duplicates</Text> */}
-            </View>
-            <Switch
-              value={smartFiltering}
-              onValueChange={handleSmartFilteringToggle}
-              trackColor={{ false: `${theme.colors.surfaceAlt}55`, true: `${theme.colors.primary}55` }}
-              thumbColor={theme.colors.primary}
-            />
-          </View>
-
           <TouchableOpacity
-              onPress={handleSelectAll}
-              disabled={selectAllDisabled}
-              activeOpacity={selectAllDisabled ? 1 : 0.85}
+            onPress={handleSelectAll}
+            disabled={selectAllDisabled}
+            activeOpacity={selectAllDisabled ? 1 : 0.85}
             style={[styles.filterButton, selectAllDisabled && styles.filterButtonDisabled]}
           >
             <View
@@ -272,9 +259,9 @@ export default function DuplicateImagesScreen() {
                 selectionState === 'partial' && styles.selectIndicatorPartial,
               ]}
             >
-                {selectionState === 'all' ? (
-                  <MaterialCommunityIcons name="check" size={16} color={theme.colors.white} />
-                ) : (
+              {selectionState === 'all' ? (
+                <MaterialCommunityIcons name="check" size={14} color={theme.colors.white} />
+              ) : (
                 <View
                   style={[
                     styles.selectIndicatorInner,
@@ -288,6 +275,18 @@ export default function DuplicateImagesScreen() {
               <Text style={styles.filterHint}>{selectAllHint}</Text>
             </View>
           </TouchableOpacity>
+
+          <View style={styles.smartFilterCard}>
+            <View style={styles.smartFilterText}>
+              <Text style={styles.smartFilterLabel}>smart filtering</Text>
+            </View>
+            <Switch
+              value={smartFiltering}
+              onValueChange={handleSmartFilteringToggle}
+              trackColor={{ false: `${theme.colors.surfaceAlt}55`, true: `${theme.colors.primary}55` }}
+              thumbColor={theme.colors.primary}
+            />
+          </View>
         </View>
 
           {!isScanning && duplicateFiles.length === 0 && (
@@ -420,7 +419,7 @@ const createStyles = (theme: DefaultTheme) =>
     },
     filterRow: {
       flexDirection: 'row',
-      gap: theme.spacing.md,
+      gap: theme.spacing.sm,
     },
     smartFilterCard: {
       flex: 1,
@@ -428,25 +427,25 @@ const createStyles = (theme: DefaultTheme) =>
       alignItems: 'center',
       justifyContent: 'space-between',
       backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.lg,
-      paddingVertical: theme.spacing.sm,
-      paddingHorizontal: theme.spacing.md,
+      borderRadius: theme.radii.md,
+      paddingVertical: theme.spacing.xs,
+      paddingHorizontal: theme.spacing.sm,
       borderWidth: 1,
       borderColor: theme.mode === 'dark' ? `${theme.colors.surfaceAlt}77` : `${theme.colors.surfaceAlt}55`,
     },
     smartFilterText: {
       flex: 1,
-      marginRight: theme.spacing.sm,
+      marginRight: theme.spacing.xs,
     },
     smartFilterLabel: {
       color: theme.colors.text,
-      fontSize: theme.fontSize.md,
+      fontSize: theme.fontSize.sm,
       fontWeight: theme.fontWeight.semibold,
       textTransform: 'capitalize',
     },
     smartFilterCaption: {
       color: theme.colors.textMuted,
-      fontSize: theme.fontSize.sm,
+      fontSize: theme.fontSize.xs,
       marginTop: 2,
     },
     filterButton: {
@@ -454,9 +453,9 @@ const createStyles = (theme: DefaultTheme) =>
       alignItems: 'center',
       flex: 1,
       backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.lg,
-      paddingVertical: theme.spacing.sm,
-      paddingHorizontal: theme.spacing.md,
+      borderRadius: theme.radii.md,
+      paddingVertical: theme.spacing.xs,
+      paddingHorizontal: theme.spacing.sm,
       borderWidth: 1,
       borderColor: theme.mode === 'dark' ? `${theme.colors.surfaceAlt}77` : `${theme.colors.surfaceAlt}55`,
     },
@@ -464,14 +463,14 @@ const createStyles = (theme: DefaultTheme) =>
       opacity: 0.5,
     },
     selectIndicator: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      borderWidth: 2,
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      borderWidth: 1.5,
       borderColor: `${theme.colors.primary}66`,
       alignItems: 'center',
       justifyContent: 'center',
-      marginRight: theme.spacing.sm,
+      marginRight: theme.spacing.xs,
       backgroundColor: theme.colors.surface,
     },
     selectIndicatorAll: {
@@ -482,15 +481,15 @@ const createStyles = (theme: DefaultTheme) =>
       borderColor: `${theme.colors.primary}aa`,
     },
     selectIndicatorInner: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
+      width: 6,
+      height: 6,
+      borderRadius: 3,
       backgroundColor: `${theme.colors.primary}66`,
     },
     selectIndicatorInnerPartial: {
-      width: 14,
-      height: 4,
-      borderRadius: 2,
+      width: 10,
+      height: 3,
+      borderRadius: 1.5,
       backgroundColor: theme.colors.primary,
     },
     filterText: {
@@ -505,7 +504,7 @@ const createStyles = (theme: DefaultTheme) =>
     filterHint: {
       color: theme.colors.textMuted,
       fontSize: theme.fontSize.xs,
-      marginTop: 2,
+      marginTop: 1,
     },
     primaryButton: {
       backgroundColor: theme.colors.primary,
