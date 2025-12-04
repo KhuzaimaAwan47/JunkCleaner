@@ -32,7 +32,6 @@ const LargeFilesScreen: React.FC = () => {
   const [files, setFiles] = useState<LargeFileResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [lastScan, setLastScan] = useState<number | null>(null);
   const [hasDatabaseResults, setHasDatabaseResults] = useState<boolean>(false);
   const sortMode: "size" | "recent" | "category" = "size";
   const sourceFilter: SourceFilter = "all";
@@ -122,7 +121,6 @@ const LargeFilesScreen: React.FC = () => {
         });
       });
       setFiles(results);
-      setLastScan(Date.now());
       // Save results to database
       await saveLargeFileResults(results);
       setHasDatabaseResults(results.length > 0);
@@ -149,6 +147,10 @@ const LargeFilesScreen: React.FC = () => {
     (item: LargeFileResult) => {
       const filename = item.path.split("/").pop() || item.path;
       const previewable = isPreviewableAsset(item.path) && !thumbnailFallbacks[item.path];
+      const fileIcon = getFileTypeIcon(item.path);
+      const isVideo = isVideoFile(item.path);
+      const isImage = isImageFile(item.path);
+      
       return (
         <View key={item.path} style={styles.itemWrapper}>
           <NeumorphicContainer padding={theme.spacing.md}>
@@ -164,9 +166,27 @@ const LargeFilesScreen: React.FC = () => {
                 ) : (
                   <View style={styles.thumbnailFallback}>
                     <MaterialCommunityIcons
-                      name="file-document-outline"
+                      name={fileIcon as any}
                       size={24}
                       color={theme.colors.primary}
+                    />
+                  </View>
+                )}
+                {isVideo && (
+                  <View style={styles.fileTypeBadge}>
+                    <MaterialCommunityIcons
+                      name="play-circle"
+                      size={16}
+                      color={theme.colors.white}
+                    />
+                  </View>
+                )}
+                {isImage && !previewable && (
+                  <View style={styles.fileTypeBadge}>
+                    <MaterialCommunityIcons
+                      name="image"
+                      size={16}
+                      color={theme.colors.white}
                     />
                   </View>
                 )}
@@ -180,7 +200,6 @@ const LargeFilesScreen: React.FC = () => {
                 </View>
                 <View style={styles.badgeRow}>
                   <Text style={styles.tag}>{item.category}</Text>
-                  <Text style={[styles.tag, styles.tagAccent]}>{item.source}</Text>
                   {item.modified != null ? (
                     <Text style={styles.metaText}>{formatTimestamp(item.modified)}</Text>
                   ) : null}
@@ -194,7 +213,7 @@ const LargeFilesScreen: React.FC = () => {
         </View>
       );
     },
-    [recordThumbnailError, theme.colors.primary, theme.spacing.md, thumbnailFallbacks, styles],
+    [recordThumbnailError, theme.colors.primary, theme.colors.white, theme.spacing.md, thumbnailFallbacks, styles],
   );
 
   return (
@@ -226,18 +245,26 @@ const LargeFilesScreen: React.FC = () => {
           <>
             <View style={[styles.metricsRow, styles.sectionSpacing]}>
               <View style={styles.metricCard}>
-                <Text style={styles.metricLabel}>
-                  {resultsAvailable ? "visible weight" : "total weight"}
-                </Text>
+                <View style={styles.metricIconContainer}>
+                  <MaterialCommunityIcons
+                    name="harddisk"
+                    size={20}
+                    color={theme.colors.primary}
+                  />
+                </View>
+                <Text style={styles.metricLabel}>total size</Text>
                 <Text style={styles.metricValue}>{formatBytes(summaryBytes)}</Text>
               </View>
               <View style={styles.metricCard}>
+                <View style={styles.metricIconContainer}>
+                  <MaterialCommunityIcons
+                    name="file-multiple-outline"
+                    size={20}
+                    color={theme.colors.primary}
+                  />
+                </View>
                 <Text style={styles.metricLabel}>files found</Text>
                 <Text style={styles.metricValue}>{filesInView}</Text>
-              </View>
-              <View style={styles.metricCard}>
-                <Text style={styles.metricLabel}>last scan</Text>
-                <Text style={styles.metricValue}>{lastScan ? formatLastScan(lastScan) : "—"}</Text>
               </View>
             </View>
 
@@ -292,16 +319,31 @@ const formatTimestamp = (seconds: number): string => {
   return date.toLocaleDateString();
 };
 
-const formatLastScan = (timestamp: number): string => {
-  const date = new Date(timestamp);
-  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-};
-
 const PREVIEW_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"];
+const VIDEO_EXTENSIONS = [".mp4", ".mov", ".avi", ".mkv", ".webm", ".flv", ".wmv", ".m4v", ".3gp", ".mpg", ".mpeg"];
 
 const isPreviewableAsset = (path: string): boolean => {
   const lower = path.toLowerCase();
   return PREVIEW_EXTENSIONS.some((ext) => lower.endsWith(ext));
+};
+
+const isVideoFile = (path: string): boolean => {
+  const lower = path.toLowerCase();
+  return VIDEO_EXTENSIONS.some((ext) => lower.endsWith(ext));
+};
+
+const isImageFile = (path: string): boolean => {
+  return isPreviewableAsset(path);
+};
+
+const getFileTypeIcon = (path: string): string => {
+  if (isVideoFile(path)) {
+    return "video-outline";
+  }
+  if (isImageFile(path)) {
+    return "image-outline";
+  }
+  return "file-document-outline";
 };
 
 export default LargeFilesScreen;
@@ -374,23 +416,35 @@ const createStyles = (theme: DefaultTheme) =>
     },
     metricCard: {
       flex: 1,
-      padding: theme.spacing.md,
-      borderRadius: theme.radii.lg,
+      padding: theme.spacing.lg,
+      borderRadius: theme.radii.xl,
       backgroundColor: theme.colors.surface,
       borderWidth: 1,
       borderColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}77` : `${theme.colors.surfaceAlt}55`,
+      alignItems: "center",
+    },
+    metricIconContainer: {
+      width: 40,
+      height: 40,
+      borderRadius: theme.radii.lg,
+      backgroundColor: `${theme.colors.primary}15`,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: theme.spacing.sm,
     },
     metricLabel: {
       color: theme.colors.textMuted,
       fontSize: theme.fontSize.xs,
       textTransform: "uppercase",
-      letterSpacing: 0.6,
+      letterSpacing: 0.8,
+      fontWeight: theme.fontWeight.semibold,
+      marginBottom: theme.spacing.xs / 2,
     },
     metricValue: {
       color: theme.colors.text,
-      fontSize: 22,
+      fontSize: 20,
       fontWeight: "700",
-      marginTop: theme.spacing.xs / 2,
+      textAlign: "center",
     },
     resultsContainer: {
       gap: theme.spacing.xs,
@@ -423,6 +477,19 @@ const createStyles = (theme: DefaultTheme) =>
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: `${theme.colors.primary}18`,
+    },
+    fileTypeBadge: {
+      position: "absolute",
+      bottom: 4,
+      right: 4,
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      backgroundColor: theme.colors.primary,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 2,
+      borderColor: theme.colors.surface,
     },
     infoColumn: {
       flex: 1,
