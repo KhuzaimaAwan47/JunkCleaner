@@ -220,20 +220,9 @@ const JunkFileScannerScreen = () => {
           />
 
 
-
-
-
-
           {items.length > 0 ? (
             <>
-              <View style={styles.selectionMetaCard}>
-                <View style={styles.selectionTextWrap}>
-                  <Text style={styles.selectionLabel}>selected</Text>
-                  <Text style={styles.selectionValue}>
-                    {selectedStats.items} files · {formatBytes(selectedStats.size)}
-                  </Text>
-                </View>
-              </View>
+             
               <FlatList
                 data={items}
                 keyExtractor={(item) => item.path}
