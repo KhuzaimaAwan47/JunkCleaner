@@ -34,15 +34,14 @@ export interface ScannerResults {
 export function calculateSystemHealth(results: ScannerResults): SystemHealthResult {
   // Handle nullable conditions - default to empty arrays
   const apkResults = results.apkResults ?? [];
-  const whatsappResults = results.whatsappResults ?? [];
+  // WhatsApp, Large files, Old files, and Unused apps are excluded from health calculation
   const duplicateResults = results.duplicateResults ?? [];
-  const largeFileResults = results.largeFileResults ?? [];
   const junkFileResults = results.junkFileResults ?? [];
-  const oldFileResults = results.oldFileResults ?? [];
   const cacheLogsResults = results.cacheLogsResults ?? [];
-  const unusedAppsResults = results.unusedAppsResults ?? [];
 
-  // Calculate total items and sizes
+  // Calculate total items and sizes (excluding certain categories from health calculation)
+  // Excluded: Large files, WhatsApp files, Old files, Unused apps
+  // These are not necessarily junk - they might be important files/apps
   let totalItems = 0;
   let totalSize = 0;
 
@@ -50,9 +49,10 @@ export function calculateSystemHealth(results: ScannerResults): SystemHealthResu
   totalItems += apkResults.length;
   totalSize += apkResults.reduce((sum, item) => sum + (item.size ?? 0), 0);
 
-  // WhatsApp files
-  totalItems += whatsappResults.length;
-  totalSize += whatsappResults.reduce((sum, item) => sum + (item.size ?? 0), 0);
+  // WhatsApp files - EXCLUDE from health calculation (might be important media)
+  // const whatsappResults = results.whatsappResults ?? [];
+  // totalItems += whatsappResults.length;
+  // totalSize += whatsappResults.reduce((sum, item) => sum + (item.size ?? 0), 0);
 
   // Duplicate images (count files in groups, not groups themselves)
   const duplicateFileCount = duplicateResults.reduce(
@@ -62,48 +62,51 @@ export function calculateSystemHealth(results: ScannerResults): SystemHealthResu
   totalItems += duplicateFileCount;
   totalSize += duplicateResults.reduce((sum, group) => sum + (group.totalSize ?? 0), 0);
 
-  // Large files
-  totalItems += largeFileResults.length;
-  totalSize += largeFileResults.reduce((sum, item) => sum + (item.size ?? 0), 0);
+  // Large files - EXCLUDE from health calculation as they're not necessarily junk
+  // const largeFileResults = results.largeFileResults ?? [];
+  // totalItems += largeFileResults.length;
+  // totalSize += largeFileResults.reduce((sum, item) => sum + (item.size ?? 0), 0);
 
   // Junk files
   totalItems += junkFileResults.length;
   totalSize += junkFileResults.reduce((sum, item) => sum + (item.size ?? 0), 0);
 
-  // Old files
-  totalItems += oldFileResults.length;
-  totalSize += oldFileResults.reduce((sum, item) => sum + (item.size ?? 0), 0);
+  // Old files - EXCLUDE from health calculation (might be important old files)
+  // const oldFileResults = results.oldFileResults ?? [];
+  // totalItems += oldFileResults.length;
+  // totalSize += oldFileResults.reduce((sum, item) => sum + (item.size ?? 0), 0);
 
   // Cache & logs
   totalItems += cacheLogsResults.length;
   totalSize += cacheLogsResults.reduce((sum, item) => sum + (item.size ?? 0), 0);
 
-  // Unused apps (count only unused/low usage)
-  const unusedAppsCount = unusedAppsResults.filter(
-    (app) => app.category === 'UNUSED' || app.category === 'LOW_USAGE'
-  ).length;
-  totalItems += unusedAppsCount;
+  // Unused apps - EXCLUDE from health calculation (user might want to keep them)
+  // const unusedAppsResults = results.unusedAppsResults ?? [];
+  // const unusedAppsCount = unusedAppsResults.filter(
+  //   (app) => app.category === 'UNUSED' || app.category === 'LOW_USAGE'
+  // ).length;
+  // totalItems += unusedAppsCount;
 
   // Calculate health score (0-100)
   // Lower items and size = higher score
-  // Score is based on:
-  // - Item count (max 1000 items = 0 points, 0 items = 50 points)
-  // - Total size (max 10GB = 0 points, 0 bytes = 50 points)
-  const itemScore = Math.max(0, 50 - (totalItems / 1000) * 50);
-  const sizeScore = Math.max(0, 50 - (totalSize / (10 * 1024 * 1024 * 1024)) * 50);
+  // Very lenient thresholds for realistic scoring:
+  // - Item count (max 10000 items = 0 points, 0 items = 50 points)
+  // - Total size (max 100GB = 0 points, 0 bytes = 50 points)
+  const itemScore = Math.max(0, 50 - (totalItems / 10000) * 50);
+  const sizeScore = Math.max(0, 50 - (totalSize / (100 * 1024 * 1024 * 1024)) * 50);
   const score = Math.round(itemScore + sizeScore);
 
-  // Determine status and message
+  // Determine status and message with more lenient thresholds
   let status: 'excellent' | 'good' | 'fair' | 'poor';
   let message: string;
 
-  if (score >= 80) {
+  if (score >= 75) {
     status = 'excellent';
     message = 'Excellent Condition';
-  } else if (score >= 60) {
+  } else if (score >= 50) {
     status = 'good';
     message = 'Good Condition';
-  } else if (score >= 40) {
+  } else if (score >= 30) {
     status = 'fair';
     message = 'Needs Attention';
   } else {
