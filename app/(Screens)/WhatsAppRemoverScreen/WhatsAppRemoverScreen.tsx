@@ -1,8 +1,18 @@
 ﻿import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, ListRenderItem } from 'react-native';
+import {
+  ActivityIndicator,
+  FlatList,
+  Image,
+  ListRenderItem,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import styledNative, { useTheme } from 'styled-components/native';
+import { DefaultTheme, useTheme } from 'styled-components/native';
 import AppHeader from '../../../components/AppHeader';
 import ScreenWrapper from '../../../components/ScreenWrapper';
 import formatBytes from '../../../constants/formatBytes';
@@ -13,8 +23,6 @@ import {
   WhatsAppFileType,
   WhatsAppScanResult,
 } from './WhatsAppScanner';
-
-const styled = styledNative;
 
 type FilterType = 'All' | WhatsAppFileType;
 
@@ -67,6 +75,7 @@ const getFileIcon = (path: string, type: WhatsAppFileType): string => {
 
 const WhatsAppRemoverScreen = () => {
   const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [files, setFiles] = useState<WhatsAppScanResult[]>([]);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [isScanning, setIsScanning] = useState(false);
@@ -176,42 +185,47 @@ const WhatsAppRemoverScreen = () => {
       const showThumbnail = previewable && (item.type === 'Images' || item.type === 'Video' || item.type === 'Statuses');
       
       return (
-        <FileRow activeOpacity={0.85} selected={isActive} onPress={() => toggleSelect(item.path)}>
-          <ThumbWrapper>
+        <TouchableOpacity
+          activeOpacity={0.85}
+          style={[styles.fileRow, isActive && styles.fileRowSelected]}
+          onPress={() => toggleSelect(item.path)}
+        >
+          <View style={styles.thumbWrapper}>
             {showThumbnail ? (
-              <ThumbnailImage
+              <Image
                 source={{ uri: item.path }}
                 resizeMode="cover"
+                style={styles.thumbnailImage}
                 onError={() => recordThumbnailError(item.path)}
               />
             ) : (
-              <ThumbnailFallback>
+              <View style={styles.thumbnailFallback}>
                 <MaterialCommunityIcons
                   name={iconName as any}
                   size={28}
                   color={theme.colors.textMuted}
                 />
-              </ThumbnailFallback>
+              </View>
             )}
             {isActive ? (
-              <SelectionBadge>
+              <View style={styles.selectionBadge}>
                 <MaterialCommunityIcons name="check" size={16} color={theme.colors.white} />
-              </SelectionBadge>
+              </View>
             ) : null}
-          </ThumbWrapper>
-          <FileMeta>
-            <FileName numberOfLines={1}>{filename}</FileName>
-            <FileSize>{formatBytes(item.size)}</FileSize>
-          </FileMeta>
-        </FileRow>
+          </View>
+          <View style={styles.fileMeta}>
+            <Text style={styles.fileName} numberOfLines={1}>{filename}</Text>
+            <Text style={styles.fileSize}>{formatBytes(item.size)}</Text>
+          </View>
+        </TouchableOpacity>
       );
     },
-    [thumbnailFallbacks, selected, theme.colors.textMuted, theme.colors.white, toggleSelect, recordThumbnailError],
+    [thumbnailFallbacks, selected, theme.colors.textMuted, theme.colors.white, toggleSelect, recordThumbnailError, styles],
   );
 
   return (
     <ScreenWrapper>
-      <Screen edges={['bottom', 'left', 'right']}>
+      <SafeAreaView style={styles.screen} edges={['bottom', 'left', 'right']}>
         <FlatList
         data={filteredFiles}
         keyExtractor={(item) => item.path}
@@ -219,7 +233,7 @@ const WhatsAppRemoverScreen = () => {
         contentContainerStyle={listContentInset}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
-          <HeaderSection>
+          <View style={styles.headerSection}>
             <AppHeader
               title="Whatsapp Scanner"
               totalSize={summary.totalSize}
@@ -229,9 +243,9 @@ const WhatsAppRemoverScreen = () => {
               selectAllDisabled={!filteredFiles.length}
             />
             {!hasSavedResults && (
-              <ActionsRow>
-                <ActionButton
-                  tone="primary"
+              <View style={styles.actionsRow}>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.actionButtonPrimary, isScanning && styles.actionButtonDisabled]}
                   disabled={isScanning}
                   onPress={onRescan}
                   accessibilityRole="button"
@@ -239,68 +253,73 @@ const WhatsAppRemoverScreen = () => {
                   {isScanning ? (
                     <ActivityIndicator color={theme.colors.white} />
                   ) : (
-                    <ActionLabel>rescan</ActionLabel>
+                    <Text style={styles.actionLabel}>rescan</Text>
                   )}
-                </ActionButton>
-              </ActionsRow>
+                </TouchableOpacity>
+              </View>
             )}
 
-            <FiltersHeader>
-              <FiltersTitle>filter by type</FiltersTitle>
-              <FiltersHint>{activeFilterCount} in view</FiltersHint>
-            </FiltersHeader>
-            <FiltersScrollView
+            <View style={styles.filtersHeader}>
+              <Text style={styles.filtersTitle}>filter by type</Text>
+              <Text style={styles.filtersHint}>{activeFilterCount} in view</Text>
+            </View>
+            <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingRight: theme.spacing.lg }}
+              contentContainerStyle={styles.filtersScrollContent}
             >
               {FILTER_TYPES.map((type) => {
                 const isActive = type === filterType;
                 const countLabel =
                   type === 'All' ? summary.totalCount : summary.byType[type as WhatsAppFileType]?.count ?? 0;
                 return (
-                  <FilterChip key={type} active={isActive} onPress={() => setFilterType(type)} activeOpacity={0.8}>
-                    <FilterChipText active={isActive}>
+                  <TouchableOpacity
+                    key={type}
+                    style={[styles.filterChip, isActive && styles.filterChipActive]}
+                    onPress={() => setFilterType(type)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.filterChipText, isActive && styles.filterChipTextActive]}>
                       {type.toLowerCase()} · {countLabel}
-                    </FilterChipText>
-                  </FilterChip>
+                    </Text>
+                  </TouchableOpacity>
                 );
               })}
-            </FiltersScrollView>
+            </ScrollView>
 
             {error ? (
-              <ErrorBanner>
+              <View style={styles.errorBanner}>
                 <MaterialCommunityIcons name="alert-circle-outline" size={18} color="#ff8484" />
-                <ErrorText>{error}</ErrorText>
-              </ErrorBanner>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
             ) : null}
-          </HeaderSection>
+          </View>
         }
         ListEmptyComponent={
-          <EmptyCard>
+          <View style={styles.emptyCard}>
             {isScanning ? (
               <>
                 <ActivityIndicator color={theme.colors.primary} />
-                <EmptyTitle>scanning whatsapp folders</EmptyTitle>
-                <EmptySubtitle>sit tight while we index your chats and media.</EmptySubtitle>
+                <Text style={styles.emptyTitle}>scanning whatsapp folders</Text>
+                <Text style={styles.emptySubtitle}>sit tight while we index your chats and media.</Text>
               </>
             ) : (
               <>
-                <EmptyTitle>
+                <Text style={styles.emptyTitle}>
                   {files.length ? 'no files in this filter' : 'ready to clean whatsapp clutter'}
-                </EmptyTitle>
-                <EmptySubtitle>
+                </Text>
+                <Text style={styles.emptySubtitle}>
                   {files.length
                     ? 'try switching to another media type.'
                     : 'tap rescan to fetch images, audio, and docs instantly.'}
-                </EmptySubtitle>
+                </Text>
               </>
             )}
-          </EmptyCard>
+          </View>
         }
-        ListFooterComponent={<FooterSpacer />}
+        ListFooterComponent={<View style={styles.footerSpacer} />}
       />
-      </Screen>
+      </SafeAreaView>
     </ScreenWrapper>
   );
 };
@@ -315,190 +334,181 @@ const isPreviewableMedia = (path: string) => {
   return PREVIEWABLE_EXTENSIONS.some((ext) => lower.endsWith(ext));
 };
 
-const Screen = styled(SafeAreaView)`
-  flex: 1;
-`;
-
-const HeaderSection = styled.View`
-  width: 100%;
-  gap: ${({ theme }) => theme.spacing.md}px;
-  padding-bottom: ${({ theme }) => theme.spacing.md}px;
-`;
-
-const ActionsRow = styled.View`
-  flex-direction: row;
-  gap: ${({ theme }) => theme.spacing.sm}px;
-`;
-
-const ActionButton = styled.TouchableOpacity<{ tone: 'primary' | 'danger'; disabled?: boolean }>`
-  flex: 1;
-  padding-vertical: ${({ theme }) => theme.spacing.md - 2}px;
-  border-radius: ${({ theme }) => theme.radii.lg}px;
-  align-items: center;
-  justify-content: center;
-  background-color: ${({ tone, theme }) =>
-    tone === 'primary' ? theme.colors.secondary : theme.colors.accent};
-  opacity: ${({ disabled }) => (disabled ? 0.5 : 1)};
-`;
-
-const ActionLabel = styled.Text`
-  color: ${({ theme }) => theme.colors.white};
-  font-size: 14px;
-  font-weight: 600;
-  text-transform: uppercase;
-`;
-
-const FiltersHeader = styled.View`
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-`;
-
-const FiltersTitle = styled.Text`
-  color: ${({ theme }) => theme.colors.text};
-  font-size: 15px;
-  font-weight: 600;
-  text-transform: capitalize;
-`;
-
-const FiltersHint = styled.Text`
-  color: ${({ theme }) => theme.colors.textMuted};
-  font-size: 13px;
-`;
-
-const FiltersScrollView = styled.ScrollView`
-  flex-direction: row;
-`;
-
-const FilterChip = styled.TouchableOpacity<{ active: boolean }>`
-  padding: ${({ theme }) => `${theme.spacing.xs}px ${theme.spacing.sm}px`};
-  border-radius: 999px;
-  border-width: 1px;
-  border-color: ${({ active, theme }) =>
-    active ? theme.colors.secondary : `${theme.colors.surfaceAlt}55`};
-  background-color: ${({ active, theme }) =>
-    active ? `${theme.colors.secondary}22` : theme.colors.surface};
-  margin-right: ${({ theme }) => theme.spacing.xs}px;
-`;
-
-const FilterChipText = styled.Text<{ active: boolean }>`
-  color: ${({ active, theme }) => (active ? theme.colors.secondary : theme.colors.text)};
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: capitalize;
-`;
-
-const ErrorBanner = styled.View`
-  flex-direction: row;
-  align-items: center;
-  gap: 8px;
-  padding: ${({ theme }) => theme.spacing.sm}px;
-  border-radius: ${({ theme }) => theme.radii.lg}px;
-  background-color: rgba(255, 77, 79, 0.1);
-  border-width: 1px;
-  border-color: rgba(255, 77, 79, 0.4);
-`;
-
-const ErrorText = styled.Text`
-  color: #ff8a8a;
-  flex: 1;
-`;
-
-const FileRow = styled.TouchableOpacity<{ selected: boolean }>`
-  flex-direction: row;
-  align-items: center;
-  padding: ${({ theme }) => theme.spacing.md}px;
-  border-radius: ${({ theme }) => theme.radii.lg}px;
-  background-color: ${({ theme }) => theme.colors.surface};
-  border-width: 1px;
-  border-color: ${({ selected, theme }) =>
-    selected ? theme.colors.secondary : `${theme.colors.surfaceAlt}55`};
-  margin-top: ${({ theme }) => theme.spacing.sm}px;
-`;
-
-const ThumbWrapper = styled.View`
-  width: 60px;
-  height: 60px;
-  border-radius: ${({ theme }) => theme.radii.lg}px;
-  overflow: hidden;
-  background-color: ${({ theme }) => `${theme.colors.surfaceAlt}55`};
-  align-items: center;
-  justify-content: center;
-  margin-right: ${({ theme }) => theme.spacing.md}px;
-  position: relative;
-`;
-
-const ThumbnailImage = styled.Image`
-  width: 100%;
-  height: 100%;
-`;
-
-const ThumbnailFallback = styled.View`
-  width: 100%;
-  height: 100%;
-  align-items: center;
-  justify-content: center;
-`;
-
-const FileMeta = styled.View`
-  flex: 1;
-`;
-
-const FileName = styled.Text`
-  color: ${({ theme }) => theme.colors.text};
-  font-size: 16px;
-  font-weight: 600;
-`;
-
-const FileSize = styled.Text`
-  color: ${({ theme }) => theme.colors.textMuted};
-  font-size: 13px;
-  margin-top: 4px;
-`;
-
-const SelectionBadge = styled.View`
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 22px;
-  height: 22px;
-  border-radius: 11px;
-  background-color: ${({ theme }) => theme.colors.secondary};
-  align-items: center;
-  justify-content: center;
-  shadow-color: rgba(0, 0, 0, 0.25);
-  shadow-opacity: 0.3;
-  shadow-radius: 4px;
-  elevation: 4;
-`;
-
-const EmptyCard = styled.View`
-  margin-top: ${({ theme }) => theme.spacing.lg}px;
-  padding: ${({ theme }) => theme.spacing.lg}px;
-  border-radius: ${({ theme }) => theme.radii.xl}px;
-  background-color: ${({ theme }) => theme.colors.surface};
-  border-width: 1px;
-  border-color: ${({ theme }) => `${theme.colors.surfaceAlt}55`};
-  align-items: center;
-  gap: ${({ theme }) => theme.spacing.xs}px;
-`;
-
-const EmptyTitle = styled.Text`
-  color: ${({ theme }) => theme.colors.text};
-  font-size: 16px;
-  font-weight: 600;
-  text-align: center;
-`;
-
-const EmptySubtitle = styled.Text`
-  color: ${({ theme }) => theme.colors.textMuted};
-  text-align: center;
-  font-size: 13px;
-`;
-
-const FooterSpacer = styled.View`
-  height: ${({ theme }) => theme.spacing.xl}px;
-`;
+const createStyles = (theme: DefaultTheme) =>
+  StyleSheet.create({
+    screen: {
+      flex: 1,
+    },
+    headerSection: {
+      width: '100%',
+      gap: theme.spacing.md,
+      paddingBottom: theme.spacing.md,
+    },
+    actionsRow: {
+      flexDirection: 'row',
+      gap: theme.spacing.sm,
+    },
+    actionButton: {
+      flex: 1,
+      paddingVertical: theme.spacing.md - 2,
+      borderRadius: theme.radii.lg,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    actionButtonPrimary: {
+      backgroundColor: theme.colors.secondary,
+    },
+    actionButtonDisabled: {
+      opacity: 0.5,
+    },
+    actionLabel: {
+      color: theme.colors.white,
+      fontSize: 14,
+      fontWeight: '600',
+      textTransform: 'uppercase',
+    },
+    filtersHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    filtersTitle: {
+      color: theme.colors.text,
+      fontSize: 15,
+      fontWeight: '600',
+      textTransform: 'capitalize',
+    },
+    filtersHint: {
+      color: theme.colors.textMuted,
+      fontSize: 13,
+    },
+    filtersScrollContent: {
+      paddingRight: theme.spacing.lg,
+    },
+    filterChip: {
+      paddingVertical: theme.spacing.xs,
+      paddingHorizontal: theme.spacing.sm,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: `${theme.colors.surfaceAlt}55`,
+      backgroundColor: theme.colors.surface,
+      marginRight: theme.spacing.xs,
+    },
+    filterChipActive: {
+      borderColor: theme.colors.secondary,
+      backgroundColor: `${theme.colors.secondary}22`,
+    },
+    filterChipText: {
+      color: theme.colors.text,
+      fontSize: 12,
+      fontWeight: '600',
+      textTransform: 'capitalize',
+    },
+    filterChipTextActive: {
+      color: theme.colors.secondary,
+    },
+    errorBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      padding: theme.spacing.sm,
+      borderRadius: theme.radii.lg,
+      backgroundColor: 'rgba(255, 77, 79, 0.1)',
+      borderWidth: 1,
+      borderColor: 'rgba(255, 77, 79, 0.4)',
+    },
+    errorText: {
+      color: '#ff8a8a',
+      flex: 1,
+    },
+    fileRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: theme.spacing.md,
+      borderRadius: theme.radii.lg,
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: `${theme.colors.surfaceAlt}55`,
+      marginTop: theme.spacing.sm,
+    },
+    fileRowSelected: {
+      borderColor: theme.colors.secondary,
+    },
+    thumbWrapper: {
+      width: 60,
+      height: 60,
+      borderRadius: theme.radii.lg,
+      overflow: 'hidden',
+      backgroundColor: `${theme.colors.surfaceAlt}55`,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: theme.spacing.md,
+      position: 'relative',
+    },
+    thumbnailImage: {
+      width: '100%',
+      height: '100%',
+    },
+    thumbnailFallback: {
+      width: '100%',
+      height: '100%',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    fileMeta: {
+      flex: 1,
+    },
+    fileName: {
+      color: theme.colors.text,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    fileSize: {
+      color: theme.colors.textMuted,
+      fontSize: 13,
+      marginTop: 4,
+    },
+    selectionBadge: {
+      position: 'absolute',
+      top: 6,
+      right: 6,
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: theme.colors.secondary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: 'rgba(0, 0, 0, 0.25)',
+      shadowOpacity: 0.3,
+      shadowRadius: 4,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 4,
+    },
+    emptyCard: {
+      marginTop: theme.spacing.lg,
+      padding: theme.spacing.lg,
+      borderRadius: theme.radii.xl,
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: `${theme.colors.surfaceAlt}55`,
+      alignItems: 'center',
+      gap: theme.spacing.xs,
+    },
+    emptyTitle: {
+      color: theme.colors.text,
+      fontSize: 16,
+      fontWeight: '600',
+      textAlign: 'center',
+    },
+    emptySubtitle: {
+      color: theme.colors.textMuted,
+      textAlign: 'center',
+      fontSize: 13,
+    },
+    footerSpacer: {
+      height: theme.spacing.xl,
+    },
+  });
 
 export default WhatsAppRemoverScreen;
 
