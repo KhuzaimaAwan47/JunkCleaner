@@ -3,13 +3,15 @@ import { StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Defs, Stop, LinearGradient as SvgGradient } from "react-native-svg";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import type { SmartScanProgress } from "../utils/smartScan";
+import type { SystemHealthResult } from "../utils/systemHealth";
 
 type Props = {
   scanProgress?: SmartScanProgress | null;
+  systemHealth?: SystemHealthResult | null;
   size?: number;
 };
 
-const CircularLoadingIndicator: React.FC<Props> = ({ scanProgress, size = 200 }) => {
+const CircularLoadingIndicator: React.FC<Props> = ({ scanProgress, systemHealth, size = 200 }) => {
   const strokeWidth = 18;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -22,6 +24,23 @@ const CircularLoadingIndicator: React.FC<Props> = ({ scanProgress, size = 200 })
   const progress = scanProgress
     ? Math.min(1, (scanProgress.current + (scanProgress.scannerProgress || 0)) / scanProgress.total)
     : 0;
+
+  // Get health status color
+  const getHealthColor = (status?: SystemHealthResult['status']): string => {
+    if (!status) return theme.colors.textMuted;
+    switch (status) {
+      case 'excellent':
+        return theme.colors.success || '#4CAF50';
+      case 'good':
+        return theme.colors.primary;
+      case 'fair':
+        return theme.colors.warning || '#FF9800';
+      case 'poor':
+        return theme.colors.error || '#F44336';
+      default:
+        return theme.colors.textMuted;
+    }
+  };
 
   return (
     <View style={[styles.wrapper, { width: size, height: size }]}>
@@ -70,7 +89,19 @@ const CircularLoadingIndicator: React.FC<Props> = ({ scanProgress, size = 200 })
         ) : (
           <>
             <Text style={styles.statusText}>System Health</Text>
-            <Text style={styles.statusSubtext}>Good Condition</Text>
+            <Text
+              style={[
+                styles.statusSubtext,
+                { color: getHealthColor(systemHealth?.status) },
+              ]}
+            >
+              {systemHealth?.message ?? 'No Data'}
+            </Text>
+            {systemHealth?.score != null && (
+              <Text style={styles.healthScore}>
+                {systemHealth.score}/100
+              </Text>
+            )}
           </>
         )}
       </View>
@@ -122,6 +153,14 @@ const createStyles = (theme: DefaultTheme) =>
       fontWeight: "500",
       color: theme.colors.textMuted,
       textAlign: "center",
+    },
+    healthScore: {
+      fontSize: 12,
+      fontWeight: "600",
+      color: theme.colors.textMuted,
+      textAlign: "center",
+      marginTop: 4,
+      opacity: 0.7,
     },
   });
 

@@ -27,6 +27,7 @@ import {
 } from "../../../utils/db";
 import { runSmartScan, type SmartScanProgress } from "../../../utils/smartScan";
 import { getStorageInfo } from "../../../utils/storage";
+import { calculateSystemHealth, type SystemHealthResult } from "../../../utils/systemHealth";
 
 const HomeScreen = () => {
   const router = useRouter();
@@ -47,6 +48,8 @@ const HomeScreen = () => {
   const [scanProgress, setScanProgress] = React.useState<SmartScanProgress | null>(null);
   const [showRemainingRows, setShowRemainingRows] = React.useState(false);
   const [featureProgress, setFeatureProgress] = React.useState<Record<string, number>>({});
+  const [systemHealth, setSystemHealth] = React.useState<SystemHealthResult | null>(null);
+  const scanCancelledRef = React.useRef(false);
 
   // Load storage info on mount
   React.useEffect(() => {
@@ -113,6 +116,19 @@ const HomeScreen = () => {
         progress.cache = cacheLogsResults.length > 0 ? Math.min(0.95, cacheLogsResults.length / 100) : 0;
         progress.unused = unusedAppsResults.length > 0 ? Math.min(0.95, unusedAppsResults.length / 50) : 0;
         setFeatureProgress(progress);
+
+        // Calculate system health
+        const health = calculateSystemHealth({
+          apkResults,
+          whatsappResults,
+          duplicateResults,
+          largeFileResults,
+          junkFileResults,
+          oldFileResults,
+          cacheLogsResults,
+          unusedAppsResults,
+        });
+        setSystemHealth(health);
       } catch (error) {
         console.error("Failed to check scan status:", error);
       }
@@ -125,20 +141,34 @@ const HomeScreen = () => {
 
     setIsScanning(true);
     setScanProgress(null);
+    scanCancelledRef.current = false;
 
     try {
       await runSmartScan((progress) => {
-        setScanProgress(progress);
+        if (!scanCancelledRef.current) {
+          setScanProgress(progress);
+        }
       });
-      Alert.alert("Smart Scan Complete", "All scanners have finished successfully.");
+      if (!scanCancelledRef.current) {
+        Alert.alert("Smart Scan Complete", "All scanners have finished successfully.");
+      }
     } catch (error) {
-      console.error("Smart scan error:", error);
-      Alert.alert("Scan Error", (error as Error).message || "An error occurred during the scan.");
+      if (!scanCancelledRef.current) {
+        console.error("Smart scan error:", error);
+        Alert.alert("Scan Error", (error as Error).message || "An error occurred during the scan.");
+      }
     } finally {
       setIsScanning(false);
       setScanProgress(null);
+      scanCancelledRef.current = false;
     }
   }, [isScanning]);
+
+  const handleStopScan = React.useCallback(() => {
+    scanCancelledRef.current = true;
+    setIsScanning(false);
+    setScanProgress(null);
+  }, []);
 
   const handleNavigate = React.useCallback(
     (route: Feature["route"]) => {
@@ -154,28 +184,14 @@ const HomeScreen = () => {
           <View style={styles.indicatorCard}>
             <CircularLoadingIndicator
               scanProgress={isScanning ? scanProgress : null}
+              systemHealth={!isScanning ? systemHealth : null}
             />
-            {isScanning ? (
-              <View style={styles.scanProgressContainer}>
-                {scanProgress && (
-                  <>
-                    <Text style={styles.scanProgressText}>
-                      {scanProgress.scannerName} ({scanProgress.current}/{scanProgress.total})
-                    </Text>
-                    {scanProgress.scannerDetail && (
-                      <Text style={styles.scanProgressDetail}>{scanProgress.scannerDetail}</Text>
-                    )}
-                  </>
-                )}
-              </View>
-            ) : (
-              <ScanButton
-                onPress={handleSmartScan}
-                label={isScanning ? "scanning..." : "Smart Scan"}
-                style={styles.scanButton}
-                disabled={isScanning}
-              />
-            )}
+            <ScanButton
+              onPress={isScanning ? handleStopScan : handleSmartScan}
+              label={isScanning ? "Stop Scan" : "Smart Scan"}
+              style={[styles.scanButton, isScanning && { backgroundColor: "#EF4444" }]}
+              disabled={false}
+            />
           </View>
           <View style={styles.featureGrid}>
             {topFeatures.map((feature) => (
@@ -362,24 +378,6 @@ const createStyles = (theme: DefaultTheme) =>
     },
     adSection: {
       marginTop: theme.spacing.lg,
-    },
-    scanProgressContainer: {
-      marginTop: theme.spacing.lg,
-      width: "100%",
-      alignItems: "center",
-    },
-    scanProgressText: {
-      color: theme.colors.text,
-      fontSize: theme.fontSize.sm,
-      fontWeight: theme.fontWeight.semibold,
-      marginTop: theme.spacing.xs,
-      textAlign: "center",
-    },
-    scanProgressDetail: {
-      color: theme.colors.textMuted,
-      fontSize: theme.fontSize.xs,
-      marginTop: 2,
-      textAlign: "center",
     },
     progressBarContainer: {
       marginTop: theme.spacing.xs / 2,
