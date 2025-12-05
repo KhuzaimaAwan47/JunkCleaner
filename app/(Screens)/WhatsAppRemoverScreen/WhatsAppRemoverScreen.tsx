@@ -402,7 +402,7 @@ const createStyles = (theme: DefaultTheme) =>
       justifyContent: 'center',
     },
     actionButtonPrimary: {
-      backgroundColor: theme.colors.secondary,
+      backgroundColor: theme.colors.primary,
     },
     actionButtonDisabled: {
       opacity: 0.5,
@@ -426,8 +426,8 @@ const createStyles = (theme: DefaultTheme) =>
       marginRight: theme.spacing.xs,
     },
     filterChipActive: {
-      borderColor: theme.colors.secondary,
-      backgroundColor: `${theme.colors.secondary}22`,
+      borderColor: theme.colors.primary,
+      backgroundColor: `${theme.colors.primary}22`,
     },
     filterChipText: {
       color: theme.colors.text,
@@ -436,7 +436,7 @@ const createStyles = (theme: DefaultTheme) =>
       textTransform: 'capitalize',
     },
     filterChipTextActive: {
-      color: theme.colors.secondary,
+      color: theme.colors.primary,
     },
     errorBanner: {
       flexDirection: 'row',
@@ -463,7 +463,7 @@ const createStyles = (theme: DefaultTheme) =>
       marginTop: theme.spacing.sm,
     },
     fileRowSelected: {
-      borderColor: theme.colors.secondary,
+      borderColor: theme.colors.primary,
     },
     thumbWrapper: {
       width: 60,
@@ -506,7 +506,7 @@ const createStyles = (theme: DefaultTheme) =>
       width: 22,
       height: 22,
       borderRadius: 11,
-      backgroundColor: theme.colors.secondary,
+      backgroundColor: theme.colors.primary,
       alignItems: 'center',
       justifyContent: 'center',
       shadowColor: 'rgba(0, 0, 0, 0.25)',

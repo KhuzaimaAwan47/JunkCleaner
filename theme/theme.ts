@@ -14,7 +14,7 @@ export const allColors = {
   secondary: "#10B981",
   accent: "#F97316",
   text: "#171717",
-  textMuted: "#525252",
+  textMuted: "#6B7280",
   black: "#000000",
   white: "#FFFFFF",
   grey: "#666666",
@@ -34,18 +34,18 @@ export const allColors = {
   info: "#3B82F6",
   background: "#FFFFFF",
   surface: "#F8F9FA",
-  surfaceAlt: "#E5E5E5",
-  border: "#E5E5E5",
+  surfaceAlt: "#F0F0F0",
+  border: "#E0E0E0",
 };
 
 export const darkColors = {
-  primary: "#007AFF",
-  primaryDark: "#0056CC",
-  primaryLight: "#4DA6FF",
+  primary: "#5AC8FA",
+  primaryDark: "#3BA3D8",
+  primaryLight: "#7DD3FF",
   secondary: "#34D399",
   accent: "#FB923C",
   text: "#F5F5F5",
-  textMuted: "#9CA3AF",
+  textMuted: "#A1A1AA",
   black: "#FFFFFF",
   white: "#000000",
   grey: "#999999",
@@ -65,8 +65,8 @@ export const darkColors = {
   info: "#3B82F6",
   background: "#171717",
   surface: "#1C1C1E",
-  surfaceAlt: "#2A2A2D",
-  border: "#2F2F32",
+  surfaceAlt: "#2C2C2E",
+  border: "#3A3A3C",
 };
 
 export const Colors = {

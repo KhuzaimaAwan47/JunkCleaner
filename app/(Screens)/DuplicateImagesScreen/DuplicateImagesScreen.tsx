@@ -330,8 +330,8 @@ export default function DuplicateImagesScreen() {
               <Switch
                 value={smartFiltering}
                 onValueChange={handleSmartFilteringToggle}
-                trackColor={{ false: `${theme.colors.surfaceAlt}55`, true: `${theme.colors.secondary}55` }}
-                thumbColor={theme.colors.secondary}
+                trackColor={{ false: `${theme.colors.surfaceAlt}55`, true: `${theme.colors.primary}55` }}
+                thumbColor={theme.colors.primary}
               />
             </View>
           </View>
@@ -609,30 +609,30 @@ const createStyles = (theme: DefaultTheme) =>
        height: 24,
        borderRadius: 12,
        borderWidth: 1.5,
-       borderColor: `${theme.colors.secondary}66`,
+       borderColor: `${theme.colors.primary}66`,
        alignItems: 'center',
        justifyContent: 'center',
        marginRight: theme.spacing.xs,
        backgroundColor: theme.colors.surface,
      },
      selectIndicatorAll: {
-       backgroundColor: theme.colors.secondary,
-       borderColor: theme.colors.secondary,
+       backgroundColor: theme.colors.primary,
+       borderColor: theme.colors.primary,
      },
      selectIndicatorPartial: {
-       borderColor: `${theme.colors.secondary}aa`,
+       borderColor: `${theme.colors.primary}aa`,
      },
      selectIndicatorInner: {
        width: 6,
        height: 6,
        borderRadius: 3,
-       backgroundColor: `${theme.colors.secondary}66`,
+       backgroundColor: `${theme.colors.primary}66`,
      },
      selectIndicatorInnerPartial: {
        width: 10,
        height: 3,
        borderRadius: 1.5,
-       backgroundColor: theme.colors.secondary,
+       backgroundColor: theme.colors.primary,
      },
     filterText: {
       flex: 1,
@@ -795,14 +795,14 @@ const createStyles = (theme: DefaultTheme) =>
        height: 24,
        borderRadius: 6,
        borderWidth: 2,
-       borderColor: `${theme.colors.secondary}66`,
+       borderColor: `${theme.colors.primary}66`,
        backgroundColor: theme.colors.surface,
        alignItems: 'center',
        justifyContent: 'center',
      },
      fileCheckboxSelected: {
-       backgroundColor: theme.colors.secondary,
-       borderColor: theme.colors.secondary,
+       backgroundColor: theme.colors.primary,
+       borderColor: theme.colors.primary,
      },
     duplicateWrapper: {
       marginBottom: theme.spacing.xs,

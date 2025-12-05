@@ -88,7 +88,7 @@ const AppHeader: React.FC<Props> = ({
             <MaterialCommunityIcons
               name={isAllSelected ? "check-all" : "selection"}
               size={18}
-              color={isAllSelected ? theme.colors.secondary : theme.colors.text}
+              color={isAllSelected ? theme.colors.primary : theme.colors.text}
             />
             <Text style={[styles.selectAllLabel, isAllSelected && styles.selectAllLabelActive]}>
               {isAllSelected ? "clear all" : "select all"}
@@ -165,8 +165,8 @@ const createStyles = (theme: DefaultTheme) =>
       backgroundColor: theme.colors.surface,
     },
     selectAllButtonActive: {
-      borderColor: theme.colors.secondary,
-      backgroundColor: `${theme.colors.secondary}22`,
+      borderColor: theme.colors.primary,
+      backgroundColor: `${theme.colors.primary}22`,
     },
     selectAllLabel: {
       color: theme.colors.text,
@@ -175,6 +175,6 @@ const createStyles = (theme: DefaultTheme) =>
       textTransform: "capitalize",
     },
     selectAllLabelActive: {
-      color: theme.colors.secondary,
+      color: theme.colors.primary,
     },
   });

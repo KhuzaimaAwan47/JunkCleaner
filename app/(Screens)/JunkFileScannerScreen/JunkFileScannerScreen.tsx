@@ -417,7 +417,7 @@ const createStyles = (theme: DefaultTheme) =>
     },
     itemSelected: {
       borderWidth: 1,
-      borderColor: theme.colors.secondary,
+      borderColor: theme.colors.primary,
     },
     itemHeader: {
       flexDirection: "row",
@@ -443,7 +443,7 @@ const createStyles = (theme: DefaultTheme) =>
       width: 22,
       height: 22,
       borderRadius: 11,
-      backgroundColor: theme.colors.secondary,
+      backgroundColor: theme.colors.primary,
       alignItems: "center",
       justifyContent: "center",
       shadowColor: "rgba(0, 0, 0, 0.25)",

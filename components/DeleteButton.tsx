@@ -47,7 +47,7 @@ const createDeleteButtonStyles = (theme: DefaultTheme) =>
       borderRadius: theme.radii.xl,
       paddingVertical: theme.spacing.md,
       paddingHorizontal: theme.spacing.lg,
-      backgroundColor: theme.colors.secondary,
+      backgroundColor: theme.colors.error,
       alignItems: 'center',
       justifyContent: 'center',
     },
