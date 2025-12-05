@@ -14,10 +14,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DefaultTheme, useTheme } from 'styled-components/native';
 import AppHeader from '../../../components/AppHeader';
+import DeleteButton from '../../../components/DeleteButton';
 import ScreenWrapper from '../../../components/ScreenWrapper';
 import formatBytes from '../../../constants/formatBytes';
 import { initDatabase, loadWhatsAppResults, saveWhatsAppResults } from '../../../utils/db';
 import {
+  deleteSelected,
   scanWhatsApp,
   summarizeWhatsApp,
   WhatsAppFileType,
@@ -143,6 +145,19 @@ const WhatsAppRemoverScreen = () => {
   const isAllFilteredSelected =
     filteredFiles.length > 0 && filteredFiles.every((file) => selected.has(file.path));
 
+  const selectedStats = useMemo(() => {
+    const stats = { items: 0, size: 0 };
+    filteredFiles.forEach((file) => {
+      if (selected.has(file.path)) {
+        stats.items += 1;
+        stats.size += file.size;
+      }
+    });
+    return stats;
+  }, [filteredFiles, selected]);
+
+  const deleteDisabled = selectedStats.items === 0;
+
 
   const toggleSelectAllFiltered = useCallback(() => {
     setSelected((prev) => {
@@ -165,13 +180,29 @@ const WhatsAppRemoverScreen = () => {
     });
   }, []);
 
+  const handleDelete = useCallback(async () => {
+    if (selectedStats.items === 0) {
+      return;
+    }
+    const filesToDelete = filteredFiles.filter((file) => selected.has(file.path));
+    try {
+      await deleteSelected(filesToDelete);
+      const remaining = files.filter((file) => !selected.has(file.path));
+      setFiles(remaining);
+      setSelected(new Set());
+      await saveWhatsAppResults(remaining);
+    } catch (err) {
+      setError((err as Error).message || 'delete failed');
+    }
+  }, [selectedStats.items, filteredFiles, selected, files]);
+
   const listContentInset = useMemo(
     () => ({
-      paddingTop: theme.spacing.lg,
+      paddingTop: theme.spacing.md,
       paddingHorizontal: theme.spacing.lg,
-      paddingBottom: theme.spacing.xl,
+      paddingBottom: !deleteDisabled && filteredFiles.length > 0 ? theme.spacing.xl * 3 : theme.spacing.xl,
     }),
-    [theme.spacing.lg, theme.spacing.xl],
+    [theme.spacing.lg, theme.spacing.xl, theme.spacing.md, deleteDisabled, filteredFiles.length],
   );
 
   const renderItem = useCallback<ListRenderItem<WhatsAppScanResult>>(
@@ -224,95 +255,105 @@ const WhatsAppRemoverScreen = () => {
   return (
     <ScreenWrapper>
       <SafeAreaView style={styles.screen} edges={['bottom', 'left', 'right']}>
-        <FlatList
-        data={filteredFiles}
-        keyExtractor={(item) => item.path}
-        renderItem={renderItem}
-        contentContainerStyle={listContentInset}
-        showsVerticalScrollIndicator={false}
-        ListHeaderComponent={
-          <View style={styles.headerSection}>
-            <AppHeader
-              title="Whatsapp Scanner"
-              totalSize={summary.totalSize}
-              totalFiles={summary.totalCount}
-              isAllSelected={isAllFilteredSelected}
-              onSelectAllPress={toggleSelectAllFiltered}
-              selectAllDisabled={!filteredFiles.length}
-            />
-            {!hasSavedResults && (
-              <View style={styles.actionsRow}>
+        <View style={styles.headerContainer}>
+          <AppHeader
+            title="Whatsapp Scanner"
+            totalSize={summary.totalSize}
+            totalFiles={summary.totalCount}
+            isAllSelected={isAllFilteredSelected}
+            onSelectAllPress={toggleSelectAllFiltered}
+            selectAllDisabled={!filteredFiles.length}
+          />
+        </View>
+        <View style={styles.stickyFilterContainer}>
+          {!hasSavedResults && (
+            <View style={styles.actionsRow}>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.actionButtonPrimary, isScanning && styles.actionButtonDisabled]}
+                disabled={isScanning}
+                onPress={onRescan}
+                accessibilityRole="button"
+              >
+                {isScanning ? (
+                  <ActivityIndicator color={theme.colors.white} />
+                ) : (
+                  <Text style={styles.actionLabel}>rescan</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filtersScrollContent}
+          >
+            {FILTER_TYPES.map((type) => {
+              const isActive = type === filterType;
+              const countLabel =
+                type === 'All' ? summary.totalCount : summary.byType[type as WhatsAppFileType]?.count ?? 0;
+              return (
                 <TouchableOpacity
-                  style={[styles.actionButton, styles.actionButtonPrimary, isScanning && styles.actionButtonDisabled]}
-                  disabled={isScanning}
-                  onPress={onRescan}
-                  accessibilityRole="button"
+                  key={type}
+                  style={[styles.filterChip, isActive && styles.filterChipActive]}
+                  onPress={() => setFilterType(type)}
+                  activeOpacity={0.8}
                 >
-                  {isScanning ? (
-                    <ActivityIndicator color={theme.colors.white} />
-                  ) : (
-                    <Text style={styles.actionLabel}>rescan</Text>
-                  )}
+                  <Text style={[styles.filterChipText, isActive && styles.filterChipTextActive]}>
+                    {type.toLowerCase()} · {countLabel}
+                  </Text>
                 </TouchableOpacity>
-              </View>
-            )}
+              );
+            })}
+          </ScrollView>
 
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.filtersScrollContent}
-            >
-              {FILTER_TYPES.map((type) => {
-                const isActive = type === filterType;
-                const countLabel =
-                  type === 'All' ? summary.totalCount : summary.byType[type as WhatsAppFileType]?.count ?? 0;
-                return (
-                  <TouchableOpacity
-                    key={type}
-                    style={[styles.filterChip, isActive && styles.filterChipActive]}
-                    onPress={() => setFilterType(type)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={[styles.filterChipText, isActive && styles.filterChipTextActive]}>
-                      {type.toLowerCase()} · {countLabel}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-
-            {error ? (
-              <View style={styles.errorBanner}>
-                <MaterialCommunityIcons name="alert-circle-outline" size={18} color="#ff8484" />
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            ) : null}
+          {error ? (
+            <View style={styles.errorBanner}>
+              <MaterialCommunityIcons name="alert-circle-outline" size={18} color="#ff8484" />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
+        </View>
+        <FlatList
+          data={filteredFiles}
+          keyExtractor={(item) => item.path}
+          renderItem={renderItem}
+          contentContainerStyle={listContentInset}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyCard}>
+              {isScanning ? (
+                <>
+                  <ActivityIndicator color={theme.colors.primary} />
+                  <Text style={styles.emptyTitle}>scanning whatsapp folders</Text>
+                  <Text style={styles.emptySubtitle}>sit tight while we index your chats and media.</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.emptyTitle}>
+                    {files.length ? 'no files in this filter' : 'ready to clean whatsapp clutter'}
+                  </Text>
+                  <Text style={styles.emptySubtitle}>
+                    {files.length
+                      ? 'try switching to another media type.'
+                      : 'tap rescan to fetch images, audio, and docs instantly.'}
+                  </Text>
+                </>
+              )}
+            </View>
+          }
+          ListFooterComponent={<View style={styles.footerSpacer} />}
+        />
+        {!deleteDisabled && filteredFiles.length > 0 && (
+          <View style={styles.fixedDeleteButtonContainer}>
+            <DeleteButton
+              items={selectedStats.items}
+              size={selectedStats.size}
+              disabled={deleteDisabled}
+              onPress={handleDelete}
+            />
           </View>
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyCard}>
-            {isScanning ? (
-              <>
-                <ActivityIndicator color={theme.colors.primary} />
-                <Text style={styles.emptyTitle}>scanning whatsapp folders</Text>
-                <Text style={styles.emptySubtitle}>sit tight while we index your chats and media.</Text>
-              </>
-            ) : (
-              <>
-                <Text style={styles.emptyTitle}>
-                  {files.length ? 'no files in this filter' : 'ready to clean whatsapp clutter'}
-                </Text>
-                <Text style={styles.emptySubtitle}>
-                  {files.length
-                    ? 'try switching to another media type.'
-                    : 'tap rescan to fetch images, audio, and docs instantly.'}
-                </Text>
-              </>
-            )}
-          </View>
-        }
-        ListFooterComponent={<View style={styles.footerSpacer} />}
-      />
+        )}
       </SafeAreaView>
     </ScreenWrapper>
   );
@@ -333,10 +374,18 @@ const createStyles = (theme: DefaultTheme) =>
     screen: {
       flex: 1,
     },
-    headerSection: {
-      width: '100%',
-      gap: theme.spacing.md,
+    headerContainer: {
+      paddingHorizontal: theme.spacing.lg,
+      paddingTop: theme.spacing.lg,
+    },
+    stickyFilterContainer: {
+      paddingHorizontal: theme.spacing.lg,
       paddingBottom: theme.spacing.md,
+      backgroundColor: theme.colors.background,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.mode === 'dark' ? `${theme.colors.surfaceAlt}33` : `${theme.colors.surfaceAlt}22`,
+      zIndex: 10,
+      gap: theme.spacing.sm,
     },
     actionsRow: {
       flexDirection: 'row',
@@ -360,21 +409,6 @@ const createStyles = (theme: DefaultTheme) =>
       fontSize: 14,
       fontWeight: '600',
       textTransform: 'uppercase',
-    },
-    filtersHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-    },
-    filtersTitle: {
-      color: theme.colors.text,
-      fontSize: 15,
-      fontWeight: '600',
-      textTransform: 'capitalize',
-    },
-    filtersHint: {
-      color: theme.colors.textMuted,
-      fontSize: 13,
     },
     filtersScrollContent: {
       paddingRight: theme.spacing.lg,
@@ -501,6 +535,16 @@ const createStyles = (theme: DefaultTheme) =>
     },
     footerSpacer: {
       height: theme.spacing.xl,
+    },
+    fixedDeleteButtonContainer: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      paddingHorizontal: theme.spacing.lg,
+      backgroundColor: theme.colors.background,
+      borderTopWidth: 1,
+      borderTopColor: theme.mode === 'dark' ? `${theme.colors.surfaceAlt}33` : `${theme.colors.surfaceAlt}22`,
     },
   });
 
