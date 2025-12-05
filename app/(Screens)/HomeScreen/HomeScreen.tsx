@@ -6,7 +6,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-na
 import { SafeAreaView } from "react-native-safe-area-context";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import AdPlaceholder from "../../../components/AdPlaceholder";
-import CircularStorageIndicator from "../../../components/CircularStorageIndicator";
+import CircularLoadingIndicator from "../../../components/CircularLoadingIndicator";
 import FeatureCard from "../../../components/FeatureCard";
 import NeumorphicContainer from "../../../components/NeumorphicContainer";
 import ScanButton from "../../../components/ScanButton";
@@ -42,7 +42,7 @@ const HomeScreen = () => {
     return rows;
   }, [remainingFeatures]);
 
-  const [storageInfo, setStorageInfo] = React.useState({ total: 0, used: 0, free: 0 });
+  const [, setStorageInfo] = React.useState({ total: 0, used: 0, free: 0 });
   const [isScanning, setIsScanning] = React.useState(false);
   const [scanProgress, setScanProgress] = React.useState<SmartScanProgress | null>(null);
   const [showRemainingRows, setShowRemainingRows] = React.useState(false);
@@ -152,31 +152,20 @@ const HomeScreen = () => {
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.indicatorCard}>
-            <CircularStorageIndicator total={storageInfo.total || 256} used={storageInfo.used || 0} />
-            <Text style={styles.scoreLabel}>your system is in good condition</Text>
-            <Text style={styles.scoreStatus}>
-              {storageInfo.total > 0
-                ? `${storageInfo.used.toFixed(1)} GB used / ${storageInfo.total.toFixed(1)} GB`
-                : "calculating storage..."}
-            </Text>
-            {isScanning && scanProgress ? (
+            <CircularLoadingIndicator
+              scanProgress={isScanning ? scanProgress : null}
+            />
+            {isScanning ? (
               <View style={styles.scanProgressContainer}>
-                <View style={styles.scanProgressBar}>
-                  <Animated.View
-                    style={[
-                      styles.scanProgressFill,
-                      {
-                        width: `${(scanProgress.current / scanProgress.total) * 100}%`,
-                        backgroundColor: theme.colors.primary,
-                      },
-                    ]}
-                  />
-                </View>
-                <Text style={styles.scanProgressText}>
-                  {scanProgress.scannerName} ({scanProgress.current}/{scanProgress.total})
-                </Text>
-                {scanProgress.scannerDetail && (
-                  <Text style={styles.scanProgressDetail}>{scanProgress.scannerDetail}</Text>
+                {scanProgress && (
+                  <>
+                    <Text style={styles.scanProgressText}>
+                      {scanProgress.scannerName} ({scanProgress.current}/{scanProgress.total})
+                    </Text>
+                    {scanProgress.scannerDetail && (
+                      <Text style={styles.scanProgressDetail}>{scanProgress.scannerDetail}</Text>
+                    )}
+                  </>
                 )}
               </View>
             ) : (
@@ -377,17 +366,7 @@ const createStyles = (theme: DefaultTheme) =>
     scanProgressContainer: {
       marginTop: theme.spacing.lg,
       width: "100%",
-    },
-    scanProgressBar: {
-      width: "100%",
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: `${theme.colors.surfaceAlt}55`,
-      overflow: "hidden",
-    },
-    scanProgressFill: {
-      height: "100%",
-      borderRadius: 4,
+      alignItems: "center",
     },
     scanProgressText: {
       color: theme.colors.text,
