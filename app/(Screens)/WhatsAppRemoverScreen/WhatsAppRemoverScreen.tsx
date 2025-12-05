@@ -140,8 +140,6 @@ const WhatsAppRemoverScreen = () => {
   );
 
   const summary = useMemo(() => summarizeWhatsApp(files), [files]);
-  const activeFilterCount =
-    filterType === 'All' ? filteredFiles.length : summary.byType[filterType]?.count ?? 0;
   const isAllFilteredSelected =
     filteredFiles.length > 0 && filteredFiles.every((file) => selected.has(file.path));
 
@@ -259,10 +257,6 @@ const WhatsAppRemoverScreen = () => {
               </View>
             )}
 
-            <View style={styles.filtersHeader}>
-              <Text style={styles.filtersTitle}>filter by type</Text>
-              <Text style={styles.filtersHint}>{activeFilterCount} in view</Text>
-            </View>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
