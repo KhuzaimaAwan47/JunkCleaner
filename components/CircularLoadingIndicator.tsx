@@ -20,9 +20,11 @@ const CircularLoadingIndicator: React.FC<Props> = ({ scanProgress, systemHealth,
   const gradientId = React.useMemo(() => `loadingGradient-${Math.random().toString(36).slice(2, 9)}`, []);
   const trackColor = `${theme.colors.surfaceAlt}55`;
 
-  // Calculate progress based on scan
+  // Calculate progress based on scan or system health
   const progress = scanProgress
     ? Math.min(1, (scanProgress.current + (scanProgress.scannerProgress || 0)) / scanProgress.total)
+    : systemHealth
+    ? systemHealth.score / 100
     : 0;
 
   // Get health status color
@@ -42,6 +44,11 @@ const CircularLoadingIndicator: React.FC<Props> = ({ scanProgress, systemHealth,
     }
   };
 
+  // Determine stroke color - use health color if showing system health, otherwise use gradient
+  const strokeColor = systemHealth && !scanProgress
+    ? getHealthColor(systemHealth.status)
+    : `url(#${gradientId})`;
+
   return (
     <View style={[styles.wrapper, { width: size, height: size }]}>
       <Svg width={size} height={size}>
@@ -60,7 +67,7 @@ const CircularLoadingIndicator: React.FC<Props> = ({ scanProgress, systemHealth,
           strokeWidth={strokeWidth}
         />
         <Circle
-          stroke={`url(#${gradientId})`}
+          stroke={strokeColor}
           fill="none"
           cx={size / 2}
           cy={size / 2}
@@ -97,11 +104,6 @@ const CircularLoadingIndicator: React.FC<Props> = ({ scanProgress, systemHealth,
             >
               {systemHealth?.message ?? 'No Data'}
             </Text>
-            {systemHealth?.score != null && (
-              <Text style={styles.healthScore}>
-                {systemHealth.score}/100
-              </Text>
-            )}
           </>
         )}
       </View>
@@ -153,14 +155,6 @@ const createStyles = (theme: DefaultTheme) =>
       fontWeight: "500",
       color: theme.colors.textMuted,
       textAlign: "center",
-    },
-    healthScore: {
-      fontSize: 12,
-      fontWeight: "600",
-      color: theme.colors.textMuted,
-      textAlign: "center",
-      marginTop: 4,
-      opacity: 0.7,
     },
   });
 
