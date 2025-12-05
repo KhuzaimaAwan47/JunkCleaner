@@ -6,9 +6,8 @@ import styledNative, { useTheme } from 'styled-components/native';
 import AppHeader from '../../../components/AppHeader';
 import ScreenWrapper from '../../../components/ScreenWrapper';
 import formatBytes from '../../../constants/formatBytes';
-import { loadWhatsAppResults, saveWhatsAppResults, initDatabase } from '../../../utils/db';
+import { initDatabase, loadWhatsAppResults, saveWhatsAppResults } from '../../../utils/db';
 import {
-  deleteSelected,
   scanWhatsApp,
   summarizeWhatsApp,
   WhatsAppFileType,
@@ -37,10 +36,10 @@ const WhatsAppRemoverScreen = () => {
   const [files, setFiles] = useState<WhatsAppScanResult[]>([]);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [isScanning, setIsScanning] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<FilterType>('All');
   const [thumbnailFallbacks, setThumbnailFallbacks] = useState<Record<string, boolean>>({});
+  const [hasSavedResults, setHasSavedResults] = useState(false);
 
   // Load saved results on mount
   useEffect(() => {
@@ -50,15 +49,19 @@ const WhatsAppRemoverScreen = () => {
         const savedResults = await loadWhatsAppResults();
         if (savedResults.length > 0) {
           setFiles(savedResults);
+          setHasSavedResults(true);
+        } else {
+          setHasSavedResults(false);
         }
       } catch (error) {
         console.error('Failed to load saved WhatsApp results:', error);
+        setHasSavedResults(false);
       }
     };
     loadSavedResults();
   }, []);
 
-  const onScan = useCallback(async () => {
+  const onRescan = useCallback(async () => {
     setIsScanning(true);
     setError(null);
     setThumbnailFallbacks({});
@@ -68,6 +71,7 @@ const WhatsAppRemoverScreen = () => {
       setSelected(new Set());
       // Save results to database
       await saveWhatsAppResults(results);
+      setHasSavedResults(true);
     } catch (err) {
       setError((err as Error).message || 'scan failed');
     } finally {
@@ -105,23 +109,6 @@ const WhatsAppRemoverScreen = () => {
   const isAllFilteredSelected =
     filteredFiles.length > 0 && filteredFiles.every((file) => selected.has(file.path));
 
-  const onDelete = useCallback(async () => {
-    if (!checkedFiles.length) {
-      return;
-    }
-    setIsDeleting(true);
-    setError(null);
-    try {
-      await deleteSelected(checkedFiles);
-      const remaining = files.filter((file) => !selected.has(file.path));
-      setFiles(remaining);
-      setSelected(new Set());
-    } catch (err) {
-      setError((err as Error).message || 'delete failed');
-    } finally {
-      setIsDeleting(false);
-    }
-  }, [checkedFiles, files, selected]);
 
   const toggleSelectAllFiltered = useCallback(() => {
     setSelected((prev) => {
@@ -204,32 +191,22 @@ const WhatsAppRemoverScreen = () => {
         ListHeaderComponent={
           <HeaderSection>
             <AppHeader title="Whatsapp Scanner" />
-            <ActionsRow>
-              <ActionButton
-                tone="primary"
-                disabled={isScanning}
-                onPress={onScan}
-                accessibilityRole="button"
-              >
-                {isScanning ? (
-                  <ActivityIndicator color={theme.colors.white} />
-                ) : (
-                  <ActionLabel>scan whatsapp</ActionLabel>
-                )}
-              </ActionButton>
-              <ActionButton
-                tone="danger"
-                disabled={!checkedFiles.length || isDeleting}
-                onPress={onDelete}
-                accessibilityRole="button"
-              >
-                {isDeleting ? (
-                  <ActivityIndicator color={theme.colors.white} />
-                ) : (
-                  <ActionLabel>delete selected</ActionLabel>
-                )}
-              </ActionButton>
-            </ActionsRow>
+            {!hasSavedResults && (
+              <ActionsRow>
+                <ActionButton
+                  tone="primary"
+                  disabled={isScanning}
+                  onPress={onRescan}
+                  accessibilityRole="button"
+                >
+                  {isScanning ? (
+                    <ActivityIndicator color={theme.colors.white} />
+                  ) : (
+                    <ActionLabel>rescan</ActionLabel>
+                  )}
+                </ActionButton>
+              </ActionsRow>
+            )}
 
             <SelectionMetaCard>
               <SelectionTextWrap>
@@ -313,7 +290,7 @@ const WhatsAppRemoverScreen = () => {
                 <EmptySubtitle>
                   {files.length
                     ? 'try switching to another media type.'
-                    : 'tap scan whatsapp to fetch images, audio, and docs instantly.'}
+                    : 'tap rescan to fetch images, audio, and docs instantly.'}
                 </EmptySubtitle>
               </>
             )}
