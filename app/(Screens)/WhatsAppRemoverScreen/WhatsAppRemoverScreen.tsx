@@ -189,7 +189,7 @@ const WhatsAppRemoverScreen = () => {
         </FileRow>
       );
     },
-    [recordThumbnailError, selected, thumbnailFallbacks, theme.colors.textMuted, toggleSelect],
+    [thumbnailFallbacks, selected, theme.colors.textMuted, theme.colors.white, toggleSelect, recordThumbnailError],
   );
 
   return (
@@ -203,7 +203,7 @@ const WhatsAppRemoverScreen = () => {
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <HeaderSection>
-            <AppHeader title="whatsapp remover" />
+            <AppHeader title="Whatsapp Scanner" />
             <ActionsRow>
               <ActionButton
                 tone="primary"
