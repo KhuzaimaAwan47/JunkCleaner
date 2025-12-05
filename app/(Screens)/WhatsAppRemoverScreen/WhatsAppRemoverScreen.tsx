@@ -96,13 +96,6 @@ const WhatsAppRemoverScreen = () => {
     [files, filterType],
   );
 
-  const checkedFiles = useMemo(() => files.filter((file) => selected.has(file.path)), [files, selected]);
-
-  const selectedBytes = useMemo(
-    () => checkedFiles.reduce((sum, file) => sum + file.size, 0),
-    [checkedFiles],
-  );
-
   const summary = useMemo(() => summarizeWhatsApp(files), [files]);
   const activeFilterCount =
     filterType === 'All' ? filteredFiles.length : summary.byType[filterType]?.count ?? 0;
@@ -190,7 +183,14 @@ const WhatsAppRemoverScreen = () => {
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <HeaderSection>
-            <AppHeader title="Whatsapp Scanner" />
+            <AppHeader
+              title="Whatsapp Scanner"
+              totalSize={summary.totalSize}
+              totalFiles={summary.totalCount}
+              isAllSelected={isAllFilteredSelected}
+              onSelectAllPress={toggleSelectAllFiltered}
+              selectAllDisabled={!filteredFiles.length}
+            />
             {!hasSavedResults && (
               <ActionsRow>
                 <ActionButton
@@ -207,45 +207,6 @@ const WhatsAppRemoverScreen = () => {
                 </ActionButton>
               </ActionsRow>
             )}
-
-            <SelectionMetaCard>
-              <SelectionTextWrap>
-                <SelectionLabel>selected</SelectionLabel>
-                <SelectionValue>
-                  {checkedFiles.length} files · {formatBytes(selectedBytes)}
-                </SelectionValue>
-              </SelectionTextWrap>
-              <SelectAllButton
-                onPress={toggleSelectAllFiltered}
-                disabled={!filteredFiles.length}
-                activeOpacity={filteredFiles.length ? 0.85 : 1}
-                isActive={isAllFilteredSelected}
-              >
-                <MaterialCommunityIcons
-                  name={isAllFilteredSelected ? 'check-all' : 'selection'}
-                  size={18}
-                  color={isAllFilteredSelected ? theme.colors.secondary : theme.colors.text}
-                />
-                <SelectAllLabel>
-                  {isAllFilteredSelected ? 'clear filter' : 'select filter'}
-                </SelectAllLabel>
-              </SelectAllButton>
-            </SelectionMetaCard>
-
-            <SummaryGrid>
-              <SummaryCard>
-                <SummaryValue>{formatBytes(summary.totalSize)}</SummaryValue>
-                <SummaryLabel>total weight</SummaryLabel>
-              </SummaryCard>
-              <SummaryCard>
-                <SummaryValue>{summary.totalCount}</SummaryValue>
-                <SummaryLabel>items found</SummaryLabel>
-              </SummaryCard>
-              <SummaryCard>
-                <SummaryValue>{activeFilterCount}</SummaryValue>
-                <SummaryLabel>{filterType === 'All' ? 'visible files' : `${filterType.toLowerCase()} files`}</SummaryLabel>
-              </SummaryCard>
-            </SummaryGrid>
 
             <FiltersHeader>
               <FiltersTitle>filter by type</FiltersTitle>
@@ -344,82 +305,6 @@ const ActionLabel = styled.Text`
   font-size: 14px;
   font-weight: 600;
   text-transform: uppercase;
-`;
-
-const SelectionMetaCard = styled.View`
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  padding: ${({ theme }) => theme.spacing.md}px;
-  border-radius: ${({ theme }) => theme.radii.lg}px;
-  background-color: ${({ theme }) => theme.colors.surface};
-  border-width: 1px;
-  border-color: ${({ theme }) => `${theme.colors.surfaceAlt}55`};
-`;
-
-const SelectionTextWrap = styled.View`
-  flex: 1;
-  margin-right: ${({ theme }) => theme.spacing.sm}px;
-`;
-
-const SelectionLabel = styled.Text`
-  color: ${({ theme }) => theme.colors.textMuted};
-  font-size: 12px;
-  text-transform: uppercase;
-`;
-
-const SelectionValue = styled.Text`
-  color: ${({ theme }) => theme.colors.text};
-  font-size: 15px;
-  font-weight: 600;
-  margin-top: 4px;
-`;
-
-const SelectAllButton = styled.TouchableOpacity<{ isActive: boolean }>`
-  flex-direction: row;
-  align-items: center;
-  gap: 6px;
-  padding: ${({ theme }) => `${theme.spacing.xs}px ${theme.spacing.sm}px`};
-  border-radius: 999px;
-  border-width: 1px;
-  border-color: ${({ isActive, theme }) =>
-    isActive ? theme.colors.secondary : `${theme.colors.surfaceAlt}99`};
-  background-color: ${({ isActive, theme }) =>
-    isActive ? `${theme.colors.secondary}22` : theme.colors.surface};
-`;
-
-const SelectAllLabel = styled.Text`
-  color: ${({ theme }) => theme.colors.text};
-  font-weight: 600;
-  font-size: 13px;
-  text-transform: capitalize;
-`;
-
-const SummaryGrid = styled.View`
-  flex-direction: row;
-  gap: ${({ theme }) => theme.spacing.sm}px;
-`;
-
-const SummaryCard = styled.View`
-  flex: 1;
-  padding: ${({ theme }) => theme.spacing.md}px;
-  border-radius: ${({ theme }) => theme.radii.lg}px;
-  background-color: ${({ theme }) => theme.colors.surface};
-  border-width: 1px;
-  border-color: ${({ theme }) => `${theme.colors.surfaceAlt}55`};
-`;
-
-const SummaryValue = styled.Text`
-  color: ${({ theme }) => theme.colors.text};
-  font-size: 18px;
-  font-weight: 700;
-`;
-
-const SummaryLabel = styled.Text`
-  color: ${({ theme }) => theme.colors.textMuted};
-  font-size: 11px;
-  text-transform: uppercase;
-  margin-top: 6px;
 `;
 
 const FiltersHeader = styled.View`
