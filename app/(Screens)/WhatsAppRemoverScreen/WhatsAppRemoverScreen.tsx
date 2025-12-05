@@ -31,6 +31,40 @@ const FILTER_TYPES: FilterType[] = [
 
 const PREVIEWABLE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif', '.gif', '.mp4', '.mov'];
 
+const getFileIcon = (path: string, type: WhatsAppFileType): string => {
+  const lower = path.toLowerCase();
+  
+  // Audio files
+  if (type === 'Audio' || type === 'VoiceNotes') {
+    if (lower.endsWith('.mp3') || lower.endsWith('.m4a') || lower.endsWith('.aac')) {
+      return 'music';
+    }
+    if (type === 'VoiceNotes') {
+      return 'microphone';
+    }
+    return 'music-note';
+  }
+  
+  // Documents
+  if (type === 'Documents') {
+    if (lower.endsWith('.pdf')) return 'file-pdf-box';
+    if (lower.endsWith('.doc') || lower.endsWith('.docx')) return 'file-word-box';
+    if (lower.endsWith('.xls') || lower.endsWith('.xlsx')) return 'file-excel-box';
+    if (lower.endsWith('.ppt') || lower.endsWith('.pptx')) return 'file-powerpoint-box';
+    if (lower.endsWith('.txt')) return 'file-document-outline';
+    if (lower.endsWith('.zip') || lower.endsWith('.rar') || lower.endsWith('.7z')) return 'folder-zip';
+    return 'file-document';
+  }
+  
+  // Other types
+  if (type === 'Statuses') return 'image-multiple';
+  if (type === 'Stickers') return 'sticker-emoji';
+  if (type === 'Backups') return 'backup-restore';
+  if (type === 'Junk') return 'delete-outline';
+  
+  return 'file-outline';
+};
+
 const WhatsAppRemoverScreen = () => {
   const theme = useTheme();
   const [files, setFiles] = useState<WhatsAppScanResult[]>([]);
@@ -138,10 +172,13 @@ const WhatsAppRemoverScreen = () => {
       const filename = getFilename(item.path);
       const previewable = isPreviewableMedia(item.path) && !thumbnailFallbacks[item.path];
       const isActive = selected.has(item.path);
+      const iconName = getFileIcon(item.path, item.type);
+      const showThumbnail = previewable && (item.type === 'Images' || item.type === 'Video' || item.type === 'Statuses');
+      
       return (
         <FileRow activeOpacity={0.85} selected={isActive} onPress={() => toggleSelect(item.path)}>
           <ThumbWrapper>
-            {previewable ? (
+            {showThumbnail ? (
               <ThumbnailImage
                 source={{ uri: item.path }}
                 resizeMode="cover"
@@ -150,8 +187,8 @@ const WhatsAppRemoverScreen = () => {
             ) : (
               <ThumbnailFallback>
                 <MaterialCommunityIcons
-                  name="file-outline"
-                  size={24}
+                  name={iconName as any}
+                  size={28}
                   color={theme.colors.textMuted}
                 />
               </ThumbnailFallback>
@@ -212,7 +249,11 @@ const WhatsAppRemoverScreen = () => {
               <FiltersTitle>filter by type</FiltersTitle>
               <FiltersHint>{activeFilterCount} in view</FiltersHint>
             </FiltersHeader>
-            <FiltersRow>
+            <FiltersScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingRight: theme.spacing.lg }}
+            >
               {FILTER_TYPES.map((type) => {
                 const isActive = type === filterType;
                 const countLabel =
@@ -225,7 +266,7 @@ const WhatsAppRemoverScreen = () => {
                   </FilterChip>
                 );
               })}
-            </FiltersRow>
+            </FiltersScrollView>
 
             {error ? (
               <ErrorBanner>
@@ -325,10 +366,8 @@ const FiltersHint = styled.Text`
   font-size: 13px;
 `;
 
-const FiltersRow = styled.View`
+const FiltersScrollView = styled.ScrollView`
   flex-direction: row;
-  flex-wrap: wrap;
-  gap: ${({ theme }) => theme.spacing.xs}px;
 `;
 
 const FilterChip = styled.TouchableOpacity<{ active: boolean }>`
@@ -339,6 +378,7 @@ const FilterChip = styled.TouchableOpacity<{ active: boolean }>`
     active ? theme.colors.secondary : `${theme.colors.surfaceAlt}55`};
   background-color: ${({ active, theme }) =>
     active ? `${theme.colors.secondary}22` : theme.colors.surface};
+  margin-right: ${({ theme }) => theme.spacing.xs}px;
 `;
 
 const FilterChipText = styled.Text<{ active: boolean }>`
