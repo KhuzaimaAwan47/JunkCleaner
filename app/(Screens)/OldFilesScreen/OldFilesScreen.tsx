@@ -11,7 +11,7 @@ import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
 import ScreenWrapper from "../../../components/ScreenWrapper";
 import ThemedList from "../../../components/ThemedList";
-import { loadOldFileResults, saveOldFileResults, initDatabase } from "../../../utils/db";
+import { initDatabase, loadOldFileResults, saveOldFileResults } from "../../../utils/db";
 import { OldFileInfo, scanOldFiles } from "./OldFilesScanner";
 
 const formatSize = (bytes: number) => {
@@ -83,7 +83,7 @@ const OldFilesScreen = () => {
         <View style={styles.content}>
         <AppHeader title="Old Files" />
 
-        <View style={styles.heroCard}>
+        {oldFiles.length === 0 && !loading && (
           <Pressable
             onPress={handleScan}
             style={({ pressed }) => [
@@ -97,25 +97,14 @@ const OldFilesScreen = () => {
               {loading ? "Scanning..." : "Scan Old Files"}
             </Text>
           </Pressable>
+        )}
 
-          {loading && <ActivityIndicator style={styles.spinner} color={theme.colors.accent} />}
-        </View>
-
-        <View style={styles.resultsHeader}>
-          <Text style={styles.resultsTitle}>scan results</Text>
-          <Text style={styles.resultsSubtitle}>
-            {oldFiles.length ? "sorted by oldest first" : "start a scan to inspect storage"}
-          </Text>
-        </View>
+        {loading && <ActivityIndicator style={styles.spinner} color={theme.colors.accent} />}
 
         <ThemedList
           data={oldFiles}
           keyExtractor={(item) => item.path}
           renderItem={renderItem}
-          title="scan results"
-          subtitle={
-            oldFiles.length ? "sorted by oldest first" : "start a scan to inspect storage"
-          }
           loading={loading}
           emptyText='tap "Scan Old Files" to analyze your storage.'
         />
