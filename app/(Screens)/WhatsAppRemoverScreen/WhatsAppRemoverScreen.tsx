@@ -66,6 +66,9 @@ const getFileIcon = (path: string, type: WhatsAppFileType): string => {
     return 'file-document';
   }
   
+  // APK files
+  if (lower.endsWith('.apk')) return 'android';
+  
   // Other types
   if (type === 'Statuses') return 'image-multiple';
   if (type === 'Stickers') return 'sticker-emoji';
@@ -231,7 +234,7 @@ const WhatsAppRemoverScreen = () => {
               <View style={styles.thumbnailFallback}>
                 <MaterialCommunityIcons
                   name={iconName as any}
-                  size={28}
+                  size={40}
                   color={theme.colors.textMuted}
                 />
               </View>
