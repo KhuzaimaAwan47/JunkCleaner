@@ -1,769 +1,367 @@
-import { Buffer } from 'buffer';
 import CryptoJS from 'crypto-js';
-import * as FileSystem from 'expo-file-system/legacy';
-import * as MediaLibrary from 'expo-media-library';
-import {
-  ReactNode,
-  createContext,
-  createElement,
-  useCallback,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
-import { InteractionManager } from 'react-native';
-import {
-  clearDuplicateGroups,
-  getCachedFile,
-  initDatabase,
-  loadDuplicateGroups,
-  saveDuplicateGroups,
-  saveFileCache,
-} from '../../../utils/db';
+import type { ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { Permission } from 'react-native';
+import { PermissionsAndroid, Platform } from 'react-native';
+import RNFS from 'react-native-fs';
+import { initDatabase, saveDuplicateGroups } from '../../../utils/db';
 
-export interface ScannerState {
-  isScanning: boolean;
-  progress: ScanProgress;
-  duplicates: DuplicateGroup[];
-  error: string | null;
-}
-
-interface ScannerContextType extends ScannerState {
-  startScan: () => Promise<void>;
-  stopScan: () => void;
-  reset: () => void;
-}
-
-const ScannerContext = createContext<ScannerContextType | undefined>(undefined);
-
-export function useDuplicateScanner() {
-  const [state, setState] = useState<ScannerState>({
-    isScanning: false,
-    progress: {
-      current: 0,
-      total: 0,
-      currentFile: '',
-      stage: 'scanning',
-    },
-    duplicates: [],
-    error: null,
-  });
-
-  const lastUpdateTime = useRef<number>(0);
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const isCancelledRef = useRef<boolean>(false);
-  const THROTTLE_MS = 50;
-  const hasLoadedInitialData = useRef<boolean>(false);
-
-  useEffect(() => {
-    if (hasLoadedInitialData.current) return;
-
-    const loadSavedDuplicates = async () => {
-      try {
-        const savedDuplicates = await loadDuplicateGroups();
-        if (savedDuplicates.length > 0) {
-          setState(prev => ({
-            ...prev,
-            duplicates: savedDuplicates,
-          }));
-        }
-      } catch (error) {
-        console.error('Failed to load saved duplicates:', error);
-      } finally {
-        hasLoadedInitialData.current = true;
-      }
-    };
-
-    void loadSavedDuplicates();
-  }, []);
-
-  const updateProgress = useCallback((progress: ScanProgress) => {
-    if (isCancelledRef.current) {
-      return;
-    }
-
-    const now = Date.now();
-    setState(prev => {
-      if (!prev.isScanning || isCancelledRef.current) {
-        return prev;
-      }
-
-      const normalizedTotal = progress.total || prev.progress.total || 1;
-      const shouldForceUpdate =
-        prev.progress.total !== normalizedTotal ||
-        prev.progress.stage !== progress.stage ||
-        now - lastUpdateTime.current >= THROTTLE_MS;
-
-      if (!shouldForceUpdate && normalizedTotal === prev.progress.total) {
-        return prev;
-      }
-
-      lastUpdateTime.current = now;
-      return { ...prev, progress: { ...progress, total: normalizedTotal } };
-    });
-  }, [THROTTLE_MS]);
-
-  const startScan = useCallback(async () => {
-    if (state.isScanning) {
-      return;
-    }
-
-    await initDatabase();
-
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-    isCancelledRef.current = false;
-
-    setState({
-      isScanning: true,
-      progress: {
-        current: 0,
-        total: 0,
-        currentFile: 'Starting scan...',
-        stage: 'scanning',
-      },
-      duplicates: [],
-      error: null,
-    });
-
-    lastUpdateTime.current = Date.now();
-
-    try {
-      const options: ScanOptions = { signal: controller.signal };
-      const duplicates = await scanForDuplicates(updateProgress, options);
-
-      setState(prev => ({
-        isScanning: false,
-        progress: {
-          current: prev.progress.total || prev.progress.current || 1,
-          total: prev.progress.total || prev.progress.current || 1,
-          currentFile: 'Complete',
-          stage: 'hashing',
-        },
-        duplicates,
-        error: null,
-      }));
-
-      try {
-        await saveDuplicateGroups(duplicates);
-      } catch (error) {
-        console.error('Failed to save duplicates:', error);
-      }
-    } catch (error) {
-      const isCancelled =
-        (error as Error).name === 'SCAN_CANCELLED' ||
-        (error as Error).message === 'SCAN_CANCELLED' ||
-        (error as any)?.code === 'ABORT_ERR';
-
-      if (isCancelled) {
-        isCancelledRef.current = true;
-        setState(prev => ({
-          isScanning: false,
-          progress: {
-            current: prev.progress.current || 0,
-            total: prev.progress.total || 0,
-            currentFile: 'Cancelled',
-            stage: prev.progress.stage,
-            scannedFiles: prev.progress.scannedFiles,
-            totalFiles: prev.progress.totalFiles,
-          },
-          duplicates: [],
-          error: null,
-        }));
-      } else {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-        setState(prev => ({
-          isScanning: false,
-          progress: {
-            current: prev.progress.current || 0,
-            total: prev.progress.total || 0,
-            currentFile: '',
-            stage: prev.progress.stage,
-            scannedFiles: prev.progress.scannedFiles,
-            totalFiles: prev.progress.totalFiles,
-          },
-          duplicates: [],
-          error: errorMessage,
-        }));
-      }
-    } finally {
-      if (abortControllerRef.current === controller) {
-        abortControllerRef.current = null;
-      }
-    }
-  }, [state.isScanning, updateProgress]);
-
-  const stopScan = useCallback(() => {
-    isCancelledRef.current = true;
-
-    setState(prev => ({
-      ...prev,
-      isScanning: false,
-      progress: {
-        ...prev.progress,
-        currentFile: 'Cancelled',
-      },
-    }));
-
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-    }
-  }, []);
-
-  const reset = useCallback(async () => {
-    stopScan();
-    isCancelledRef.current = false;
-
-    try {
-      await clearDuplicateGroups();
-    } catch (error) {
-      console.error('Failed to clear saved duplicates:', error);
-    }
-
-    setState({
-      isScanning: false,
-      progress: {
-        current: 0,
-        total: 0,
-        currentFile: '',
-        stage: 'scanning',
-      },
-      duplicates: [],
-      error: null,
-    });
-  }, [stopScan]);
-
-  return {
-    ...state,
-    startScan,
-    stopScan,
-    reset,
-  };
-}
-
-export function ScannerProvider({ children }: { children: ReactNode }) {
-  const scanner = useDuplicateScanner();
-
-  return createElement(ScannerContext.Provider, { value: scanner }, children);
-}
-
-export function useScanner() {
-  const context = useContext(ScannerContext);
-  if (context === undefined) {
-    throw new Error('useScanner must be used within a ScannerProvider');
-  }
-  return context;
-}
-
-const CHUNK_SIZE = 1024 * 1024; // 1MB
-const BASE64_ENCODING = ((FileSystem as any).EncodingType?.Base64 ?? 'base64') as 'base64';
-
-function bufferToWordArray(buffer: Buffer) {
-  const words = [];
-  for (let i = 0; i < buffer.length; i += 4) {
-    words.push(
-      (buffer[i] << 24) |
-        ((buffer[i + 1] ?? 0) << 16) |
-        ((buffer[i + 2] ?? 0) << 8) |
-        (buffer[i + 3] ?? 0)
-    );
-  }
-  return CryptoJS.lib.WordArray.create(words, buffer.length);
-}
-
-async function readFileAsBuffer(
-  filePath: string,
-  options?: { position?: number; length?: number }
-): Promise<Buffer> {
-  const base64 = await FileSystem.readAsStringAsync(filePath, {
-    encoding: BASE64_ENCODING as any,
-    ...(options?.position !== undefined && options?.length !== undefined
-      ? { position: options.position, length: options.length }
-      : {}),
-  });
-
-  return Buffer.from(base64, 'base64');
-}
-
-/**
- * Chunked Hashing (Partial Hashing) - Computes hash using first and last 1MB chunks
- * For files <= 2MB, hashes the entire file
- */
-export async function computePartialHash(filePath: string): Promise<string> {
-  try {
-    const fileInfo = await FileSystem.getInfoAsync(filePath);
-    if (!fileInfo.exists || fileInfo.isDirectory) {
-      throw new Error('File does not exist or is a directory');
-    }
-
-    const fileSize = fileInfo.size || 0;
-
-    if (fileSize === 0) {
-      throw new Error('Cannot hash empty file');
-    }
-
-    if (fileSize <= 2 * CHUNK_SIZE) {
-      const fileData = await readFileAsBuffer(filePath);
-      const wordArray = bufferToWordArray(fileData);
-      return CryptoJS.SHA1(wordArray).toString();
-    }
-
-    const firstChunk = await readFileAsBuffer(filePath, {
-      position: 0,
-      length: CHUNK_SIZE,
-    });
-
-    const lastChunkStart = fileSize - CHUNK_SIZE;
-    const lastChunk = await readFileAsBuffer(filePath, {
-      position: lastChunkStart,
-      length: CHUNK_SIZE,
-    });
-
-    const combinedData = Buffer.concat([firstChunk, lastChunk]);
-
-    const wordArray = bufferToWordArray(combinedData);
-    const partialHash = CryptoJS.SHA1(wordArray).toString();
-
-    return partialHash;
-  } catch (error) {
-    console.error(`Error computing partial hash for ${filePath}:`, error);
-    throw error;
-  }
-}
-
-globalThis.Buffer = globalThis.Buffer || Buffer;
-
-export interface FileInfo {
+export interface ImageFile {
   path: string;
   size: number;
   modifiedDate: number;
-  uri?: string;
 }
 
 export interface DuplicateGroup {
   hash: string;
-  files: FileInfo[];
-  totalSize: number;
+  files: ImageFile[];
 }
 
 export interface ScanProgress {
-  current: number;
   total: number;
-  currentFile: string;
-  stage: 'scanning' | 'hashing';
+  current: number;
   scannedFiles?: number;
   totalFiles?: number;
+  currentFile?: string;
+  stage?: string;
 }
 
-export interface ScanOptions {
-  signal?: AbortSignal;
-}
+const BATCH_SIZE = 20;
+const HASH_BATCH_SIZE = 10;
+const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg', '.ico',
+  '.tiff', '.tif', '.heic', '.heif', '.raw', '.cr2', '.nef', '.orf',
+  '.sr2', '.arw', '.dng', '.psd', '.ai', '.eps', '.pcx', '.tga'];
 
-type ProgressCallback = (progress: ScanProgress) => void;
+const buildImageRootPaths = (): string[] => {
+  const base = RNFS.ExternalStorageDirectoryPath;
+  if (!base) return [];
 
-const IMAGE_EXTENSIONS = new Set([
-  'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg', 'ico',
-  'tiff', 'tif', 'heic', 'heif', 'raw', 'cr2', 'nef', 'orf',
-  'sr2', 'arw', 'dng', 'psd', 'ai', 'eps', 'pcx', 'tga'
-]);
+  return [
+    base,
+    `${base}/DCIM`,
+    `${base}/Pictures`,
+    `${base}/Download`,
+    `${base}/Downloads`,
+    `${base}/WhatsApp/Media/WhatsApp Images`,
+    `${base}/WhatsApp/Media/WhatsApp Video`,
+    `${base}/Android/media`,
+  ].filter(Boolean);
+};
 
-function isImageFile(filePath: string): boolean {
-  const extension = filePath.split('.').pop()?.toLowerCase();
-  return extension ? IMAGE_EXTENSIONS.has(extension) : false;
-}
+const SKIP_PATH_PATTERNS = [
+  /\/\.thumbnails(\/|$)/i,
+  /\/\.cache(\/|$)/i,
+  /\/\.trash(\/|$)/i,
+  /\/proc(\/|$)/i,
+  /\/system(\/|$)/i,
+  /\/dev(\/|$)/i,
+];
 
-function throwIfCancelled(signal?: AbortSignal) {
-  if (signal?.aborted) {
-    const error = new Error('SCAN_CANCELLED');
-    error.name = 'SCAN_CANCELLED';
-    throw error;
-  }
-}
+const shouldSkipPath = (path: string): boolean => {
+  return SKIP_PATH_PATTERNS.some((pattern) => pattern.test(path));
+};
 
-initDatabase().catch(console.error);
+const isImageFile = (name: string): boolean => {
+  const lower = name.toLowerCase();
+  return IMAGE_EXTENSIONS.some((ext) => lower.endsWith(ext));
+};
 
-async function requestPermissions(signal?: AbortSignal): Promise<boolean> {
-  throwIfCancelled(signal);
+const safeReadDir = async (directory: string): Promise<RNFS.ReadDirItem[]> => {
   try {
-    const currentStatus = await MediaLibrary.getPermissionsAsync();
-    throwIfCancelled(signal);
-    if (currentStatus.granted) {
-      return true;
-    }
+    return await RNFS.readDir(directory);
+  } catch {
+    return [];
+  }
+};
 
-    if (currentStatus.canAskAgain) {
-      const requestResult = await MediaLibrary.requestPermissionsAsync();
-      throwIfCancelled(signal);
-      if (requestResult.granted) {
-        return true;
-      }
-      console.warn('Media library permission not granted');
-    } else {
-      console.warn('Media library permission previously denied');
-    }
-  } catch (error) {
-    console.warn('Media library permission request failed:', error);
+const ensurePerms = async (): Promise<boolean> => {
+  if (Platform.OS !== 'android') {
+    return true;
   }
 
-  return false;
-}
+  const version =
+    typeof Platform.Version === 'number' ? Platform.Version : parseInt(String(Platform.Version), 10) || 0;
+  const needsLegacyPermissions = version < 33;
 
-async function scanAppDirectories(
-  signal?: AbortSignal,
-  onProgress?: (current: number, file: string) => void
-): Promise<FileInfo[]> {
-  throwIfCancelled(signal);
-  const files: FileInfo[] = [];
+  const permissionCandidates: (Permission | undefined)[] = needsLegacyPermissions
+    ? [
+        PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+        PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
+      ]
+    : [
+        PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES,
+        PermissionsAndroid.PERMISSIONS.READ_MEDIA_VIDEO,
+      ];
 
-  const documentDir = (FileSystem as any).documentDirectory;
-  const cacheDir = (FileSystem as any).cacheDirectory;
-
-  const directories = [documentDir, cacheDir].filter(Boolean) as string[];
-
-  async function scanDirectory(dir: string): Promise<void> {
-    throwIfCancelled(signal);
-    try {
-      const dirInfo = await FileSystem.getInfoAsync(dir);
-      throwIfCancelled(signal);
-      if (!dirInfo.exists || !dirInfo.isDirectory) {
-        return;
-      }
-
-      const entries = await FileSystem.readDirectoryAsync(dir);
-      throwIfCancelled(signal);
-
-      for (const entry of entries) {
-        throwIfCancelled(signal);
-        const fullPath = `${dir}${entry}`;
-        const info = await FileSystem.getInfoAsync(fullPath);
-        throwIfCancelled(signal);
-
-        if (!info.exists) {
-          continue;
-        }
-
-        if (info.isDirectory) {
-          await scanDirectory(`${fullPath}/`);
-        } else {
-          if (isImageFile(fullPath)) {
-            files.push({
-              path: fullPath,
-              size: info.size || 0,
-              modifiedDate: (info as any).modificationTime || Date.now(),
-            });
-            onProgress?.(files.length, entry);
-          }
-        }
-      }
-    } catch (error) {
-      if ((error as Error).name === 'SCAN_CANCELLED' || (error as any)?.code === 'ABORT_ERR') {
-        throw error;
-      }
-      console.error(`Error scanning directory ${dir}:`, error);
-    }
+  const permissions = permissionCandidates.filter(Boolean) as Permission[];
+  if (!permissions.length) {
+    return true;
   }
 
-  for (const dir of directories) {
-    throwIfCancelled(signal);
-    await scanDirectory(dir);
+  const results = await PermissionsAndroid.requestMultiple(permissions);
+  return permissions.every((permission) => results[permission] === PermissionsAndroid.RESULTS.GRANTED);
+};
+
+const collectImageFiles = async (
+  onProgress?: (progress: ScanProgress) => void,
+  cancelRef?: { current: boolean },
+): Promise<ImageFile[]> => {
+  const hasAccess = await ensurePerms();
+  if (!hasAccess) {
+    return [];
   }
 
-  return files;
-}
+  const rootPaths = buildImageRootPaths();
+  const results: ImageFile[] = [];
+  const queue = [...rootPaths];
+  const visited = new Set<string>();
+  let processed = 0;
 
-async function scanMediaLibrary(
-  signal?: AbortSignal,
-  onProgress?: (current: number, file: string) => void
-): Promise<FileInfo[]> {
-  throwIfCancelled(signal);
-  const files: FileInfo[] = [];
+  onProgress?.({ total: 0, current: 0, stage: 'collecting', currentFile: 'initializing' });
 
-  try {
-    let hasNextPage = true;
-    let after: string | undefined;
-
-    while (hasNextPage) {
-      throwIfCancelled(signal);
-      const { assets, hasNextPage: nextPage, endCursor } = await MediaLibrary.getAssetsAsync({
-        first: 1000,
-        after,
-        mediaType: ['photo'],
-      });
-
-      for (const asset of assets) {
-        throwIfCancelled(signal);
-        try {
-          const fileName = asset.filename || asset.uri.split('/').pop() || '';
-          if (!isImageFile(fileName)) {
-            continue;
-          }
-          
-          const assetInfo = await MediaLibrary.getAssetInfoAsync(asset);
-          throwIfCancelled(signal);
-          const localUri = assetInfo.localUri || asset.uri;
-          if (!localUri || !localUri.startsWith('file://')) {
-            continue;
-          }
-
-          let size = (assetInfo as any).size ?? 0;
-          if (!size) {
-            try {
-              const info = await FileSystem.getInfoAsync(localUri);
-              throwIfCancelled(signal);
-              size = info.exists && !info.isDirectory ? info.size || 0 : 0;
-            } catch (fsError) {
-              if ((fsError as Error).name === 'SCAN_CANCELLED' || (fsError as any)?.code === 'ABORT_ERR') {
-                throw fsError;
-              }
-              size = 0;
-            }
-          }
-
-          if (!size) {
-            continue;
-          }
-
-          files.push({
-            path: localUri,
-            size,
-            modifiedDate: (asset.modificationTime || Date.now() / 1000) * 1000,
-            uri: asset.uri,
-          });
-          
-          const displayFileName = asset.filename || localUri.split('/').pop() || 'Unknown';
-          onProgress?.(files.length, displayFileName);
-        } catch (assetError) {
-          if ((assetError as Error).name === 'SCAN_CANCELLED' || (assetError as any)?.code === 'ABORT_ERR') {
-            throw assetError;
-          }
-          console.warn(`Skipping media asset ${asset.id}:`, assetError);
-        }
-      }
-
-      hasNextPage = nextPage;
-      after = endCursor;
+  while (queue.length > 0) {
+    if (cancelRef?.current) {
+      break;
     }
-  } catch (error) {
-    if ((error as Error).name === 'SCAN_CANCELLED' || (error as any)?.code === 'ABORT_ERR') {
-      throw error;
-    }
-    console.warn('Media library scan skipped:', error);
-  }
 
-  return files;
-}
-
-export async function scanForDuplicates(
-  onProgress?: ProgressCallback,
-  options?: ScanOptions
-): Promise<DuplicateGroup[]> {
-  const signal = options?.signal;
-  throwIfCancelled(signal);
-  const hasMediaLibraryPermission = await requestPermissions(signal);
-  await initDatabase();
-
-  let lastProgressUpdate = Date.now();
-  const PROGRESS_UPDATE_INTERVAL = 100;
-
-  const scanProgressCallback = (current: number, fileName: string) => {
-    const now = Date.now();
-    if (now - lastProgressUpdate >= PROGRESS_UPDATE_INTERVAL || current % 50 === 0) {
-      const estimatedTotal = Math.max(current + 100, current * 1.1);
-      onProgress?.({
-        current: current,
-        total: estimatedTotal,
-        currentFile: fileName,
-        stage: 'scanning',
-        scannedFiles: current,
-        totalFiles: estimatedTotal,
-      });
-      lastProgressUpdate = now;
-    }
-  };
-
-  onProgress?.({
-    current: 0,
-    total: 100,
-    currentFile: 'Scanning directories...',
-    stage: 'scanning',
-    scannedFiles: 0,
-    totalFiles: 100,
-  });
-
-  const appFilesPromise = scanAppDirectories(signal, scanProgressCallback);
-  const mediaFilesPromise = hasMediaLibraryPermission 
-    ? scanMediaLibrary(signal, scanProgressCallback) 
-    : Promise.resolve<FileInfo[]>([]);
-
-  if (!hasMediaLibraryPermission) {
-    console.warn('Skipping media library scan due to missing permissions');
-  }
-
-  const [appFilesResult, mediaFilesResult] = await Promise.allSettled([
-    appFilesPromise,
-    mediaFilesPromise,
-  ]);
-  
-  throwIfCancelled(signal);
-  
-  if (appFilesResult.status === 'rejected') {
-    const error = appFilesResult.reason;
-    if ((error as Error).name === 'SCAN_CANCELLED' || (error as any)?.code === 'ABORT_ERR') {
-      throw error;
-    }
-  }
-  if (mediaFilesResult.status === 'rejected') {
-    const error = mediaFilesResult.reason;
-    if ((error as Error).name === 'SCAN_CANCELLED' || (error as any)?.code === 'ABORT_ERR') {
-      throw error;
-    }
-  }
-  
-  const appFiles = appFilesResult.status === 'fulfilled' ? appFilesResult.value : [];
-  const mediaFiles = mediaFilesResult.status === 'fulfilled' ? mediaFilesResult.value : [];
-  
-  const allFiles = [...appFiles, ...mediaFiles];
-  const validFiles = allFiles.filter(file => file.size > 0 && isImageFile(file.path));
-
-  onProgress?.({
-    current: validFiles.length,
-    total: validFiles.length * 2,
-    currentFile: 'Grouping by size...',
-    stage: 'scanning',
-    scannedFiles: validFiles.length,
-    totalFiles: validFiles.length,
-  });
-
-  const sizeGroups = new Map<number, FileInfo[]>();
-  for (const file of validFiles) {
-    throwIfCancelled(signal);
-    if (!isImageFile(file.path)) {
+    const currentDir = queue.shift();
+    if (!currentDir || visited.has(currentDir) || shouldSkipPath(currentDir)) {
       continue;
     }
-    if (!sizeGroups.has(file.size)) {
-      sizeGroups.set(file.size, []);
+    visited.add(currentDir);
+
+    const entries = await safeReadDir(currentDir);
+    processed += 1;
+
+    const batches: RNFS.ReadDirItem[][] = [];
+    for (let i = 0; i < entries.length; i += BATCH_SIZE) {
+      batches.push(entries.slice(i, i + BATCH_SIZE));
     }
-    sizeGroups.get(file.size)!.push(file);
-  }
 
-  const candidateGroups = Array.from(sizeGroups.values()).filter(group => group.length > 1);
-  const hashWorkTotal = candidateGroups.reduce((sum, group) => sum + group.length, 0);
-  const totalWork = validFiles.length + hashWorkTotal;
-
-  const partialHashGroups = new Map<string, FileInfo[]>();
-  let workDone = validFiles.length;
-  let processedFiles = 0;
-
-  for (const group of candidateGroups) {
-    throwIfCancelled(signal);
-    for (const file of group) {
-      throwIfCancelled(signal);
-      if (!isImageFile(file.path)) {
-        continue;
+    for (const batch of batches) {
+      if (cancelRef?.current) {
+        break;
       }
-      processedFiles++;
 
-      try {
-        const currentSize = file.size;
-        const currentModified = file.modifiedDate;
-        
-        let partialHash: string;
-        
-        try {
-          const cached = await getCachedFile(file.path);
-          
-          if (
-            cached &&
-            cached.partialHash &&
-            cached.modifiedDate === currentModified &&
-            cached.size === currentSize
-          ) {
-            partialHash = cached.partialHash;
-          } else {
-            throwIfCancelled(signal);
-            partialHash = await computePartialHash(file.path);
-            
-            saveFileCache({
-              path: file.path,
-              size: currentSize,
-              partialHash,
-              fullHash: null,
-              modifiedDate: currentModified,
-            }).catch(() => {});
+      await Promise.allSettled(
+        batch.map(async (entry) => {
+          if (shouldSkipPath(entry.path)) {
+            return;
           }
-        } catch (hashError) {
-          console.error(`Failed to hash file ${file.path}:`, hashError);
-          workDone++;
-          continue;
-        }
 
-        if (!partialHashGroups.has(partialHash)) {
-          partialHashGroups.set(partialHash, []);
-        }
-        partialHashGroups.get(partialHash)!.push(file);
+          if (entry.isDirectory()) {
+            if (!visited.has(entry.path)) {
+              queue.push(entry.path);
+            }
+            return;
+          }
 
-        workDone++;
-        
-        const now = Date.now();
-        if (now - lastProgressUpdate >= PROGRESS_UPDATE_INTERVAL || processedFiles % 5 === 0) {
-          onProgress?.({
-            current: workDone,
-            total: totalWork,
-            currentFile: file.path.split('/').pop() || file.path,
-            stage: 'hashing',
-            scannedFiles: validFiles.length,
-            totalFiles: validFiles.length,
-          });
-          lastProgressUpdate = now;
-        }
+          if (entry.isFile() && isImageFile(entry.name)) {
+            const size = typeof entry.size === 'number' && !Number.isNaN(entry.size) ? entry.size : 0;
+            const modifiedDate = entry.mtime ? entry.mtime.getTime() : Date.now();
 
-        if (processedFiles % 20 === 0) {
-          throwIfCancelled(signal);
-          await new Promise<void>(resolve => {
-            InteractionManager.runAfterInteractions(() => {
-              throwIfCancelled(signal);
-              resolve();
-            });
-          });
-        }
-      } catch (error) {
-        if ((error as Error).name === 'SCAN_CANCELLED' || (error as any)?.code === 'ABORT_ERR') {
-          throw error;
-        }
-        console.error(`Error processing file ${file.path}:`, error);
-        workDone++;
-      }
+            if (size > 0) {
+              results.push({
+                path: entry.path,
+                size,
+                modifiedDate,
+              });
+            }
+          }
+        }),
+      );
     }
-  }
 
-  const duplicateGroups: DuplicateGroup[] = [];
-  const partialGroupsToProcess = Array.from(partialHashGroups.entries()).filter(([, files]) => files.length > 1);
-
-  for (const [partialHash, files] of partialGroupsToProcess) {
-    throwIfCancelled(signal);
-    duplicateGroups.push({
-      hash: partialHash,
-      files,
-      totalSize: files.reduce((sum, f) => sum + f.size, 0),
+    const total = processed + queue.length || 1;
+    onProgress?.({
+      total,
+      current: processed,
+      scannedFiles: results.length,
+      stage: 'collecting',
+      currentFile: currentDir.split('/').pop() || currentDir,
     });
   }
 
-  onProgress?.({
-    current: totalWork,
-    total: totalWork,
-    currentFile: 'Complete',
-    stage: 'hashing',
-    scannedFiles: validFiles.length,
-    totalFiles: validFiles.length,
-  });
+  return results;
+};
 
-  return duplicateGroups;
-}
+const computeMD5Hash = async (filePath: string): Promise<string> => {
+  try {
+    const content = await RNFS.readFile(filePath, 'base64');
+    const wordArray = CryptoJS.enc.Base64.parse(content);
+    return CryptoJS.MD5(wordArray).toString();
+  } catch {
+    return '';
+  }
+};
 
-export default function DuplicateImageScanner() {
-  return null;
-}
+const findDuplicates = async (
+  files: ImageFile[],
+  onProgress?: (progress: ScanProgress) => void,
+  cancelRef?: { current: boolean },
+): Promise<DuplicateGroup[]> => {
+  if (files.length === 0) {
+    return [];
+  }
 
+  onProgress?.({ total: files.length, current: 0, stage: 'grouping', currentFile: 'analyzing sizes' });
 
+  const sizeGroups = new Map<number, ImageFile[]>();
+  for (const file of files) {
+    const existing = sizeGroups.get(file.size) || [];
+    sizeGroups.set(file.size, [...existing, file]);
+  }
+
+  const candidates: ImageFile[] = [];
+  for (const [, group] of sizeGroups) {
+    if (group.length > 1) {
+      candidates.push(...group);
+    }
+  }
+
+  if (candidates.length === 0) {
+    return [];
+  }
+
+  onProgress?.({ total: candidates.length, current: 0, stage: 'hashing', currentFile: 'computing hashes' });
+
+  const hashGroups = new Map<string, ImageFile[]>();
+  let hashed = 0;
+
+  const batches: ImageFile[][] = [];
+  for (let i = 0; i < candidates.length; i += HASH_BATCH_SIZE) {
+    batches.push(candidates.slice(i, i + HASH_BATCH_SIZE));
+  }
+
+  for (const batch of batches) {
+    if (cancelRef?.current) {
+      break;
+    }
+
+    await Promise.allSettled(
+      batch.map(async (file) => {
+        if (cancelRef?.current) {
+          return;
+        }
+
+        const hash = await computeMD5Hash(file.path);
+        if (hash) {
+          const existing = hashGroups.get(hash) || [];
+          hashGroups.set(hash, [...existing, file]);
+        }
+
+        hashed += 1;
+        onProgress?.({
+          total: candidates.length,
+          current: hashed,
+          scannedFiles: hashed,
+          stage: 'hashing',
+          currentFile: file.path.split('/').pop() || file.path,
+        });
+      }),
+    );
+  }
+
+  const duplicates: DuplicateGroup[] = [];
+  for (const [hash, group] of hashGroups) {
+    if (group.length > 1) {
+      duplicates.push({ hash, files: group });
+    }
+  }
+
+  return duplicates;
+};
+
+export const scanDuplicateImages = async (
+  onProgress?: (progress: ScanProgress) => void,
+  cancelRef?: { current: boolean },
+): Promise<DuplicateGroup[]> => {
+  const files = await collectImageFiles(onProgress, cancelRef);
+  if (cancelRef?.current || files.length === 0) {
+    return [];
+  }
+
+  const duplicates = await findDuplicates(files, onProgress, cancelRef);
+  onProgress?.({ total: files.length, current: files.length, scannedFiles: files.length, stage: 'complete' });
+
+  return duplicates;
+};
+
+export const scanForDuplicates = scanDuplicateImages;
+
+export const useScanner = () => {
+  const [isScanning, setIsScanning] = useState(false);
+  const [progress, setProgress] = useState<ScanProgress>({ total: 0, current: 0 });
+  const [duplicates, setDuplicates] = useState<DuplicateGroup[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const cancelRef = useRef(false);
+
+  const startScan = useCallback(async () => {
+    if (isScanning) {
+      return;
+    }
+
+    setIsScanning(true);
+    setProgress({ total: 0, current: 0 });
+    setDuplicates([]);
+    setError(null);
+    cancelRef.current = false;
+
+    try {
+      const results = await scanDuplicateImages(
+        (prog) => {
+          if (!cancelRef.current) {
+            setProgress(prog);
+          }
+        },
+        cancelRef,
+      );
+
+      if (!cancelRef.current) {
+        setDuplicates(results);
+        setProgress((prev) => ({ ...prev, stage: 'complete' }));
+        // Save results to database
+        try {
+          await initDatabase();
+          await saveDuplicateGroups(results);
+        } catch (dbError) {
+          console.error('Failed to save duplicate groups to database:', dbError);
+        }
+      } else {
+        setProgress((prev) => ({ ...prev, stage: 'cancelled', currentFile: 'Cancelled' }));
+      }
+    } catch (err) {
+      if (!cancelRef.current) {
+        const message = err instanceof Error ? err.message : 'Failed to scan for duplicate images';
+        setError(message);
+      }
+    } finally {
+      setIsScanning(false);
+    }
+  }, [isScanning]);
+
+  const stopScan = useCallback(() => {
+    cancelRef.current = true;
+    setIsScanning(false);
+    setProgress((prev) => ({ ...prev, currentFile: 'Cancelled' }));
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      cancelRef.current = true;
+    };
+  }, []);
+
+  return {
+    isScanning,
+    progress,
+    duplicates,
+    error,
+    startScan,
+    stopScan,
+  };
+};
+
+export const ScannerProvider = ({ children }: { children: ReactNode }): ReactNode => {
+  return children;
+};
