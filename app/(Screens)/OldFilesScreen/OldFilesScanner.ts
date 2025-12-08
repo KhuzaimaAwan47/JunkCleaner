@@ -83,6 +83,19 @@ export const scanOldFiles = async (thresholdDays = DEFAULT_THRESHOLD_DAYS): Prom
   return results.sort((a, b) => b.ageDays - a.ageDays);
 };
 
+export const deleteOldFiles = async (files: OldFileInfo[]): Promise<void> => {
+  await Promise.allSettled(
+    files.map(async (file) => {
+      try {
+        await RNFS.unlink(file.path);
+      } catch (error) {
+        console.warn(`Failed to delete ${file.path}:`, error);
+        throw error;
+      }
+    })
+  );
+};
+
 export default scanOldFiles;
 
 
