@@ -1,13 +1,13 @@
-﻿import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { DefaultTheme, useTheme } from "styled-components/native";
@@ -81,6 +81,8 @@ const CacheLogsScreen = () => {
     });
     return stats;
   }, [selectedFilePaths, sortedItems]);
+
+  const deleteDisabled = selectedStats.items === 0;
 
   const isAllSelected = useMemo(() => {
     return sortedItems.length > 0 && sortedItems.every((item) => selectedFilePaths.has(item.path));
@@ -235,7 +237,13 @@ const CacheLogsScreen = () => {
             selectAllDisabled={resultsAvailable ? !sortedItems.length : undefined}
           />
         </View>
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView 
+          contentContainerStyle={[
+            styles.content,
+            !deleteDisabled && resultsAvailable ? { paddingBottom: theme.spacing.xl * 3 } : {}
+          ]} 
+          showsVerticalScrollIndicator={false}
+        >
           {!loading && !resultsAvailable && (
             <View style={[styles.primaryButtonContainer, styles.sectionSpacing]}>
               <TouchableOpacity style={styles.primaryButton} onPress={refresh} activeOpacity={0.8}>
@@ -269,15 +277,6 @@ const CacheLogsScreen = () => {
                   </TouchableOpacity>
                 </View>
               )}
-
-              {selectedStats.items > 0 && (
-                <DeleteButton
-                  items={selectedStats.items}
-                  size={selectedStats.size}
-                  disabled={clearing}
-                  onPress={handleDelete}
-                />
-              )}
             </>
           )}
 
@@ -296,6 +295,16 @@ const CacheLogsScreen = () => {
             </View>
           )}
         </ScrollView>
+        {!deleteDisabled && resultsAvailable && (
+          <View style={styles.fixedDeleteButtonContainer}>
+            <DeleteButton
+              items={selectedStats.items}
+              size={selectedStats.size}
+              disabled={clearing}
+              onPress={handleDelete}
+            />
+          </View>
+        )}
       </SafeAreaView>
     </ScreenWrapper>
   );
@@ -517,6 +526,16 @@ const createStyles = (theme: DefaultTheme) =>
       color: theme.colors.textMuted,
       fontSize: theme.fontSize.sm,
       textAlign: "center",
+    },
+    fixedDeleteButtonContainer: {
+      position: "absolute",
+      bottom: 0,
+      left: 0,
+      right: 0,
+      paddingHorizontal: theme.spacing.lg,
+      backgroundColor: theme.colors.background,
+      borderTopWidth: 1,
+      borderTopColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}33` : `${theme.colors.surfaceAlt}22`,
     },
   });
 

@@ -1,13 +1,13 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Image,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { DefaultTheme, useTheme } from "styled-components/native";
@@ -18,10 +18,10 @@ import ScreenWrapper from "../../../components/ScreenWrapper";
 import formatBytes from "../../../constants/formatBytes";
 import { initDatabase, loadLargeFileResults, saveLargeFileResults } from "../../../utils/db";
 import {
-  LargeFileResult,
-  LargeFileSource,
-  ScanPhase,
-  scanLargeFiles,
+    LargeFileResult,
+    LargeFileSource,
+    ScanPhase,
+    scanLargeFiles,
 } from "./LargeFileScanner";
 
 type SourceFilter = LargeFileSource | "all";
@@ -32,6 +32,7 @@ const LargeFilesScreen: React.FC = () => {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [files, setFiles] = useState<LargeFileResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasDatabaseResults, setHasDatabaseResults] = useState<boolean>(false);
   const sortMode: "size" | "recent" | "category" = "size";
@@ -81,6 +82,8 @@ const LargeFilesScreen: React.FC = () => {
     return stats;
   }, [selectedFilePaths, sortedFiles]);
 
+  const deleteDisabled = selectedStats.items === 0;
+
   const isAllSelected = useMemo(() => {
     return sortedFiles.length > 0 && sortedFiles.every((file) => selectedFilePaths.has(file.path));
   }, [sortedFiles, selectedFilePaths]);
@@ -112,15 +115,20 @@ const LargeFilesScreen: React.FC = () => {
   }, [isAllSelected, sortedFiles]);
 
   const handleDelete = useCallback(async () => {
-    if (selectedStats.items === 0) {
+    if (selectedStats.items === 0 || clearing) {
       return;
     }
     // TODO: Implement actual file deletion logic
     console.log("Deleting files:", Array.from(selectedFilePaths));
-    // After deletion, remove from state and update files
-    setFiles((prev) => prev.filter((file) => !selectedFilePaths.has(file.path)));
-    setSelectedFilePaths(new Set());
-  }, [selectedFilePaths, selectedStats.items]);
+    setClearing(true);
+    try {
+      // After deletion, remove from state and update files
+      setFiles((prev) => prev.filter((file) => !selectedFilePaths.has(file.path)));
+      setSelectedFilePaths(new Set());
+    } finally {
+      setClearing(false);
+    }
+  }, [selectedFilePaths, selectedStats.items, clearing]);
 
   const progressLabel = useMemo(() => {
     switch (scanProgress.phase) {
@@ -313,7 +321,13 @@ const LargeFilesScreen: React.FC = () => {
             selectAllDisabled={resultsAvailable ? !sortedFiles.length : undefined}
           />
         </View>
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView 
+          contentContainerStyle={[
+            styles.content,
+            !deleteDisabled && resultsAvailable ? { paddingBottom: theme.spacing.xl * 3 } : {}
+          ]} 
+          showsVerticalScrollIndicator={false}
+        >
         {!loading && !resultsAvailable && (
           <View style={[styles.primaryButtonContainer, styles.sectionSpacing]}>
             <TouchableOpacity style={styles.primaryButton} onPress={handleScan} activeOpacity={0.8}>
@@ -348,15 +362,6 @@ const LargeFilesScreen: React.FC = () => {
                 </TouchableOpacity>
               </View>
             )}
-
-            {selectedStats.items > 0 && (
-              <DeleteButton
-                items={selectedStats.items}
-                size={selectedStats.size}
-                disabled={false}
-                onPress={handleDelete}
-              />
-            )}
           </>
         )}
 
@@ -387,6 +392,16 @@ const LargeFilesScreen: React.FC = () => {
           </View>
         )}
       </ScrollView>
+      {!deleteDisabled && resultsAvailable && (
+        <View style={styles.fixedDeleteButtonContainer}>
+          <DeleteButton
+            items={selectedStats.items}
+            size={selectedStats.size}
+            disabled={clearing}
+            onPress={handleDelete}
+          />
+        </View>
+      )}
       </SafeAreaView>
     </ScreenWrapper>
   );
@@ -675,5 +690,15 @@ const createStyles = (theme: DefaultTheme) =>
     },
     emptyTextError: {
       color: theme.colors.error,
+    },
+    fixedDeleteButtonContainer: {
+      position: "absolute",
+      bottom: 0,
+      left: 0,
+      right: 0,
+      paddingHorizontal: theme.spacing.lg,
+      backgroundColor: theme.colors.background,
+      borderTopWidth: 1,
+      borderTopColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}33` : `${theme.colors.surfaceAlt}22`,
     },
   });

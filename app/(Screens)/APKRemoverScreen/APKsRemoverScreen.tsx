@@ -1,13 +1,13 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { DefaultTheme, useTheme } from "styled-components/native";
@@ -25,6 +25,7 @@ const APKsRemoverScreen = () => {
   const [apkFiles, setApkFiles] = useState<ApkFile[]>([]);
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState<Set<string>>(new Set());
+  const [clearing, setClearing] = useState(false);
   const [hasScanned, setHasScanned] = useState(false);
   const [selectedFilePaths, setSelectedFilePaths] = useState<Set<string>>(new Set());
 
@@ -76,6 +77,8 @@ const APKsRemoverScreen = () => {
     return stats;
   }, [selectedFilePaths, apkFiles]);
 
+  const deleteDisabled = selectedStats.items === 0;
+
   const isAllSelected = useMemo(() => {
     return apkFiles.length > 0 && apkFiles.every((file) => selectedFilePaths.has(file.path));
   }, [apkFiles, selectedFilePaths]);
@@ -107,7 +110,7 @@ const APKsRemoverScreen = () => {
   }, [isAllSelected, apkFiles]);
 
   const handleDelete = useCallback(async () => {
-    if (selectedStats.items === 0) {
+    if (selectedStats.items === 0 || clearing) {
       return;
     }
 
@@ -123,6 +126,7 @@ const APKsRemoverScreen = () => {
           text: "Delete",
           style: "destructive",
           onPress: async () => {
+            setClearing(true);
             const pathsToDelete = Array.from(selectedFilePaths);
             setDeleting((prev) => {
               const next = new Set(prev);
@@ -133,37 +137,40 @@ const APKsRemoverScreen = () => {
             let successCount = 0;
             let failCount = 0;
 
-            for (const path of pathsToDelete) {
-              try {
-                await deleteApkFile(path);
-                successCount++;
-              } catch (error) {
-                console.warn("Delete failed for", path, error);
-                failCount++;
+            try {
+              for (const path of pathsToDelete) {
+                try {
+                  await deleteApkFile(path);
+                  successCount++;
+                } catch (error) {
+                  console.warn("Delete failed for", path, error);
+                  failCount++;
+                }
               }
+
+              // Remove successfully deleted files from state
+              setApkFiles((prev) => prev.filter((item) => !pathsToDelete.includes(item.path)));
+              setSelectedFilePaths(new Set());
+
+              if (failCount > 0) {
+                Alert.alert(
+                  "Delete Complete",
+                  `Deleted ${successCount} file${successCount !== 1 ? 's' : ''}. ${failCount} file${failCount !== 1 ? 's' : ''} could not be deleted.`
+                );
+              }
+            } finally {
+              setDeleting((prev) => {
+                const next = new Set(prev);
+                pathsToDelete.forEach((path) => next.delete(path));
+                return next;
+              });
+              setClearing(false);
             }
-
-            // Remove successfully deleted files from state
-            setApkFiles((prev) => prev.filter((item) => !pathsToDelete.includes(item.path)));
-            setSelectedFilePaths(new Set());
-
-            if (failCount > 0) {
-              Alert.alert(
-                "Delete Complete",
-                `Deleted ${successCount} file${successCount !== 1 ? 's' : ''}. ${failCount} file${failCount !== 1 ? 's' : ''} could not be deleted.`
-              );
-            }
-
-            setDeleting((prev) => {
-              const next = new Set(prev);
-              pathsToDelete.forEach((path) => next.delete(path));
-              return next;
-            });
           },
         },
       ]
     );
-  }, [selectedFilePaths, selectedStats.items, apkFiles]);
+  }, [selectedFilePaths, selectedStats.items, apkFiles, clearing]);
 
   // Clear selection when files change
   useEffect(() => {
@@ -248,7 +255,13 @@ const APKsRemoverScreen = () => {
             selectAllDisabled={resultsAvailable ? !apkFiles.length : undefined}
           />
         </View>
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView 
+          contentContainerStyle={[
+            styles.content,
+            !deleteDisabled && resultsAvailable ? { paddingBottom: theme.spacing.xl * 3 } : {}
+          ]} 
+          showsVerticalScrollIndicator={false}
+        >
         {!loading && !resultsAvailable && (
           <View style={[styles.primaryButtonContainer, styles.sectionSpacing]}>
             <TouchableOpacity style={styles.primaryButton} onPress={scan} activeOpacity={0.8}>
@@ -282,15 +295,6 @@ const APKsRemoverScreen = () => {
                 </TouchableOpacity>
               </View>
             )}
-
-            {selectedStats.items > 0 && (
-              <DeleteButton
-                items={selectedStats.items}
-                size={selectedStats.size}
-                disabled={false}
-                onPress={handleDelete}
-              />
-            )}
           </>
         )}
 
@@ -309,6 +313,16 @@ const APKsRemoverScreen = () => {
           </View>
         )}
       </ScrollView>
+      {!deleteDisabled && resultsAvailable && (
+        <View style={styles.fixedDeleteButtonContainer}>
+          <DeleteButton
+            items={selectedStats.items}
+            size={selectedStats.size}
+            disabled={clearing}
+            onPress={handleDelete}
+          />
+        </View>
+      )}
       </SafeAreaView>
     </ScreenWrapper>
   );
@@ -506,6 +520,16 @@ const createStyles = (theme: DefaultTheme) =>
       color: theme.colors.textMuted,
       fontSize: theme.fontSize.sm,
       textAlign: "center",
+    },
+    fixedDeleteButtonContainer: {
+      position: "absolute",
+      bottom: 0,
+      left: 0,
+      right: 0,
+      paddingHorizontal: theme.spacing.lg,
+      backgroundColor: theme.colors.background,
+      borderTopWidth: 1,
+      borderTopColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}33` : `${theme.colors.surfaceAlt}22`,
     },
   });
 
