@@ -79,7 +79,7 @@ const HomeScreen = () => {
       0,
     );
     const duplicateSize = snapshot.duplicateResults.reduce(
-      (sum, group) => sum + (group.totalSize ?? 0),
+      (sum, group) => sum + (group.files?.reduce((fileSum, file) => fileSum + (file.size ?? 0), 0) ?? 0),
       0,
     );
 
