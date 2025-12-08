@@ -109,6 +109,8 @@ export function useDuplicateScanner() {
       return;
     }
 
+    await initDatabase();
+
     const controller = new AbortController();
     abortControllerRef.current = controller;
     isCancelledRef.current = false;

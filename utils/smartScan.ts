@@ -7,16 +7,17 @@ import { scanOldFiles } from '../app/(Screens)/OldFilesScreen/OldFilesScanner';
 import { scanUnusedApps } from '../app/(Screens)/UnusedAppsScreen/UnusedAppsScanner';
 import { scanWhatsApp } from '../app/(Screens)/WhatsAppRemoverScreen/WhatsAppScanner';
 import {
-    saveApkScanResults,
-    saveCacheLogsResults,
-    saveDuplicateGroups,
-    saveJunkFileResults,
-    saveLargeFileResults,
-    saveOldFileResults,
-    saveSmartScanStatus,
-    saveUnusedAppsResults,
-    saveWhatsAppResults,
-    type SmartScanStatus,
+  initDatabase,
+  saveApkScanResults,
+  saveCacheLogsResults,
+  saveDuplicateGroups,
+  saveJunkFileResults,
+  saveLargeFileResults,
+  saveOldFileResults,
+  saveSmartScanStatus,
+  saveUnusedAppsResults,
+  saveWhatsAppResults,
+  type SmartScanStatus,
 } from './db';
 
 export interface SmartScanProgress {
@@ -48,6 +49,8 @@ const SCANNER_NAMES = [
 export async function runSmartScan(
   onProgress?: SmartScanProgressCallback
 ): Promise<void> {
+  await initDatabase();
+
   const status: SmartScanStatus = {
     completed: false,
     completedAt: null,
@@ -61,6 +64,14 @@ export async function runSmartScan(
       cacheLogs: false,
       unusedApps: false,
     },
+  };
+
+  const persistStatus = async () => {
+    try {
+      await saveSmartScanStatus(status);
+    } catch (error) {
+      console.warn('Failed to persist smart scan status snapshot:', error);
+    }
   };
 
   const updateProgress = (current: number, scannerName: string, scannerProgress?: number, scannerDetail?: string) => {
@@ -79,6 +90,7 @@ export async function runSmartScan(
     const apkResults = await scanForAPKs();
     await saveApkScanResults(apkResults);
     status.scannerProgress.apk = true;
+    await persistStatus();
     updateProgress(0, SCANNER_NAMES[0], 1, `found ${apkResults.length} APK files`);
 
     // 2. WhatsApp Scanner
@@ -86,6 +98,7 @@ export async function runSmartScan(
     const whatsappResults = await scanWhatsApp();
     await saveWhatsAppResults(whatsappResults);
     status.scannerProgress.whatsapp = true;
+    await persistStatus();
     updateProgress(1, SCANNER_NAMES[1], 1, `found ${whatsappResults.length} WhatsApp files`);
 
     // 3. Duplicate Images Scanner
@@ -96,8 +109,9 @@ export async function runSmartScan(
         updateProgress(2, SCANNER_NAMES[2], ratio, progress.currentFile || 'scanning...');
       }
     );
-    await saveDuplicateGroups(duplicateResults);
+    await saveDuplicateGroups(duplicateResults || []);
     status.scannerProgress.duplicates = true;
+    await persistStatus();
     const duplicateCount = duplicateResults.reduce((sum, group) => sum + group.files.length, 0);
     updateProgress(2, SCANNER_NAMES[2], 1, `found ${duplicateCount} duplicate images`);
 
@@ -111,6 +125,7 @@ export async function runSmartScan(
     );
     await saveLargeFileResults(largeFileResults);
     status.scannerProgress.largeFiles = true;
+    await persistStatus();
     updateProgress(3, SCANNER_NAMES[3], 1, `found ${largeFileResults.length} large files`);
 
     // 5. Junk Files Scanner
@@ -122,6 +137,7 @@ export async function runSmartScan(
     );
     await saveJunkFileResults(junkFileResults.items);
     status.scannerProgress.junkFiles = true;
+    await persistStatus();
     updateProgress(4, SCANNER_NAMES[4], 1, `found ${junkFileResults.totalFiles} junk files`);
 
     // 6. Old Files Scanner
@@ -129,6 +145,7 @@ export async function runSmartScan(
     const oldFileResults = await scanOldFiles(90); // 90 days threshold
     await saveOldFileResults(oldFileResults);
     status.scannerProgress.oldFiles = true;
+    await persistStatus();
     updateProgress(5, SCANNER_NAMES[5], 1, `found ${oldFileResults.length} old files`);
 
     // 7. Cache & Logs Scanner
@@ -136,6 +153,7 @@ export async function runSmartScan(
     const cacheLogsResults = await scanCachesAndLogs();
     await saveCacheLogsResults(cacheLogsResults);
     status.scannerProgress.cacheLogs = true;
+    await persistStatus();
     updateProgress(6, SCANNER_NAMES[6], 1, `found ${cacheLogsResults.length} cache/log files`);
 
     // 8. Unused Apps Scanner
@@ -143,6 +161,7 @@ export async function runSmartScan(
     const unusedAppsResults = await scanUnusedApps();
     await saveUnusedAppsResults(unusedAppsResults);
     status.scannerProgress.unusedApps = true;
+    await persistStatus();
     updateProgress(7, SCANNER_NAMES[7], 1, `found ${unusedAppsResults.length} unused apps`);
 
     // Mark as completed

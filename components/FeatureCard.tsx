@@ -1,4 +1,4 @@
-﻿import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { MotiView } from "moti";
 import React, { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
@@ -9,11 +9,13 @@ import NeumorphicContainer from "./NeumorphicContainer";
 type Props = {
   feature: Feature;
   onPress?: () => void;
+  progress?: number;
 };
 
-const FeatureCard: React.FC<Props> = ({ feature, onPress }) => {
+const FeatureCard: React.FC<Props> = ({ feature, onPress, progress }) => {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const effectiveProgress = Math.max(0, Math.min(1, progress ?? feature.progress ?? 0));
 
   return (
     <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }}>
@@ -30,7 +32,7 @@ const FeatureCard: React.FC<Props> = ({ feature, onPress }) => {
             style={[
               styles.progressFill,
               {
-                width: `${feature.progress * 100}%`,
+                width: `${effectiveProgress * 100}%`,
                 backgroundColor: feature.accent,
               },
             ]}

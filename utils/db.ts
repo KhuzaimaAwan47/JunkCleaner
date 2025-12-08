@@ -526,3 +526,70 @@ export async function clearSmartScanStatus(): Promise<void> {
 
   await db!.runAsync('DELETE FROM smart_scan_status');
 }
+
+export interface ScanDataSnapshot {
+  apkResults: ApkFile[];
+  whatsappResults: WhatsAppScanResult[];
+  duplicateResults: DuplicateGroup[];
+  largeFileResults: LargeFileResult[];
+  junkFileResults: JunkFileItem[];
+  oldFileResults: OldFileInfo[];
+  cacheLogsResults: ScanResult[];
+  unusedAppsResults: UnusedAppInfo[];
+}
+
+/**
+ * Load the latest scan data for all scanners in one shot.
+ */
+export async function loadAllScanResults(): Promise<ScanDataSnapshot> {
+  if (!db) await initDatabase();
+
+  const [
+    apkResults,
+    whatsappResults,
+    duplicateResults,
+    largeFileResults,
+    junkFileResults,
+    oldFileResults,
+    cacheLogsResults,
+    unusedAppsResults,
+  ] = await Promise.all([
+    loadApkScanResults(),
+    loadWhatsAppResults(),
+    loadDuplicateGroups(),
+    loadLargeFileResults(),
+    loadJunkFileResults(),
+    loadOldFileResults(),
+    loadCacheLogsResults(),
+    loadUnusedAppsResults(),
+  ]);
+
+  return {
+    apkResults,
+    whatsappResults,
+    duplicateResults,
+    largeFileResults,
+    junkFileResults,
+    oldFileResults,
+    cacheLogsResults,
+    unusedAppsResults,
+  };
+}
+
+/**
+ * Check whether any scan data exists in the database.
+ */
+export async function hasAnyScanData(): Promise<boolean> {
+  const snapshot = await loadAllScanResults();
+
+  return (
+    snapshot.apkResults.length > 0 ||
+    snapshot.whatsappResults.length > 0 ||
+    snapshot.duplicateResults.length > 0 ||
+    snapshot.largeFileResults.length > 0 ||
+    snapshot.junkFileResults.length > 0 ||
+    snapshot.oldFileResults.length > 0 ||
+    snapshot.cacheLogsResults.length > 0 ||
+    snapshot.unusedAppsResults.length > 0
+  );
+}

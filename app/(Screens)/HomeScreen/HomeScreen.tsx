@@ -15,15 +15,9 @@ import type { Feature } from "../../../dummydata/features";
 import { featureCards } from "../../../dummydata/features";
 import {
   initDatabase,
-  loadApkScanResults,
-  loadCacheLogsResults,
-  loadDuplicateGroups,
-  loadJunkFileResults,
-  loadLargeFileResults,
-  loadOldFileResults,
+  loadAllScanResults,
   loadSmartScanStatus,
-  loadUnusedAppsResults,
-  loadWhatsAppResults,
+  type ScanDataSnapshot,
 } from "../../../utils/db";
 import { runSmartScan, type SmartScanProgress } from "../../../utils/smartScan";
 import { getStorageInfo } from "../../../utils/storage";
@@ -46,10 +40,90 @@ const HomeScreen = () => {
   const [, setStorageInfo] = React.useState({ total: 0, used: 0, free: 0 });
   const [isScanning, setIsScanning] = React.useState(false);
   const [scanProgress, setScanProgress] = React.useState<SmartScanProgress | null>(null);
+  const [showFeatureCards, setShowFeatureCards] = React.useState(false);
   const [showRemainingRows, setShowRemainingRows] = React.useState(false);
   const [featureProgress, setFeatureProgress] = React.useState<Record<string, number>>({});
   const [systemHealth, setSystemHealth] = React.useState<SystemHealthResult | null>(null);
   const scanCancelledRef = React.useRef(false);
+  const featureVisibility = useSharedValue(0);
+
+  const hasDataInSnapshot = React.useCallback((snapshot: ScanDataSnapshot) => {
+    return (
+      snapshot.apkResults.length > 0 ||
+      snapshot.whatsappResults.length > 0 ||
+      snapshot.duplicateResults.length > 0 ||
+      snapshot.largeFileResults.length > 0 ||
+      snapshot.junkFileResults.length > 0 ||
+      snapshot.oldFileResults.length > 0 ||
+      snapshot.cacheLogsResults.length > 0 ||
+      snapshot.unusedAppsResults.length > 0
+    );
+  }, []);
+
+  const calculateProgressFromSnapshot = React.useCallback((snapshot: ScanDataSnapshot) => {
+    const clamp = (value: number) => Math.max(0, Math.min(1, value));
+    const normalize = (value: number, cap: number) => (cap <= 0 ? 0 : clamp(value / cap));
+    const toMb = (bytes: number) => bytes / (1024 * 1024);
+
+    const junkCount = snapshot.junkFileResults.length;
+    const junkSize = snapshot.junkFileResults.reduce((sum, item) => sum + (item.size ?? 0), 0);
+
+    const cacheCount = snapshot.cacheLogsResults.length;
+    const cacheSize = snapshot.cacheLogsResults.reduce((sum, item) => sum + (item.size ?? 0), 0);
+
+    const oldCount = snapshot.oldFileResults.length;
+    const oldSize = snapshot.oldFileResults.reduce((sum, item) => sum + (item.size ?? 0), 0);
+
+    const duplicateFileCount = snapshot.duplicateResults.reduce(
+      (sum, group) => sum + (group.files?.length ?? 0),
+      0,
+    );
+    const duplicateSize = snapshot.duplicateResults.reduce(
+      (sum, group) => sum + (group.totalSize ?? 0),
+      0,
+    );
+
+    const largeFileCount = snapshot.largeFileResults.length;
+    const apkCount = snapshot.apkResults.length;
+    const unusedCount = snapshot.unusedAppsResults.length;
+    const whatsappCount = snapshot.whatsappResults.length;
+    const whatsappSize = snapshot.whatsappResults.reduce((sum, item) => sum + ((item as any)?.size ?? 0), 0);
+
+    const progress: Record<string, number> = {};
+
+    progress.junk = clamp(0.6 * normalize(junkCount, 200) + 0.4 * normalize(toMb(junkSize), 1500));
+    progress.cache = clamp(0.6 * normalize(cacheCount, 180) + 0.4 * normalize(toMb(cacheSize), 1200));
+    progress.old = clamp(0.7 * normalize(oldCount, 180) + 0.3 * normalize(toMb(oldSize), 3000));
+    progress.duplicate = clamp(
+      0.6 * normalize(duplicateFileCount, 180) + 0.4 * normalize(toMb(duplicateSize), 2500),
+    );
+    progress.large = normalize(largeFileCount, 120);
+    progress.apk = normalize(apkCount, 150);
+    progress.unused = normalize(unusedCount, 120);
+    progress.whatsapp = clamp(
+      0.5 * normalize(whatsappCount, 500) + 0.5 * normalize(toMb(whatsappSize), 4000),
+    );
+
+    const averaged = (keys: string[]) =>
+      clamp(
+        keys.reduce((sum, key) => sum + (progress[key] ?? 0), 0) /
+          Math.max(1, keys.length),
+      );
+
+    progress.smart = averaged([
+      "junk",
+      "cache",
+      "old",
+      "duplicate",
+      "large",
+      "apk",
+      "unused",
+      "whatsapp",
+    ]);
+    progress.storage = averaged(["large", "duplicate", "junk", "old"]);
+
+    return progress;
+  }, []);
 
   // Load storage info on mount
   React.useEffect(() => {
@@ -64,77 +138,53 @@ const HomeScreen = () => {
     loadStorage();
   }, []);
 
-  // Check if smart scan is complete or data exists
+  const refreshHomeState = React.useCallback(async () => {
+    try {
+      await initDatabase();
+      const [status, snapshot] = await Promise.all([
+        loadSmartScanStatus(),
+        loadAllScanResults(),
+      ]);
+
+      const dataExists = hasDataInSnapshot(snapshot);
+
+      const isComplete = status?.completed === true;
+      const firstLaunchState = !dataExists && !isComplete;
+
+      const progress = calculateProgressFromSnapshot(snapshot);
+      setFeatureProgress(progress);
+
+      const showFeatures = (dataExists || isComplete) && !firstLaunchState;
+      setShowFeatureCards(showFeatures);
+      setShowRemainingRows(showFeatures);
+
+      const health: SystemHealthResult = dataExists || isComplete
+        ? calculateSystemHealth(snapshot)
+        : {
+            score: 0,
+            status: "fair",
+            message: "not calculated yet",
+            totalItems: 0,
+            totalSize: 0,
+          };
+      setSystemHealth(health);
+    } catch (error) {
+      console.error("Failed to check scan status:", error);
+    }
+  }, [calculateProgressFromSnapshot, hasDataInSnapshot]);
+
   React.useEffect(() => {
-    const checkScanStatus = async () => {
-      try {
-        await initDatabase();
-        const status = await loadSmartScanStatus();
-        
-        // Check if any scan data exists
-        const [
-          apkResults,
-          whatsappResults,
-          duplicateResults,
-          largeFileResults,
-          junkFileResults,
-          oldFileResults,
-          cacheLogsResults,
-          unusedAppsResults,
-        ] = await Promise.all([
-          loadApkScanResults(),
-          loadWhatsAppResults(),
-          loadDuplicateGroups(),
-          loadLargeFileResults(),
-          loadJunkFileResults(),
-          loadOldFileResults(),
-          loadCacheLogsResults(),
-          loadUnusedAppsResults(),
-        ]);
+    refreshHomeState();
+  }, [refreshHomeState, isScanning]);
 
-        const hasData = 
-          apkResults.length > 0 ||
-          whatsappResults.length > 0 ||
-          duplicateResults.length > 0 ||
-          largeFileResults.length > 0 ||
-          junkFileResults.length > 0 ||
-          oldFileResults.length > 0 ||
-          cacheLogsResults.length > 0 ||
-          unusedAppsResults.length > 0;
+  React.useEffect(() => {
+    featureVisibility.value = withTiming(showFeatureCards ? 1 : 0, { duration: 450 });
+  }, [featureVisibility, showFeatureCards]);
 
-        const isComplete = status?.completed === true;
-        setShowRemainingRows(isComplete || hasData);
-
-        // Calculate progress for each feature
-        const progress: Record<string, number> = {};
-        progress.apk = apkResults.length > 0 ? Math.min(0.95, apkResults.length / 100) : 0;
-        progress.whatsapp = whatsappResults.length > 0 ? Math.min(0.95, whatsappResults.length / 500) : 0;
-        progress.duplicate = duplicateResults.length > 0 ? Math.min(0.95, duplicateResults.length / 50) : 0;
-        progress.large = largeFileResults.length > 0 ? Math.min(0.95, largeFileResults.length / 50) : 0;
-        progress.junk = junkFileResults.length > 0 ? Math.min(0.95, junkFileResults.length / 200) : 0;
-        progress.old = oldFileResults.length > 0 ? Math.min(0.95, oldFileResults.length / 200) : 0;
-        progress.cache = cacheLogsResults.length > 0 ? Math.min(0.95, cacheLogsResults.length / 100) : 0;
-        progress.unused = unusedAppsResults.length > 0 ? Math.min(0.95, unusedAppsResults.length / 50) : 0;
-        setFeatureProgress(progress);
-
-        // Calculate system health
-        const health = calculateSystemHealth({
-          apkResults,
-          whatsappResults,
-          duplicateResults,
-          largeFileResults,
-          junkFileResults,
-          oldFileResults,
-          cacheLogsResults,
-          unusedAppsResults,
-        });
-        setSystemHealth(health);
-      } catch (error) {
-        console.error("Failed to check scan status:", error);
-      }
-    };
-    checkScanStatus();
-  }, [isScanning]);
+  const featureRevealStyle = useAnimatedStyle(() => ({
+    opacity: featureVisibility.value,
+    transform: [{ translateY: (1 - featureVisibility.value) * 14 }],
+  }));
 
   const handleSmartScan = React.useCallback(async () => {
     if (isScanning) return;
@@ -149,6 +199,7 @@ const HomeScreen = () => {
           setScanProgress(progress);
         }
       });
+      await refreshHomeState();
     } catch (error) {
       if (!scanCancelledRef.current) {
         console.error("Smart scan error:", error);
@@ -159,7 +210,7 @@ const HomeScreen = () => {
       setScanProgress(null);
       scanCancelledRef.current = false;
     }
-  }, [isScanning]);
+  }, [isScanning, refreshHomeState]);
 
   const handleStopScan = React.useCallback(() => {
     scanCancelledRef.current = true;
@@ -190,15 +241,21 @@ const HomeScreen = () => {
               disabled={false}
             />
           </View>
-          <View style={styles.featureGrid}>
-            {topFeatures.map((feature) => (
-              <View key={feature.id} style={styles.featureGridItem}>
-                <FeatureCard feature={feature} onPress={() => handleNavigate(feature.route)} />
-              </View>
-            ))}
-          </View>
+          {showFeatureCards && (
+            <Animated.View style={[styles.featureGrid, featureRevealStyle]}>
+              {topFeatures.map((feature) => (
+                <View key={feature.id} style={styles.featureGridItem}>
+                  <FeatureCard
+                    feature={{ ...feature, progress: featureProgress[feature.id] ?? 0 }}
+                    progress={featureProgress[feature.id] ?? 0}
+                    onPress={() => handleNavigate(feature.route)}
+                  />
+                </View>
+              ))}
+            </Animated.View>
+          )}
           {showRemainingRows && (
-            <View style={styles.remainingSection}>
+            <Animated.View style={[styles.remainingSection, featureRevealStyle]}>
               <NeumorphicContainer style={styles.remainingCard}>
                 {remainingRows.map((row, rowIndex) => (
                   <View
@@ -223,7 +280,7 @@ const HomeScreen = () => {
                   </View>
                 ))}
               </NeumorphicContainer>
-            </View>
+            </Animated.View>
           )}
           <View style={styles.adSection}>
             <AdPlaceholder />

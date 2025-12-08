@@ -102,7 +102,7 @@ const CircularLoadingIndicator: React.FC<Props> = ({ scanProgress, systemHealth,
                 { color: getHealthColor(systemHealth?.status) },
               ]}
             >
-              {systemHealth?.message ?? 'No Data'}
+              {systemHealth?.message ?? 'not calculated yet'}
             </Text>
           </>
         )}
