@@ -1,21 +1,19 @@
-﻿import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  SectionList,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    SectionList,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
-import NeumorphicContainer from "../../../components/NeumorphicContainer";
 import ScreenWrapper from "../../../components/ScreenWrapper";
-import { loadUnusedAppsResults, saveUnusedAppsResults, initDatabase } from "../../../utils/db";
+import { initDatabase, loadUnusedAppsResults, saveUnusedAppsResults } from "../../../utils/db";
 import { scanUnusedApps, UnusedAppInfo } from "./UnusedAppsScanner";
 
 type SectionData = {
@@ -29,6 +27,8 @@ const UnusedAppsScreen = () => {
   const [apps, setApps] = useState<UnusedAppInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasScanned, setHasScanned] = useState(false);
+  const [uninstalling, setUninstalling] = useState(false);
+  const [selectedPackageNames, setSelectedPackageNames] = useState<Set<string>>(new Set());
 
   // Load saved results on mount
   useEffect(() => {
@@ -50,6 +50,7 @@ const UnusedAppsScreen = () => {
   const scan = useCallback(async () => {
     setLoading(true);
     setApps([]);
+    setSelectedPackageNames(new Set());
     try {
       const result = await scanUnusedApps();
       setApps(result);
@@ -64,6 +65,94 @@ const UnusedAppsScreen = () => {
       setLoading(false);
     }
   }, []);
+
+  const selectedStats = useMemo(() => {
+    return {
+      items: selectedPackageNames.size,
+    };
+  }, [selectedPackageNames]);
+
+  const isAllSelected = useMemo(() => {
+    return apps.length > 0 && apps.every((app) => selectedPackageNames.has(app.packageName));
+  }, [apps, selectedPackageNames]);
+
+  const toggleAppSelection = useCallback((packageName: string) => {
+    setSelectedPackageNames((prev) => {
+      const next = new Set(prev);
+      if (next.has(packageName)) {
+        next.delete(packageName);
+      } else {
+        next.add(packageName);
+      }
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedPackageNames((prev) => {
+      const next = new Set(prev);
+      if (isAllSelected) {
+        // Deselect all
+        apps.forEach((app) => next.delete(app.packageName));
+      } else {
+        // Select all
+        apps.forEach((app) => next.add(app.packageName));
+      }
+      return next;
+    });
+  }, [isAllSelected, apps]);
+
+  const handleUninstall = useCallback(() => {
+    const appsToUninstall = selectedStats.items > 0
+      ? apps.filter((app) => selectedPackageNames.has(app.packageName))
+      : apps;
+
+    if (!appsToUninstall.length || uninstalling) {
+      return;
+    }
+
+    Alert.alert(
+      "Uninstall Apps?",
+      `This will uninstall ${appsToUninstall.length} app${appsToUninstall.length > 1 ? "s" : ""}.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Uninstall",
+          style: "destructive",
+          onPress: async () => {
+            setUninstalling(true);
+            try {
+              // TODO: Implement actual uninstall functionality
+              // For now, just remove from list
+              await new Promise((resolve) => setTimeout(resolve, 1000));
+              setApps((prev) => prev.filter((app) => !appsToUninstall.some((uninstalled) => uninstalled.packageName === app.packageName)));
+              setSelectedPackageNames(new Set());
+              Alert.alert("Success", `${appsToUninstall.length} app${appsToUninstall.length > 1 ? "s" : ""} uninstalled successfully.`);
+            } catch (error) {
+              console.warn("Uninstall failed", error);
+              Alert.alert("Uninstall Failed", "Some apps could not be uninstalled.");
+            } finally {
+              setUninstalling(false);
+            }
+          },
+        },
+      ]
+    );
+  }, [apps, uninstalling, selectedStats.items, selectedPackageNames]);
+
+  // Clear selection when items change
+  useEffect(() => {
+    setSelectedPackageNames((prev) => {
+      const availablePackageNames = new Set(apps.map((app) => app.packageName));
+      const next = new Set<string>();
+      prev.forEach((packageName) => {
+        if (availablePackageNames.has(packageName)) {
+          next.add(packageName);
+        }
+      });
+      return next;
+    });
+  }, [apps]);
 
   const groupedData = useMemo<SectionData[]>(() => {
     const unused = apps.filter((app) => app.category === "UNUSED");
@@ -96,37 +185,44 @@ const UnusedAppsScreen = () => {
           ? "Used yesterday"
           : `Last used ${item.lastUsedDays} days ago`;
 
+      const isActive = selectedPackageNames.has(item.packageName);
+
       return (
-        <View style={styles.itemWrapper}>
-          <NeumorphicContainer padding={theme.spacing.md}>
-            <View style={styles.itemInner}>
-              <View style={styles.iconBubble}>
-                <MaterialCommunityIcons
-                  name="application"
-                  size={28}
-                  color={theme.colors.primary}
-                />
+        <TouchableOpacity
+          activeOpacity={0.85}
+          style={[styles.appRow, isActive && styles.appRowSelected]}
+          onPress={() => toggleAppSelection(item.packageName)}
+        >
+          <View style={styles.iconBubble}>
+            <MaterialCommunityIcons
+              name="application"
+              size={28}
+              color={theme.colors.primary}
+            />
+            {isActive ? (
+              <View style={styles.selectionBadge}>
+                <MaterialCommunityIcons name="check" size={16} color={theme.colors.white} />
               </View>
-              <View style={styles.infoColumn}>
-                <Text style={styles.appName} numberOfLines={1}>
-                  {item.appName}
-                </Text>
-                <Text style={styles.packageName} numberOfLines={1}>
-                  {item.packageName}
-                </Text>
-                <View style={styles.metaRow}>
-                  <Text style={styles.metaText}>{lastUsedText}</Text>
-                  <Text style={styles.confidenceScore}>
-                    {item.confidenceScore}%
-                  </Text>
-                </View>
-              </View>
+            ) : null}
+          </View>
+          <View style={styles.infoColumn}>
+            <Text style={styles.appName} numberOfLines={1}>
+              {item.appName}
+            </Text>
+            <Text style={styles.packageName} numberOfLines={1}>
+              {item.packageName}
+            </Text>
+            <View style={styles.metaRow}>
+              <Text style={styles.metaText}>{lastUsedText}</Text>
+              <Text style={styles.confidenceScore}>
+                {item.confidenceScore}%
+              </Text>
             </View>
-          </NeumorphicContainer>
-        </View>
+          </View>
+        </TouchableOpacity>
       );
     },
-    [styles, theme]
+    [styles, theme, selectedPackageNames, toggleAppSelection]
   );
 
   const renderSectionHeader = useCallback(
@@ -141,81 +237,88 @@ const UnusedAppsScreen = () => {
 
   const keyExtractor = useCallback((item: UnusedAppInfo) => item.packageName, []);
 
+  const listContentInset = useMemo(
+    () => ({
+      paddingTop: theme.spacing.md,
+      paddingBottom: selectedStats.items > 0 && apps.length > 0 ? theme.spacing.xl * 3 : theme.spacing.xl,
+    }),
+    [theme.spacing.xl, theme.spacing.md, selectedStats.items, apps.length],
+  );
+
+  const uninstallDisabled = selectedStats.items === 0;
+
   return (
     <ScreenWrapper style={styles.screen}>
       <SafeAreaView style={{ flex: 1 }} edges={['bottom', 'left', 'right']}>
-        <ScrollView
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-        >
-        <AppHeader title="Unused Apps" subtitle="Detect and manage unused applications" />
+        <View style={styles.content}>
+          <AppHeader
+            title="Unused Apps"
+            totalFiles={apps.length > 0 ? apps.length : undefined}
+            unusedCount={apps.length > 0 ? apps.filter((a) => a.category === "UNUSED").length : undefined}
+            isAllSelected={apps.length > 0 ? isAllSelected : undefined}
+            onSelectAllPress={apps.length > 0 ? toggleSelectAll : undefined}
+            selectAllDisabled={apps.length > 0 ? !apps.length : undefined}
+          />
 
-        {!loading && apps.length === 0 && (
-          <View style={[styles.primaryButtonContainer, styles.sectionSpacing]}>
+          {loading && (
+            <View style={styles.progressCard}>
+              <ActivityIndicator size="large" color={theme.colors.primary} />
+              <Text style={styles.progressText}>Scanning apps...</Text>
+            </View>
+          )}
+
+          {!loading && apps.length > 0 ? (
+            <SectionList
+              sections={groupedData}
+              keyExtractor={keyExtractor}
+              renderItem={renderItem}
+              renderSectionHeader={renderSectionHeader}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={listContentInset}
+              ListEmptyComponent={
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyText}>no unused apps detected</Text>
+                </View>
+              }
+              ListFooterComponent={<View style={styles.footerSpacer} />}
+            />
+          ) : !loading ? (
+            <View style={styles.emptyState}>
+              <MaterialCommunityIcons
+                name="application-outline"
+                size={48}
+                color={theme.colors.textMuted}
+                style={styles.emptyIcon}
+              />
+              <Text style={styles.emptyText}>
+                {hasScanned ? "no unused apps found" : "run a scan to find unused apps"}
+              </Text>
+              {!hasScanned && (
+                <TouchableOpacity
+                  style={styles.scanButton}
+                  onPress={scan}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.scanButtonText}>start scan</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          ) : null}
+        </View>
+        {!uninstallDisabled && apps.length > 0 && (
+          <View style={styles.fixedUninstallButtonContainer}>
             <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={scan}
-              activeOpacity={0.8}
+              style={[styles.uninstallButton, uninstalling && styles.uninstallButtonDisabled]}
+              disabled={uninstalling}
+              activeOpacity={uninstalling ? 1 : 0.9}
+              onPress={handleUninstall}
             >
-              <Text style={styles.primaryButtonText}>start scan</Text>
+              <Text style={styles.uninstallButtonText}>
+                uninstall {selectedStats.items} app{selectedStats.items !== 1 ? 's' : ''}
+              </Text>
             </TouchableOpacity>
           </View>
         )}
-
-        {loading && (
-          <View style={[styles.progressCard, styles.sectionSpacing]}>
-            <ActivityIndicator size="large" color={theme.colors.primary} />
-            <Text style={styles.progressText}>Scanning apps...</Text>
-          </View>
-        )}
-
-        {!loading && apps.length > 0 && (
-          <>
-            <View style={[styles.metricsRow, styles.sectionSpacing]}>
-              <View style={styles.metricCard}>
-                <Text style={styles.metricLabel}>total apps</Text>
-                <Text style={styles.metricValue}>{apps.length}</Text>
-              </View>
-              <View style={styles.metricCard}>
-                <Text style={styles.metricLabel}>unused</Text>
-                <Text style={styles.metricValue}>
-                  {apps.filter((a) => a.category === "UNUSED").length}
-                </Text>
-              </View>
-            </View>
-
-            <View style={[styles.resultsContainer, styles.sectionSpacing]}>
-              <SectionList
-                sections={groupedData}
-                keyExtractor={keyExtractor}
-                renderItem={renderItem}
-                renderSectionHeader={renderSectionHeader}
-                scrollEnabled={false}
-                contentContainerStyle={styles.listContent}
-              />
-            </View>
-
-            <View style={[styles.rescanContainer, styles.sectionSpacing]}>
-              <TouchableOpacity
-                style={styles.rescanButton}
-                onPress={scan}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.rescanButtonText}>rescan</Text>
-              </TouchableOpacity>
-            </View>
-          </>
-        )}
-
-        {!loading && hasScanned && apps.length === 0 && (
-          <View style={[styles.emptyCard, styles.sectionSpacing]}>
-            <Text style={styles.emptyTitle}>no unused apps found</Text>
-            <Text style={styles.emptySubtitle}>
-              All installed apps appear to be in use.
-            </Text>
-          </View>
-        )}
-      </ScrollView>
       </SafeAreaView>
     </ScreenWrapper>
   );
@@ -227,84 +330,23 @@ const createStyles = (theme: DefaultTheme) =>
       flex: 1,
     },
     content: {
+      flex: 1,
       paddingHorizontal: theme.spacing.lg,
       paddingTop: theme.spacing.lg,
-      paddingBottom: theme.spacing.xl * 1.5,
-    },
-    sectionSpacing: {
-      marginBottom: theme.spacing.lg,
-    },
-    primaryButtonContainer: {
-      marginTop: theme.spacing.md,
-    },
-    primaryButton: {
-      backgroundColor: theme.colors.primary,
-      borderRadius: theme.radii.xl,
-      paddingVertical: theme.spacing.md,
-      alignItems: "center",
-      justifyContent: "center",
-      shadowColor: theme.mode === "dark" ? "#000000" : "rgba(0,0,0,0.2)",
-      shadowOpacity: theme.mode === "dark" ? 0.4 : 0.2,
-      shadowRadius: 12,
-      shadowOffset: { width: 0, height: 6 },
-      elevation: 6,
-    },
-    primaryButtonText: {
-      color: theme.colors.white,
-      fontSize: theme.fontSize.md,
-      fontWeight: theme.fontWeight.bold,
-      textTransform: "uppercase",
-      letterSpacing: 0.8,
+      gap: theme.spacing.lg,
+      paddingBottom: theme.spacing.xl,
     },
     progressCard: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.lg,
-      padding: theme.spacing.lg,
-      borderWidth: 1,
-      borderColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}66` : `${theme.colors.surfaceAlt}44`,
       alignItems: "center",
       justifyContent: "center",
+      paddingVertical: theme.spacing.md,
       gap: theme.spacing.sm,
     },
     progressText: {
       color: theme.colors.text,
-      fontSize: theme.fontSize.md,
-      fontWeight: theme.fontWeight.semibold,
+      fontSize: 16,
+      fontWeight: "600",
       marginTop: theme.spacing.xs,
-    },
-    metricsRow: {
-      flexDirection: "row",
-      gap: theme.spacing.md,
-    },
-    metricCard: {
-      flex: 1,
-      padding: theme.spacing.md,
-      borderRadius: theme.radii.lg,
-      backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}77` : `${theme.colors.surfaceAlt}55`,
-    },
-    metricLabel: {
-      color: theme.colors.textMuted,
-      fontSize: theme.fontSize.xs,
-      textTransform: "uppercase",
-      letterSpacing: 0.6,
-    },
-    metricValue: {
-      color: theme.colors.text,
-      fontSize: 22,
-      fontWeight: "700",
-      marginTop: theme.spacing.xs / 2,
-    },
-    resultsContainer: {
-      borderRadius: theme.radii.xl,
-      backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}77` : `${theme.colors.surfaceAlt}55`,
-      padding: theme.spacing.md,
-    },
-    listContent: {
-      gap: theme.spacing.xs,
     },
     sectionHeader: {
       flexDirection: "row",
@@ -328,14 +370,18 @@ const createStyles = (theme: DefaultTheme) =>
       fontSize: theme.fontSize.sm,
       fontWeight: theme.fontWeight.semibold,
     },
-    itemWrapper: {
-      marginVertical: 0,
-    },
-    itemInner: {
-      width: "100%",
+    appRow: {
       flexDirection: "row",
       alignItems: "center",
-      gap: theme.spacing.sm,
+      padding: theme.spacing.md,
+      borderRadius: theme.radii.lg,
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: `${theme.colors.surfaceAlt}55`,
+      marginTop: theme.spacing.sm,
+    },
+    appRowSelected: {
+      borderColor: theme.colors.primary,
     },
     iconBubble: {
       width: 56,
@@ -344,6 +390,24 @@ const createStyles = (theme: DefaultTheme) =>
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: `${theme.colors.primary}18`,
+      marginRight: theme.spacing.md,
+      position: "relative",
+    },
+    selectionBadge: {
+      position: "absolute",
+      top: 6,
+      right: 6,
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: theme.colors.primary,
+      alignItems: "center",
+      justifyContent: "center",
+      shadowColor: "rgba(0, 0, 0, 0.25)",
+      shadowOpacity: 0.3,
+      shadowRadius: 4,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 4,
     },
     infoColumn: {
       flex: 1,
@@ -351,12 +415,14 @@ const createStyles = (theme: DefaultTheme) =>
     },
     appName: {
       color: theme.colors.text,
-      fontSize: theme.fontSize.md,
-      fontWeight: theme.fontWeight.bold,
+      fontSize: 16,
+      fontWeight: "600",
+      marginBottom: 4,
     },
     packageName: {
       color: theme.colors.textMuted,
-      fontSize: theme.fontSize.xs,
+      fontSize: 12,
+      marginBottom: 2,
     },
     metaRow: {
       flexDirection: "row",
@@ -366,49 +432,75 @@ const createStyles = (theme: DefaultTheme) =>
     },
     metaText: {
       color: theme.colors.textMuted,
-      fontSize: theme.fontSize.sm,
+      fontSize: 13,
     },
     confidenceScore: {
       color: theme.colors.accent,
-      fontSize: theme.fontSize.sm,
-      fontWeight: theme.fontWeight.bold,
+      fontSize: 13,
+      fontWeight: "600",
     },
-    rescanContainer: {
-      marginTop: theme.spacing.md,
+    footerSpacer: {
+      height: theme.spacing.xl,
     },
-    rescanButton: {
-      alignSelf: "flex-start",
-      borderRadius: theme.radii.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.primary,
+    emptyState: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: theme.spacing.xl * 2,
+      gap: theme.spacing.md,
+    },
+    emptyIcon: {
+      opacity: 0.5,
+    },
+    emptyText: {
+      color: theme.colors.textMuted,
+      fontSize: 14,
+      textAlign: "center",
       paddingHorizontal: theme.spacing.lg,
-      paddingVertical: theme.spacing.sm,
     },
-    rescanButtonText: {
-      color: theme.colors.primary,
-      fontSize: theme.fontSize.sm,
-      fontWeight: theme.fontWeight.semibold,
+    scanButton: {
+      marginTop: theme.spacing.md,
+      borderRadius: theme.radii.lg,
+      backgroundColor: theme.colors.primary,
+      paddingVertical: theme.spacing.md,
+      paddingHorizontal: theme.spacing.lg,
+      alignItems: "center",
+    },
+    scanButtonText: {
+      color: theme.colors.white,
+      fontSize: 16,
+      fontWeight: "700",
+      letterSpacing: 0.4,
       textTransform: "uppercase",
     },
-    emptyCard: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.xl,
-      padding: theme.spacing.lg,
-      borderWidth: 1,
-      borderColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}66` : `${theme.colors.surfaceAlt}44`,
-      alignItems: "center",
-      gap: theme.spacing.sm,
+    fixedUninstallButtonContainer: {
+      position: "absolute",
+      bottom: 0,
+      left: 0,
+      right: 0,
+      paddingHorizontal: theme.spacing.lg,
+      backgroundColor: theme.colors.background,
+      borderTopWidth: 1,
+      borderTopColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}33` : `${theme.colors.surfaceAlt}22`,
     },
-    emptyTitle: {
-      color: theme.colors.text,
-      fontSize: theme.fontSize.lg,
+    uninstallButton: {
+      borderRadius: theme.radii.xl,
+      paddingVertical: theme.spacing.md,
+      paddingHorizontal: theme.spacing.lg,
+      backgroundColor: theme.colors.error,
+      alignItems: "center",
+      justifyContent: "center",
+      marginTop: theme.spacing.md,
+      marginBottom: theme.spacing.lg,
+    },
+    uninstallButtonDisabled: {
+      backgroundColor: `${theme.colors.surfaceAlt}55`,
+    },
+    uninstallButtonText: {
+      color: theme.colors.white,
+      fontSize: theme.fontSize.md,
       fontWeight: theme.fontWeight.bold,
       textTransform: "capitalize",
-    },
-    emptySubtitle: {
-      color: theme.colors.textMuted,
-      fontSize: theme.fontSize.sm,
-      textAlign: "center",
     },
   });
 

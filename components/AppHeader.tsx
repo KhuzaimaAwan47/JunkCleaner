@@ -1,4 +1,4 @@
-﻿import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useMemo } from "react";
 import { Pressable, PressableProps, StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -12,6 +12,7 @@ type Props = {
   onRightPress?: PressableProps["onPress"];
   totalSize?: number;
   totalFiles?: number;
+  unusedCount?: number;
   isAllSelected?: boolean;
   onSelectAllPress?: () => void;
   selectAllDisabled?: boolean;
@@ -24,6 +25,7 @@ const AppHeader: React.FC<Props> = ({
   onRightPress,
   totalSize,
   totalFiles,
+  unusedCount,
   isAllSelected,
   onSelectAllPress,
   selectAllDisabled = false,
@@ -70,6 +72,19 @@ const AppHeader: React.FC<Props> = ({
               <Text style={styles.metaText}>
                 <Text style={styles.metaValue}>{totalFiles}</Text>
                 <Text style={styles.metaLabel}> files</Text>
+              </Text>
+            </View>
+          )}
+          {totalFiles !== undefined && unusedCount !== undefined && totalSize === undefined && (
+            <View style={styles.metaRow}>
+              <Text style={styles.metaText}>
+                <Text style={styles.metaValue}>{totalFiles}</Text>
+                <Text style={styles.metaLabel}> total</Text>
+              </Text>
+              <Text style={styles.metaDivider}> · </Text>
+              <Text style={styles.metaText}>
+                <Text style={styles.metaValue}>{unusedCount}</Text>
+                <Text style={styles.metaLabel}> unused</Text>
               </Text>
             </View>
           )}
