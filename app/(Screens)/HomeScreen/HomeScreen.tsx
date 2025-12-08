@@ -1,4 +1,4 @@
-﻿import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -149,9 +149,6 @@ const HomeScreen = () => {
           setScanProgress(progress);
         }
       });
-      if (!scanCancelledRef.current) {
-        Alert.alert("Smart Scan Complete", "All scanners have finished successfully.");
-      }
     } catch (error) {
       if (!scanCancelledRef.current) {
         console.error("Smart scan error:", error);
