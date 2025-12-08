@@ -398,7 +398,6 @@ const OldFilesScreen = () => {
             <Text style={styles.metaText}>Age: {formatAgeDays(file.ageDays)}</Text>
             <Text style={styles.metaText}>{formatModifiedDate(file.modifiedDate)}</Text>
           </View>
-          <Text style={styles.pathText} numberOfLines={1}>{file.path}</Text>
         </View>
       </TouchableOpacity>
     );
