@@ -33,48 +33,18 @@ export interface ScannerResults {
  */
 export function calculateSystemHealth(results: ScannerResults): SystemHealthResult {
   // Handle nullable conditions - default to empty arrays
-  const apkResults = results.apkResults ?? [];
-  // WhatsApp, Large files, Old files, and Unused apps are excluded from health calculation
-  const duplicateResults = results.duplicateResults ?? [];
   const junkFileResults = results.junkFileResults ?? [];
   const cacheLogsResults = results.cacheLogsResults ?? [];
+  // Other scanners are excluded from health calculation (APK, duplicates, large files, WhatsApp, old files, unused apps)
+  // because they may contain important or user-intended content.
 
-  // Calculate total items and sizes (excluding certain categories from health calculation)
-  // Excluded: Large files, WhatsApp files, Old files, Unused apps
-  // These are not necessarily junk - they might be important files/apps
+  // Calculate total items and sizes using junk files and cache/logs only
   let totalItems = 0;
   let totalSize = 0;
-
-  // APK files
-  totalItems += apkResults.length;
-  totalSize += apkResults.reduce((sum, item) => sum + (item.size ?? 0), 0);
-
-  // WhatsApp files - EXCLUDE from health calculation (might be important media)
-  // const whatsappResults = results.whatsappResults ?? [];
-  // totalItems += whatsappResults.length;
-  // totalSize += whatsappResults.reduce((sum, item) => sum + (item.size ?? 0), 0);
-
-  // Duplicate images (count files in groups, not groups themselves)
-  const duplicateFileCount = duplicateResults.reduce(
-    (sum, group) => sum + (group.files?.length ?? 0),
-    0
-  );
-  totalItems += duplicateFileCount;
-  totalSize += duplicateResults.reduce((sum, group) => sum + (group.totalSize ?? 0), 0);
-
-  // Large files - EXCLUDE from health calculation as they're not necessarily junk
-  // const largeFileResults = results.largeFileResults ?? [];
-  // totalItems += largeFileResults.length;
-  // totalSize += largeFileResults.reduce((sum, item) => sum + (item.size ?? 0), 0);
 
   // Junk files
   totalItems += junkFileResults.length;
   totalSize += junkFileResults.reduce((sum, item) => sum + (item.size ?? 0), 0);
-
-  // Old files - EXCLUDE from health calculation (might be important old files)
-  // const oldFileResults = results.oldFileResults ?? [];
-  // totalItems += oldFileResults.length;
-  // totalSize += oldFileResults.reduce((sum, item) => sum + (item.size ?? 0), 0);
 
   // Cache & logs
   totalItems += cacheLogsResults.length;
