@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   FlatList,
+  Image,
   ListRenderItem,
   StyleSheet,
   Text,
@@ -14,11 +15,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
 import DeleteButton from "../../../components/DeleteButton";
-import NeumorphicContainer from "../../../components/NeumorphicContainer";
 import ScreenWrapper from "../../../components/ScreenWrapper";
 import formatBytes from "../../../constants/formatBytes";
 import { initDatabase, loadJunkFileResults } from "../../../utils/db";
 import { deleteJunkFiles, JunkFileItem } from "./JunkFileScanner";
+
+const PREVIEWABLE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif', '.gif', '.mp4', '.mov'];
 
 
 
@@ -33,6 +35,7 @@ const JunkFileScannerScreen = () => {
 
   const [, setShowSuccess] = useState(false);
   const [selectedFilePaths, setSelectedFilePaths] = useState<Set<string>>(new Set());
+  const [thumbnailFallbacks, setThumbnailFallbacks] = useState<Record<string, boolean>>({});
 
   // Load saved results on mount
   useEffect(() => {
@@ -64,6 +67,8 @@ const JunkFileScannerScreen = () => {
     });
     return stats;
   }, [selectedFilePaths, items]);
+
+  const deleteDisabled = selectedStats.items === 0;
 
   const isAllSelected = useMemo(() => {
     return items.length > 0 && items.every((item) => selectedFilePaths.has(item.path));
@@ -148,7 +153,7 @@ const JunkFileScannerScreen = () => {
     });
   }, [items]);
 
-  const formatModifiedDate = (timestamp: number): string => {
+  const formatModifiedDate = useCallback((timestamp: number): string => {
     const date = new Date(timestamp);
     const now = Date.now();
     const diffMs = now - timestamp;
@@ -160,50 +165,118 @@ const JunkFileScannerScreen = () => {
     if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
     if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
     return date.toLocaleDateString();
-  };
+  }, []);
+
+  const recordThumbnailError = useCallback((path: string) => {
+    setThumbnailFallbacks((prev) => {
+      if (prev[path]) {
+        return prev;
+      }
+      return { ...prev, [path]: true };
+    });
+  }, []);
+
+  const getFileIcon = useCallback((path: string, type: string): string => {
+    const lower = path.toLowerCase();
+    
+    // Image files
+    if (lower.match(/\.(jpg|jpeg|png|gif|webp|heic|heif|bmp)$/)) {
+      return 'image';
+    }
+    
+    // Video files
+    if (lower.match(/\.(mp4|mkv|avi|mov|wmv|flv|webm)$/)) {
+      return 'video';
+    }
+    
+    // Audio files
+    if (lower.match(/\.(mp3|m4a|aac|wav|flac|ogg|wma)$/)) {
+      return 'music';
+    }
+    
+    // Documents
+    if (lower.endsWith('.pdf')) return 'file-pdf-box';
+    if (lower.match(/\.(doc|docx)$/)) return 'file-word-box';
+    if (lower.match(/\.(xls|xlsx)$/)) return 'file-excel-box';
+    if (lower.match(/\.(ppt|pptx)$/)) return 'file-powerpoint-box';
+    if (lower.endsWith('.txt')) return 'file-document-outline';
+    if (lower.match(/\.(zip|rar|7z|tar|gz)$/)) return 'folder-zip';
+    
+    // Junk file types
+    if (type === 'cache') return 'cached';
+    if (type === 'temp' || type === 'log') return 'file-outline';
+    
+    return 'file-outline';
+  }, []);
+
+  const isPreviewableMedia = useCallback((path: string): boolean => {
+    const lower = path.toLowerCase();
+    return PREVIEWABLE_EXTENSIONS.some((ext) => lower.endsWith(ext));
+  }, []);
+
+  const getFilename = useCallback((path: string): string => {
+    const parts = path.split('/');
+    return parts[parts.length - 1] || path;
+  }, []);
+
+  const listContentInset = useMemo(
+    () => ({
+      paddingTop: theme.spacing.md,
+      paddingBottom: !deleteDisabled && items.length > 0 ? theme.spacing.xl * 3 : theme.spacing.xl,
+    }),
+    [theme.spacing.xl, theme.spacing.md, deleteDisabled, items.length],
+  );
 
   const renderItem = useCallback<ListRenderItem<JunkFileItem>>(
     ({ item }) => {
-      const isSelected = selectedFilePaths.has(item.path);
+      const filename = getFilename(item.path);
+      const previewable = isPreviewableMedia(item.path) && !thumbnailFallbacks[item.path];
+      const isActive = selectedFilePaths.has(item.path);
+      const iconName = getFileIcon(item.path, item.type);
+      const showThumbnail = previewable && (item.path.match(/\.(jpg|jpeg|png|gif|webp|heic|heif|bmp|mp4|mov)$/i));
+      
       return (
         <TouchableOpacity
-          style={styles.itemWrapper}
-          onPress={() => toggleFileSelection(item.path)}
           activeOpacity={0.85}
+          style={[styles.fileRow, isActive && styles.fileRowSelected]}
+          onPress={() => toggleFileSelection(item.path)}
         >
-          <NeumorphicContainer
-            padding={theme.spacing.md}
-            style={[styles.item, isSelected && styles.itemSelected]}
-          >
-            <View style={styles.itemHeader}>
-              <Text style={styles.fileName} numberOfLines={1}>
-                {item.path.split("/").pop() || item.path}
-              </Text>
-              <View style={styles.sizeRow}>
-                {isSelected && (
-                  <View style={styles.selectionBadge}>
-                    <MaterialCommunityIcons
-                      name="check"
-                      size={16}
-                      color={theme.colors.white}
-                    />
-                  </View>
-                )}
-                <Text style={styles.size}>{formatBytes(item.size)}</Text>
+          <View style={styles.thumbWrapper}>
+            {showThumbnail ? (
+              <Image
+                source={{ uri: item.path }}
+                resizeMode="cover"
+                style={styles.thumbnailImage}
+                onError={() => recordThumbnailError(item.path)}
+              />
+            ) : (
+              <View style={styles.thumbnailFallback}>
+                <MaterialCommunityIcons
+                  name={iconName as any}
+                  size={40}
+                  color={theme.colors.textMuted}
+                />
               </View>
-            </View>
-            <Text style={styles.path} numberOfLines={1}>
-              {item.path}
-            </Text>
-            <View style={styles.itemMeta}>
+            )}
+            {isActive ? (
+              <View style={styles.selectionBadge}>
+                <MaterialCommunityIcons name="check" size={16} color={theme.colors.white} />
+              </View>
+            ) : null}
+          </View>
+          <View style={styles.fileMeta}>
+            <Text style={styles.fileName} numberOfLines={1}>{filename}</Text>
+            <View style={styles.fileMetaRow}>
               <Text style={styles.badge}>{item.type}</Text>
-              <Text style={styles.dateText}>{formatModifiedDate(item.modified)}</Text>
+              <Text style={styles.fileSize}>{formatBytes(item.size)}</Text>
             </View>
-          </NeumorphicContainer>
+            <Text style={styles.path} numberOfLines={1}>{item.path}</Text>
+            <Text style={styles.dateText}>{formatModifiedDate(item.modified)}</Text>
+          </View>
         </TouchableOpacity>
       );
     },
-    [styles, theme, selectedFilePaths, toggleFileSelection]
+    [thumbnailFallbacks, selectedFilePaths, theme.colors.textMuted, theme.colors.white, toggleFileSelection, recordThumbnailError, getFilename, isPreviewableMedia, getFileIcon, formatModifiedDate, styles],
   );
 
   return (
@@ -222,27 +295,19 @@ const JunkFileScannerScreen = () => {
 
           {items.length > 0 ? (
             <>
-             
               <FlatList
                 data={items}
                 keyExtractor={(item) => item.path}
                 renderItem={renderItem}
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.listContent}
+                contentContainerStyle={listContentInset}
                 ListEmptyComponent={
                   <View style={styles.emptyState}>
                     <Text style={styles.emptyText}>no junk files detected</Text>
                   </View>
                 }
+                ListFooterComponent={<View style={styles.footerSpacer} />}
               />
-              {selectedStats.items > 0 && (
-                <DeleteButton
-                  items={selectedStats.items}
-                  size={selectedStats.size}
-                  disabled={clearing}
-                  onPress={handleClean}
-                />
-              )}
             </>
           ) : (
             <View style={styles.emptyState}>
@@ -258,7 +323,16 @@ const JunkFileScannerScreen = () => {
             </View>
           )}
         </View>
-
+        {!deleteDisabled && items.length > 0 && (
+          <View style={styles.fixedDeleteButtonContainer}>
+            <DeleteButton
+              items={selectedStats.items}
+              size={selectedStats.size}
+              disabled={clearing}
+              onPress={handleClean}
+            />
+          </View>
+        )}
       </SafeAreaView>
     </ScreenWrapper>
   );
@@ -405,41 +479,71 @@ const createStyles = (theme: DefaultTheme) =>
       fontWeight: theme.fontWeight.semibold,
       marginTop: 4,
     },
-    listContent: {
-      paddingBottom: theme.spacing.sm,
+    footerSpacer: {
+      height: theme.spacing.xl,
     },
-    itemWrapper: {
-      marginBottom: theme.spacing.sm,
-    },
-    item: {
+    fileRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      padding: theme.spacing.md,
       borderRadius: theme.radii.lg,
-      gap: theme.spacing.xs,
-    },
-    itemSelected: {
+      backgroundColor: theme.colors.surface,
       borderWidth: 1,
+      borderColor: `${theme.colors.surfaceAlt}55`,
+      marginTop: theme.spacing.sm,
+    },
+    fileRowSelected: {
       borderColor: theme.colors.primary,
     },
-    itemHeader: {
-      flexDirection: "row",
-      justifyContent: "space-between",
+    thumbWrapper: {
+      width: 60,
+      height: 60,
+      borderRadius: theme.radii.lg,
+      overflow: "hidden",
+      backgroundColor: `${theme.colors.surfaceAlt}55`,
       alignItems: "center",
+      justifyContent: "center",
+      marginRight: theme.spacing.md,
+      position: "relative",
+    },
+    thumbnailImage: {
+      width: "100%",
+      height: "100%",
+    },
+    thumbnailFallback: {
+      width: "100%",
+      height: "100%",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    fileMeta: {
+      flex: 1,
     },
     fileName: {
-      flex: 1,
-      marginRight: theme.spacing.sm,
       color: theme.colors.text,
+      fontSize: 16,
       fontWeight: "600",
+      marginBottom: 4,
     },
-    sizeRow: {
+    fileMetaRow: {
       flexDirection: "row",
       alignItems: "center",
-      gap: theme.spacing.xs,
+      gap: theme.spacing.sm,
+      marginBottom: 4,
     },
-    size: {
-      color: theme.colors.accent,
-      fontWeight: "700",
+    fileSize: {
+      color: theme.colors.textMuted,
+      fontSize: 13,
+    },
+    path: {
+      color: theme.colors.textMuted,
+      fontSize: 12,
+      marginBottom: 2,
     },
     selectionBadge: {
+      position: "absolute",
+      top: 6,
+      right: 6,
       width: 22,
       height: 22,
       borderRadius: 11,
@@ -452,23 +556,13 @@ const createStyles = (theme: DefaultTheme) =>
       shadowOffset: { width: 0, height: 2 },
       elevation: 4,
     },
-    path: {
-      color: theme.colors.textMuted,
-      fontSize: 12,
-    },
-    itemMeta: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginTop: theme.spacing.xs / 2,
-    },
     badge: {
       paddingHorizontal: theme.spacing.sm,
       paddingVertical: theme.spacing.xs / 2,
       borderRadius: theme.radii.lg,
       backgroundColor: `${theme.colors.primary}22`,
       color: theme.colors.primary,
-      fontSize: 12,
+      fontSize: 11,
       fontWeight: "600",
       textTransform: "uppercase",
       letterSpacing: 0.5,
@@ -500,6 +594,16 @@ const createStyles = (theme: DefaultTheme) =>
       fontSize: 14,
       textAlign: "center",
       paddingHorizontal: theme.spacing.lg,
+    },
+    fixedDeleteButtonContainer: {
+      position: "absolute",
+      bottom: 0,
+      left: 0,
+      right: 0,
+      paddingHorizontal: theme.spacing.lg,
+      backgroundColor: theme.colors.background,
+      borderTopWidth: 1,
+      borderTopColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}33` : `${theme.colors.surfaceAlt}22`,
     },
   });
 
