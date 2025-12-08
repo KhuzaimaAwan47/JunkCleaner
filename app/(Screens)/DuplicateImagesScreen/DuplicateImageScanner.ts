@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Permission } from 'react-native';
 import { PermissionsAndroid, Platform } from 'react-native';
 import RNFS from 'react-native-fs';
-import { initDatabase, saveDuplicateGroups } from '../../../utils/db';
+import { initDatabase, loadDuplicateGroups, saveDuplicateGroups } from '../../../utils/db';
 
 export interface ImageFile {
   path: string;
@@ -296,6 +296,22 @@ export const useScanner = () => {
   const [error, setError] = useState<string | null>(null);
   const cancelRef = useRef(false);
 
+  // Load saved results on mount
+  useEffect(() => {
+    const loadSavedResults = async () => {
+      try {
+        await initDatabase();
+        const savedResults = await loadDuplicateGroups();
+        if (savedResults.length > 0) {
+          setDuplicates(savedResults);
+        }
+      } catch (error) {
+        console.error('Failed to load saved duplicate groups:', error);
+      }
+    };
+    loadSavedResults();
+  }, []);
+
   const startScan = useCallback(async () => {
     if (isScanning) {
       return;
@@ -320,12 +336,25 @@ export const useScanner = () => {
       if (!cancelRef.current) {
         setDuplicates(results);
         setProgress((prev) => ({ ...prev, stage: 'complete' }));
+        
         // Save results to database
-        try {
-          await initDatabase();
-          await saveDuplicateGroups(results);
-        } catch (dbError) {
-          console.error('Failed to save duplicate groups to database:', dbError);
+        if (results.length > 0) {
+          try {
+            await initDatabase();
+            await saveDuplicateGroups(results);
+            console.log(`Saved ${results.length} duplicate groups to database`);
+          } catch (dbError) {
+            console.error('Failed to save duplicate groups to database:', dbError);
+            // Don't throw - allow scan to complete even if save fails
+          }
+        } else {
+          // Even if no duplicates, clear old results
+          try {
+            await initDatabase();
+            await saveDuplicateGroups([]);
+          } catch (dbError) {
+            console.error('Failed to clear duplicate groups in database:', dbError);
+          }
         }
       } else {
         setProgress((prev) => ({ ...prev, stage: 'cancelled', currentFile: 'Cancelled' }));

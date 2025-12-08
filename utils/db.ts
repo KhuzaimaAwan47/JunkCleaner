@@ -149,15 +149,20 @@ export async function getFilesByFullHash(fullHash: string): Promise<FileCacheEnt
 export async function saveDuplicateGroups(groups: DuplicateGroup[]): Promise<void> {
   if (!db) await initDatabase();
 
-  // Clear old saved duplicates
-  await db!.runAsync('DELETE FROM duplicate_groups');
-  
-  // Save new duplicates
-  const groupsData = JSON.stringify(groups);
-  await db!.runAsync(
-    'INSERT INTO duplicate_groups (saved_at, groups_data) VALUES (?, ?)',
-    [Date.now(), groupsData]
-  );
+  try {
+    // Clear old saved duplicates
+    await db!.runAsync('DELETE FROM duplicate_groups');
+    
+    // Save new duplicates
+    const groupsData = JSON.stringify(groups);
+    await db!.runAsync(
+      'INSERT INTO duplicate_groups (saved_at, groups_data) VALUES (?, ?)',
+      [Date.now(), groupsData]
+    );
+  } catch (error) {
+    console.error('Failed to persist duplicate groups:', error);
+    throw error;
+  }
 }
 
 export async function loadDuplicateGroups(): Promise<DuplicateGroup[]> {
