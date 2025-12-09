@@ -1,18 +1,16 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, FlatList, ListRenderItem, StyleSheet, View } from "react-native";
+import { Alert, FlatList, ListRenderItem, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
-import EmptyState from "../../../components/EmptyState";
+import DeleteButton from "../../../components/DeleteButton";
 import FileListItem from "../../../components/FileListItem";
-import FilterChips from "../../../components/FilterChips";
 import LoadingOverlay from "../../../components/LoadingOverlay";
 import ScanActionButton from "../../../components/ScanActionButton";
 import ScanProgressCard from "../../../components/ScanProgressCard";
 import ScreenWrapper from "../../../components/ScreenWrapper";
-import SelectionBar from "../../../components/SelectionBar";
 import formatBytes from "../../../constants/formatBytes";
 import {
   clearSelections,
@@ -141,6 +139,7 @@ const OldFilesScreen = () => {
   // Local UI state
   const [clearing, setClearing] = useState(false);
   const [filterType, setFilterType] = useState<FileCategory>('All');
+  const [hasSavedResults, setHasSavedResults] = useState(false);
 
   // Load saved results on mount
   useEffect(() => {
@@ -150,9 +149,13 @@ const OldFilesScreen = () => {
         const savedResults = await loadOldFileResults();
         if (savedResults.length > 0) {
           dispatch(setOldFileResults(savedResults));
+          setHasSavedResults(true);
+        } else {
+          setHasSavedResults(false);
         }
       } catch (error) {
         console.error("Failed to load saved old file results:", error);
+        setHasSavedResults(false);
       }
     };
     loadSavedResults();
@@ -166,6 +169,7 @@ const OldFilesScreen = () => {
       dispatch(setOldFileResults(files));
       // Save results to database
       await saveOldFileResults(files);
+      setHasSavedResults(files.length > 0);
     } catch (error) {
       console.warn("OldFiles scan failed", error);
     } finally {
@@ -216,6 +220,8 @@ const OldFilesScreen = () => {
   const isAllSelected = useMemo(() => {
     return filteredFiles.length > 0 && filteredFiles.every((file) => selectedFilePaths.has(file.path));
   }, [filteredFiles, selectedFilePaths]);
+
+  const deleteDisabled = selectedStats.items === 0;
 
   const toggleFileSelection = useCallback((path: string) => {
     dispatch(toggleItemSelection("old", path));
@@ -367,6 +373,14 @@ const OldFilesScreen = () => {
     return `${item.path}-${index}`;
   }, []);
 
+  const listContentInset = useMemo(
+    () => ({
+      paddingTop: theme.spacing.md,
+      paddingHorizontal: theme.spacing.lg,
+      paddingBottom: !deleteDisabled && filteredFiles.length > 0 ? theme.spacing.xl * 3 : theme.spacing.xl,
+    }),
+    [theme.spacing.md, theme.spacing.lg, theme.spacing.xl, deleteDisabled, filteredFiles.length],
+  );
 
   return (
     <ScreenWrapper style={styles.screen}>
@@ -378,60 +392,84 @@ const OldFilesScreen = () => {
             totalFiles={oldFiles.length > 0 ? oldFiles.length : undefined}
             isAllSelected={filteredFiles.length > 0 ? isAllSelected : undefined}
             onSelectAllPress={filteredFiles.length > 0 ? toggleSelectAll : undefined}
-            selectAllDisabled={filteredFiles.length > 0 ? !filteredFiles.length : undefined}
+            selectAllDisabled={!filteredFiles.length}
           />
         </View>
-        {oldFiles.length === 0 && !loading && (
-          <View style={styles.emptyContainer}>
-            <ScanActionButton label="Scan Old Files" onPress={handleScan} />
-          </View>
-        )}
-
-        {loading && (
-          <ScanProgressCard title="Scanning for old files..." style={styles.loadingCard} />
-        )}
-
-        {oldFiles.length > 0 && !loading && (
-          <>
-            <View style={styles.stickyFilterContainer}>
-              <FilterChips
-                options={FILTER_TYPES}
-                selected={filterType}
-                onSelect={(value) => setFilterType(value)}
-                renderLabel={(type) => `${type.toLowerCase()} · ${fileSummary[type].count}`}
-              />
+        <View style={styles.stickyFilterContainer}>
+          {!hasSavedResults && (
+            <View style={styles.actionsRow}>
+              {loading ? (
+                <ScanProgressCard
+                  title="Scanning for old files..."
+                  subtitle="Looking for items you can safely delete."
+                  style={styles.loadingCard}
+                />
+              ) : (
+                <ScanActionButton label="Scan Old Files" onPress={handleScan} fullWidth />
+              )}
             </View>
-            <FlatList
-              data={filteredFiles}
-              keyExtractor={keyExtractor}
-              renderItem={renderFileItem}
-              contentContainerStyle={[
-                styles.listContent,
-                styles.listContentWithButton
-              ]}
-              showsVerticalScrollIndicator={false}
-              ListFooterComponent={<View style={styles.footerSpacer} />}
-            />
-          </>
-        )}
-        {filteredFiles.length === 0 && oldFiles.length > 0 && !loading && (
-          <EmptyState
-            title="No files in this filter"
-            description="Try another category or rescan to refresh results."
-          />
-        )}
-        {filteredFiles.length > 0 && (
+          )}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filtersScrollContent}
+          >
+            {FILTER_TYPES.map((type) => {
+              const isActive = type === filterType;
+              const countLabel = fileSummary[type].count;
+              return (
+                <TouchableOpacity
+                  key={type}
+                  style={[styles.filterChip, isActive && styles.filterChipActive]}
+                  onPress={() => setFilterType(type)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.filterChipText, isActive && styles.filterChipTextActive]}>
+                    {type.toLowerCase()} · {countLabel}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+
+        <FlatList
+          data={filteredFiles}
+          keyExtractor={keyExtractor}
+          renderItem={renderFileItem}
+          contentContainerStyle={listContentInset}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyCard}>
+              {loading ? (
+                <ScanProgressCard title="Scanning for old files..." subtitle="Hang tight while we gather results." />
+              ) : (
+                <>
+                  <Text style={styles.emptyTitle}>
+                    {oldFiles.length ? "no files in this filter" : "ready to scan for old files"}
+                  </Text>
+                  <Text style={styles.emptySubtitle}>
+                    {oldFiles.length
+                      ? "try switching to another category."
+                      : "tap scan to find items you might want to remove."}
+                  </Text>
+                  {!hasSavedResults && (
+                    <ScanActionButton label="Scan Old Files" onPress={handleScan} fullWidth />
+                  )}
+                </>
+              )}
+            </View>
+          }
+          ListFooterComponent={<View style={styles.footerSpacer} />}
+        />
+
+        {!deleteDisabled && filteredFiles.length > 0 && (
           <View style={styles.fixedDeleteButtonContainer}>
-            <SelectionBar
-              selectedCount={selectedStats.items}
-              selectedSize={selectedStats.size}
-              totalCount={filteredFiles.length}
-              onSelectAll={toggleSelectAll}
-              allSelected={isAllSelected}
-              onClear={() => dispatch(clearSelections("old"))}
-              actionLabel="Delete"
-              onAction={handleDelete}
-              actionDisabled={clearing}
+            <DeleteButton
+              items={selectedStats.items}
+              size={selectedStats.size}
+              disabled={deleteDisabled}
+              onPress={handleDelete}
             />
           </View>
         )}
@@ -457,20 +495,67 @@ const createStyles = (theme: DefaultTheme) =>
       borderBottomWidth: 1,
       borderBottomColor: theme.mode === 'dark' ? `${theme.colors.surfaceAlt}33` : `${theme.colors.surfaceAlt}22`,
       zIndex: 10,
+      gap: theme.spacing.sm,
+    },
+    actionsRow: {
+      flexDirection: "row",
+      gap: theme.spacing.sm,
     },
     listContent: {
       paddingHorizontal: theme.spacing.lg,
       paddingTop: theme.spacing.md,
       paddingBottom: theme.spacing.xl,
     },
-    listContentWithButton: {
-      paddingBottom: theme.spacing.xl * 4,
+    filtersScrollContent: {
+      paddingRight: theme.spacing.lg,
+    },
+    filterChip: {
+      paddingVertical: theme.spacing.xs,
+      paddingHorizontal: theme.spacing.sm,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: `${theme.colors.surfaceAlt}55`,
+      backgroundColor: theme.colors.surface,
+      marginRight: theme.spacing.xs,
+    },
+    filterChipActive: {
+      borderColor: theme.colors.primary,
+      backgroundColor: `${theme.colors.primary}22`,
+    },
+    filterChipText: {
+      color: theme.colors.text,
+      fontSize: 12,
+      fontWeight: "600",
+      textTransform: "capitalize",
+    },
+    filterChipTextActive: {
+      color: theme.colors.primary,
     },
     emptyContainer: {
-      flex: 1,
-      justifyContent: "center",
+      marginTop: theme.spacing.lg,
+      gap: theme.spacing.sm,
+      paddingHorizontal: theme.spacing.lg,
+    },
+    emptyCard: {
+      marginTop: theme.spacing.lg,
+      padding: theme.spacing.lg,
+      borderRadius: theme.radii.xl,
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: `${theme.colors.surfaceAlt}55`,
       alignItems: "center",
-      paddingVertical: theme.spacing.xl * 2,
+      gap: theme.spacing.xs,
+    },
+    emptyTitle: {
+      color: theme.colors.text,
+      fontSize: 16,
+      fontWeight: "600",
+      textAlign: "center",
+    },
+    emptySubtitle: {
+      color: theme.colors.textMuted,
+      textAlign: "center",
+      fontSize: 13,
     },
     loadingCard: {
       marginHorizontal: theme.spacing.lg,
@@ -492,7 +577,7 @@ const createStyles = (theme: DefaultTheme) =>
       paddingBottom: theme.spacing.lg,
       backgroundColor: theme.colors.background,
       borderTopWidth: 1,
-      borderTopColor: `${theme.colors.surfaceAlt}55`,
+      borderTopColor: theme.mode === 'dark' ? `${theme.colors.surfaceAlt}33` : `${theme.colors.surfaceAlt}22`,
     },
   });
 
