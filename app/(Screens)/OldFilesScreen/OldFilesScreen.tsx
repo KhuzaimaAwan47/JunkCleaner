@@ -1,12 +1,11 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, FlatList, ListRenderItem, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, FlatList, Image, ListRenderItem, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
 import DeleteButton from "../../../components/DeleteButton";
-import FileListItem from "../../../components/FileListItem";
 import LoadingOverlay from "../../../components/LoadingOverlay";
 import ScanActionButton from "../../../components/ScanActionButton";
 import ScanProgressCard from "../../../components/ScanProgressCard";
@@ -140,6 +139,7 @@ const OldFilesScreen = () => {
   const [clearing, setClearing] = useState(false);
   const [filterType, setFilterType] = useState<FileCategory>('All');
   const [hasSavedResults, setHasSavedResults] = useState(false);
+  const [thumbnailFallbacks, setThumbnailFallbacks] = useState<Record<string, boolean>>({});
 
   // Load saved results on mount
   useEffect(() => {
@@ -280,6 +280,15 @@ const OldFilesScreen = () => {
     return lower.match(/\.(mp4|mkv|avi|mov|wmv|flv|webm)$/) !== null;
   }, []);
 
+  const recordThumbnailError = useCallback((path: string) => {
+    setThumbnailFallbacks((prev) => {
+      if (prev[path]) {
+        return prev;
+      }
+      return { ...prev, [path]: true };
+    });
+  }, []);
+
   const handleDelete = useCallback(async () => {
     if (selectedStats.items === 0 || clearing) {
       return;
@@ -331,41 +340,71 @@ const OldFilesScreen = () => {
       const isSelected = selectedFilePaths.has(file.path);
       const isVideo = isVideoFile(file.path);
       const isImage = isImageFile(file.path);
-      const previewable = isPreviewableMedia(file.path);
+      const previewable = isPreviewableMedia(file.path) && !thumbnailFallbacks[file.path];
       const iconName = getFileIcon(file.path);
       const showThumbnail = previewable && (isImage || isVideo);
-      const imageUri = showThumbnail ? ensureFileUri(file.path) : null;
+      const imageUri = showThumbnail ? ensureFileUri(file.path) : undefined;
 
       return (
-        <FileListItem
-          title={filename}
-          subtitle={`${formatAgeDays(file.ageDays)} • ${formatModifiedDate(file.modifiedDate)}`}
-          meta={file.path}
-          size={file.size}
-          icon={iconName as any}
-          thumbnailUri={imageUri}
-          selected={isSelected}
+        <TouchableOpacity
+          activeOpacity={0.85}
+          style={[styles.fileRow, isSelected && styles.fileRowSelected]}
           onPress={() => toggleFileSelection(file.path)}
-          rightAccessory={
-            (isImage || isVideo) ? (
-              <MaterialCommunityIcons
-                name={isImage ? "image" : "video"}
-                size={16}
-                color={theme.colors.textMuted}
+        >
+          <View style={styles.thumbWrapper}>
+            {showThumbnail ? (
+              <Image
+                source={{ uri: imageUri }}
+                resizeMode="cover"
+                style={styles.thumbnailImage}
+                onError={() => recordThumbnailError(file.path)}
               />
-            ) : null
-          }
-        />
+            ) : (
+              <View style={styles.thumbnailFallback}>
+                <MaterialCommunityIcons
+                  name={iconName as any}
+                  size={40}
+                  color={theme.colors.textMuted}
+                />
+              </View>
+            )}
+            {isSelected ? (
+              <View style={styles.selectionBadge}>
+                <MaterialCommunityIcons name="check" size={16} color={theme.colors.white} />
+              </View>
+            ) : null}
+          </View>
+          <View style={styles.fileMeta}>
+            <Text style={styles.fileName} numberOfLines={1}>{filename}</Text>
+            <Text style={styles.fileSize}>{formatBytes(file.size)}</Text>
+            <Text style={styles.fileSubtitle} numberOfLines={1}>
+              {formatAgeDays(file.ageDays)} • {formatModifiedDate(file.modifiedDate)}
+            </Text>
+          </View>
+        </TouchableOpacity>
       );
     },
     [
       getFileIcon,
+      recordThumbnailError,
+      selectedFilePaths,
       isImageFile,
       isPreviewableMedia,
       isVideoFile,
-      selectedFilePaths,
       toggleFileSelection,
+      thumbnailFallbacks,
+      styles.fileRow,
+      styles.fileRowSelected,
+      styles.thumbWrapper,
+      styles.thumbnailImage,
+      styles.thumbnailFallback,
+      styles.selectionBadge,
+      styles.fileMeta,
+      styles.fileName,
+      styles.fileSize,
+      styles.fileSubtitle,
       theme.colors.textMuted,
+      theme.colors.white,
     ]
   );
 
@@ -505,6 +544,74 @@ const createStyles = (theme: DefaultTheme) =>
       paddingHorizontal: theme.spacing.lg,
       paddingTop: theme.spacing.md,
       paddingBottom: theme.spacing.xl,
+    },
+    fileRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      padding: theme.spacing.md,
+      borderRadius: theme.radii.lg,
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: `${theme.colors.surfaceAlt}55`,
+      marginTop: theme.spacing.sm,
+    },
+    fileRowSelected: {
+      borderColor: theme.colors.primary,
+    },
+    thumbWrapper: {
+      width: 60,
+      height: 60,
+      borderRadius: theme.radii.lg,
+      overflow: "hidden",
+      backgroundColor: `${theme.colors.surfaceAlt}55`,
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: theme.spacing.md,
+      position: "relative",
+    },
+    thumbnailImage: {
+      width: "100%",
+      height: "100%",
+    },
+    thumbnailFallback: {
+      width: "100%",
+      height: "100%",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    fileMeta: {
+      flex: 1,
+    },
+    fileName: {
+      color: theme.colors.text,
+      fontSize: 16,
+      fontWeight: "600",
+    },
+    fileSize: {
+      color: theme.colors.textMuted,
+      fontSize: 13,
+      marginTop: 4,
+    },
+    fileSubtitle: {
+      color: theme.colors.textMuted,
+      fontSize: 12,
+      marginTop: 2,
+    },
+    selectionBadge: {
+      position: "absolute",
+      top: 6,
+      right: 6,
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: theme.colors.primary,
+      alignItems: "center",
+      justifyContent: "center",
+      shadowColor: "rgba(0, 0, 0, 0.25)",
+      shadowOpacity: 0.3,
+      shadowRadius: 4,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 4,
     },
     filtersScrollContent: {
       paddingRight: theme.spacing.lg,
