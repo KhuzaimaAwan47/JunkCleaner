@@ -1,31 +1,25 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Image,
-  ListRenderItem,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Alert, FlatList, ListRenderItem, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useDispatch, useSelector } from "react-redux";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
-import DeleteButton from "../../../components/DeleteButton";
+import EmptyState from "../../../components/EmptyState";
+import FileListItem from "../../../components/FileListItem";
+import FilterChips from "../../../components/FilterChips";
+import LoadingOverlay from "../../../components/LoadingOverlay";
+import ScanActionButton from "../../../components/ScanActionButton";
+import ScanProgressCard from "../../../components/ScanProgressCard";
 import ScreenWrapper from "../../../components/ScreenWrapper";
+import SelectionBar from "../../../components/SelectionBar";
 import formatBytes from "../../../constants/formatBytes";
 import {
-  setOldFileResults,
-  setLoading,
-  toggleItemSelection,
   clearSelections,
+  setLoading,
+  setOldFileResults,
   setSelectedItems,
+  toggleItemSelection,
 } from "../../../redux-code/action";
 import type { RootState } from "../../../redux-code/store";
 import { initDatabase, loadOldFileResults, saveOldFileResults } from "../../../utils/db";
@@ -146,7 +140,6 @@ const OldFilesScreen = () => {
   
   // Local UI state
   const [clearing, setClearing] = useState(false);
-  const [thumbnailFallbacks, setThumbnailFallbacks] = useState<Record<string, boolean>>({});
   const [filterType, setFilterType] = useState<FileCategory>('All');
 
   // Load saved results on mount
@@ -220,8 +213,6 @@ const OldFilesScreen = () => {
     return stats;
   }, [selectedFilePaths, filteredFiles]);
 
-  const deleteDisabled = selectedStats.items === 0;
-
   const isAllSelected = useMemo(() => {
     return filteredFiles.length > 0 && filteredFiles.every((file) => selectedFilePaths.has(file.path));
   }, [filteredFiles, selectedFilePaths]);
@@ -283,15 +274,6 @@ const OldFilesScreen = () => {
     return lower.match(/\.(mp4|mkv|avi|mov|wmv|flv|webm)$/) !== null;
   }, []);
 
-  const recordThumbnailError = useCallback((path: string) => {
-    setThumbnailFallbacks((prev) => {
-      if (prev[path]) {
-        return prev;
-      }
-      return { ...prev, [path]: true };
-    });
-  }, []);
-
   const handleDelete = useCallback(async () => {
     if (selectedStats.items === 0 || clearing) {
       return;
@@ -326,7 +308,7 @@ const OldFilesScreen = () => {
         },
       ]
     );
-  }, [selectedStats, selectedFilePaths, clearing, oldFiles]);
+  }, [dispatch, selectedStats, selectedFilePaths, clearing, oldFiles]);
 
   // Clear selection when files change
   useEffect(() => {
@@ -337,69 +319,49 @@ const OldFilesScreen = () => {
     }
   }, [oldFiles, selectedFilePathsArray, dispatch]);
 
-  const renderFileItem = useCallback<ListRenderItem<OldFileInfo>>(({ item: file }) => {
-    const filename = getFilename(file.path);
-    const isSelected = selectedFilePaths.has(file.path);
-    const isVideo = isVideoFile(file.path);
-    const isImage = isImageFile(file.path);
-    const previewable = isPreviewableMedia(file.path) && !thumbnailFallbacks[file.path];
-    const iconName = getFileIcon(file.path);
-    
-    // Show thumbnail for images and videos that are previewable
-    const showThumbnail = previewable && (isImage || isVideo);
-    const imageUri = showThumbnail ? ensureFileUri(file.path) : null;
-    
-    return (
-      <TouchableOpacity
-        activeOpacity={0.85}
-        style={[styles.item, isSelected && styles.itemSelected]}
-        onPress={() => toggleFileSelection(file.path)}
-      >
-        <View style={styles.thumbWrapper}>
-          {showThumbnail && imageUri ? (
-            <Image
-              source={{ uri: imageUri }}
-              resizeMode="cover"
-              style={styles.thumbnailImage}
-              onError={() => recordThumbnailError(file.path)}
-            />
-          ) : (
-            <View style={styles.thumbnailFallback}>
+  const renderFileItem = useCallback<ListRenderItem<OldFileInfo>>(
+    ({ item: file }) => {
+      const filename = getFilename(file.path);
+      const isSelected = selectedFilePaths.has(file.path);
+      const isVideo = isVideoFile(file.path);
+      const isImage = isImageFile(file.path);
+      const previewable = isPreviewableMedia(file.path);
+      const iconName = getFileIcon(file.path);
+      const showThumbnail = previewable && (isImage || isVideo);
+      const imageUri = showThumbnail ? ensureFileUri(file.path) : null;
+
+      return (
+        <FileListItem
+          title={filename}
+          subtitle={`${formatAgeDays(file.ageDays)} • ${formatModifiedDate(file.modifiedDate)}`}
+          meta={file.path}
+          size={file.size}
+          icon={iconName as any}
+          thumbnailUri={imageUri}
+          selected={isSelected}
+          onPress={() => toggleFileSelection(file.path)}
+          rightAccessory={
+            (isImage || isVideo) ? (
               <MaterialCommunityIcons
-                name={iconName as any}
-                size={40}
+                name={isImage ? "image" : "video"}
+                size={16}
                 color={theme.colors.textMuted}
               />
-            </View>
-          )}
-          {isSelected && (
-            <View style={styles.selectionBadge}>
-              <MaterialCommunityIcons name="check" size={16} color={theme.colors.white} />
-            </View>
-          )}
-          {isImage && !showThumbnail && !isSelected && (
-            <View style={styles.fileTypeBadge}>
-              <MaterialCommunityIcons
-                name="image"
-                size={16}
-                color={theme.colors.white}
-              />
-            </View>
-          )}
-        </View>
-        <View style={styles.itemContent}>
-          <View style={styles.itemHeader}>
-            <Text style={styles.fileName} numberOfLines={1}>{filename}</Text>
-            <Text style={styles.size}>{formatBytes(file.size)}</Text>
-          </View>
-          <View style={styles.itemMeta}>
-            <Text style={styles.metaText}>Age: {formatAgeDays(file.ageDays)}</Text>
-            <Text style={styles.metaText}>{formatModifiedDate(file.modifiedDate)}</Text>
-          </View>
-        </View>
-      </TouchableOpacity>
-    );
-  }, [styles, selectedFilePaths, theme.colors.white, theme.colors.textMuted, toggleFileSelection, thumbnailFallbacks, isPreviewableMedia, getFileIcon, isVideoFile, isImageFile, recordThumbnailError]);
+            ) : null
+          }
+        />
+      );
+    },
+    [
+      getFileIcon,
+      isImageFile,
+      isPreviewableMedia,
+      isVideoFile,
+      selectedFilePaths,
+      toggleFileSelection,
+      theme.colors.textMuted,
+    ]
+  );
 
   const keyExtractor = useCallback((item: OldFileInfo, index: number) => {
     return `${item.path}-${index}`;
@@ -421,54 +383,23 @@ const OldFilesScreen = () => {
         </View>
         {oldFiles.length === 0 && !loading && (
           <View style={styles.emptyContainer}>
-            <Pressable
-              onPress={handleScan}
-              style={({ pressed }) => [
-                styles.scanButton,
-                pressed && styles.scanButtonPressed,
-                loading && styles.scanButtonDisabled,
-              ]}
-              disabled={loading}
-            >
-              <Text style={styles.scanButtonText}>
-                {loading ? "Scanning..." : "Scan Old Files"}
-              </Text>
-            </Pressable>
+            <ScanActionButton label="Scan Old Files" onPress={handleScan} />
           </View>
         )}
 
         {loading && (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator style={styles.spinner} color={theme.colors.accent} />
-            <Text style={styles.loadingText}>Scanning for old files...</Text>
-          </View>
+          <ScanProgressCard title="Scanning for old files..." style={styles.loadingCard} />
         )}
 
         {oldFiles.length > 0 && !loading && (
           <>
             <View style={styles.stickyFilterContainer}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.filtersScrollContent}
-              >
-                {FILTER_TYPES.map((type) => {
-                  const isActive = type === filterType;
-                  const countLabel = fileSummary[type].count;
-                  return (
-                    <TouchableOpacity
-                      key={type}
-                      style={[styles.filterChip, isActive && styles.filterChipActive]}
-                      onPress={() => setFilterType(type)}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={[styles.filterChipText, isActive && styles.filterChipTextActive]}>
-                        {type.toLowerCase()} · {countLabel}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+              <FilterChips
+                options={FILTER_TYPES}
+                selected={filterType}
+                onSelect={(value) => setFilterType(value)}
+                renderLabel={(type) => `${type.toLowerCase()} · ${fileSummary[type].count}`}
+              />
             </View>
             <FlatList
               data={filteredFiles}
@@ -476,23 +407,35 @@ const OldFilesScreen = () => {
               renderItem={renderFileItem}
               contentContainerStyle={[
                 styles.listContent,
-                !deleteDisabled && styles.listContentWithButton
+                styles.listContentWithButton
               ]}
               showsVerticalScrollIndicator={false}
               ListFooterComponent={<View style={styles.footerSpacer} />}
             />
           </>
         )}
-        {!deleteDisabled && filteredFiles.length > 0 && (
+        {filteredFiles.length === 0 && oldFiles.length > 0 && !loading && (
+          <EmptyState
+            title="No files in this filter"
+            description="Try another category or rescan to refresh results."
+          />
+        )}
+        {filteredFiles.length > 0 && (
           <View style={styles.fixedDeleteButtonContainer}>
-            <DeleteButton
-              items={selectedStats.items}
-              size={selectedStats.size}
-              disabled={clearing}
-              onPress={handleDelete}
+            <SelectionBar
+              selectedCount={selectedStats.items}
+              selectedSize={selectedStats.size}
+              totalCount={filteredFiles.length}
+              onSelectAll={toggleSelectAll}
+              allSelected={isAllSelected}
+              onClear={() => dispatch(clearSelections("old"))}
+              actionLabel="Delete"
+              onAction={handleDelete}
+              actionDisabled={clearing}
             />
           </View>
         )}
+        <LoadingOverlay visible={loading} label="Scanning for old files..." />
       </SafeAreaView>
     </ScreenWrapper>
   );
@@ -515,31 +458,6 @@ const createStyles = (theme: DefaultTheme) =>
       borderBottomColor: theme.mode === 'dark' ? `${theme.colors.surfaceAlt}33` : `${theme.colors.surfaceAlt}22`,
       zIndex: 10,
     },
-    filtersScrollContent: {
-      paddingRight: theme.spacing.lg,
-    },
-    filterChip: {
-      paddingVertical: theme.spacing.xs,
-      paddingHorizontal: theme.spacing.sm,
-      borderRadius: 999,
-      borderWidth: 1,
-      borderColor: `${theme.colors.surfaceAlt}55`,
-      backgroundColor: theme.colors.surface,
-      marginRight: theme.spacing.xs,
-    },
-    filterChipActive: {
-      borderColor: theme.colors.primary,
-      backgroundColor: `${theme.colors.primary}22`,
-    },
-    filterChipText: {
-      color: theme.colors.text,
-      fontSize: 12,
-      fontWeight: '600',
-      textTransform: 'capitalize',
-    },
-    filterChipTextActive: {
-      color: theme.colors.primary,
-    },
     listContent: {
       paddingHorizontal: theme.spacing.lg,
       paddingTop: theme.spacing.md,
@@ -554,39 +472,9 @@ const createStyles = (theme: DefaultTheme) =>
       alignItems: "center",
       paddingVertical: theme.spacing.xl * 2,
     },
-    loadingContainer: {
-      alignItems: "center",
-      paddingVertical: theme.spacing.xl * 2,
-    },
-    loadingText: {
-      marginTop: theme.spacing.md,
-      color: theme.colors.textMuted,
-      fontSize: 14,
-    },
-    scanButton: {
-      borderRadius: theme.radii.lg,
-      backgroundColor: theme.colors.primary,
-      paddingVertical: theme.spacing.md,
-      paddingHorizontal: theme.spacing.xl,
-      alignItems: "center",
-      justifyContent: "center",
-      minWidth: 200,
-    },
-    scanButtonPressed: {
-      opacity: 0.9,
-    },
-    scanButtonDisabled: {
-      opacity: 0.65,
-    },
-    scanButtonText: {
-      color: theme.colors.background,
-      fontSize: 16,
-      fontWeight: "700",
-      textTransform: "uppercase",
-      letterSpacing: 0.4,
-    },
-    spinner: {
-      marginTop: theme.spacing.sm,
+    loadingCard: {
+      marginHorizontal: theme.spacing.lg,
+      marginVertical: theme.spacing.lg,
     },
     resultsHeader: {
       marginBottom: theme.spacing.md,
@@ -594,73 +482,6 @@ const createStyles = (theme: DefaultTheme) =>
     },
     footerSpacer: {
       height: theme.spacing.xl,
-    },
-    resultsTitle: {
-      color: theme.colors.text,
-      fontSize: 18,
-      fontWeight: "700",
-    },
-    resultsSubtitle: {
-      color: theme.colors.textMuted,
-      fontSize: 13,
-    },
-    item: {
-      flexDirection: "row",
-      padding: theme.spacing.md,
-      borderRadius: theme.radii.lg,
-      backgroundColor: theme.colors.surfaceAlt,
-      marginBottom: theme.spacing.sm,
-      position: "relative",
-    },
-    itemSelected: {
-      backgroundColor: `${theme.colors.primary}22`,
-      borderWidth: 2,
-      borderColor: theme.colors.primary,
-    },
-    thumbWrapper: {
-      width: 60,
-      height: 60,
-      borderRadius: theme.radii.lg,
-      overflow: "hidden",
-      backgroundColor: `${theme.colors.surfaceAlt}55`,
-      marginRight: theme.spacing.md,
-      position: "relative",
-    },
-    thumbnailImage: {
-      width: "100%",
-      height: "100%",
-    },
-    thumbnailFallback: {
-      width: "100%",
-      height: "100%",
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    selectionBadge: {
-      position: "absolute",
-      top: theme.spacing.xs,
-      right: theme.spacing.xs,
-      width: 24,
-      height: 24,
-      borderRadius: 12,
-      backgroundColor: theme.colors.primary,
-      alignItems: "center",
-      justifyContent: "center",
-      zIndex: 1,
-    },
-    fileTypeBadge: {
-      position: "absolute",
-      bottom: theme.spacing.xs,
-      right: theme.spacing.xs,
-      width: 20,
-      height: 20,
-      borderRadius: 10,
-      backgroundColor: "rgba(0, 0, 0, 0.6)",
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    itemContent: {
-      flex: 1,
     },
     fixedDeleteButtonContainer: {
       position: "absolute",
@@ -672,38 +493,6 @@ const createStyles = (theme: DefaultTheme) =>
       backgroundColor: theme.colors.background,
       borderTopWidth: 1,
       borderTopColor: `${theme.colors.surfaceAlt}55`,
-    },
-    itemHeader: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginBottom: theme.spacing.xs,
-    },
-    fileName: {
-      flex: 1,
-      marginRight: theme.spacing.sm,
-      color: theme.colors.text,
-      fontWeight: "600",
-      fontSize: 15,
-    },
-    size: {
-      color: theme.colors.accent,
-      fontWeight: "700",
-      fontSize: 14,
-    },
-    itemMeta: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      marginBottom: theme.spacing.xs / 2,
-    },
-    metaText: {
-      color: theme.colors.textMuted,
-      fontSize: 12,
-    },
-    pathText: {
-      color: theme.colors.textMuted,
-      fontSize: 11,
-      marginTop: theme.spacing.xs / 2,
     },
   });
 

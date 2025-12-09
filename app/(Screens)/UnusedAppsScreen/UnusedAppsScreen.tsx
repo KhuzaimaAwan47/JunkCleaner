@@ -1,18 +1,12 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  SectionList,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Alert, SectionList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
+import ScanActionButton from "../../../components/ScanActionButton";
+import ScanProgressCard from "../../../components/ScanProgressCard";
 import ScreenWrapper from "../../../components/ScreenWrapper";
 import {
   clearSelections,
@@ -259,10 +253,7 @@ const UnusedAppsScreen = () => {
           />
 
           {loading && (
-            <View style={styles.progressCard}>
-              <ActivityIndicator size="large" color={theme.colors.primary} />
-              <Text style={styles.progressText}>Scanning apps...</Text>
-            </View>
+            <ScanProgressCard title="Scanning apps..." style={styles.progressCard} />
           )}
 
           {!loading && apps.length > 0 ? (
@@ -291,15 +282,7 @@ const UnusedAppsScreen = () => {
               <Text style={styles.emptyText}>
                 {hasScanned ? "no unused apps found" : "run a scan to find unused apps"}
               </Text>
-              {!hasScanned && (
-                <TouchableOpacity
-                  style={styles.scanButton}
-                  onPress={scan}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.scanButtonText}>start scan</Text>
-                </TouchableOpacity>
-              )}
+              {!hasScanned && <ScanActionButton label="start scan" onPress={scan} />}
             </View>
           ) : null}
         </View>
@@ -335,16 +318,7 @@ const createStyles = (theme: DefaultTheme) =>
       paddingBottom: theme.spacing.xl,
     },
     progressCard: {
-      alignItems: "center",
-      justifyContent: "center",
-      paddingVertical: theme.spacing.md,
-      gap: theme.spacing.sm,
-    },
-    progressText: {
-      color: theme.colors.text,
-      fontSize: 16,
-      fontWeight: "600",
-      marginTop: theme.spacing.xs,
+      marginTop: theme.spacing.md,
     },
     sectionHeader: {
       flexDirection: "row",
@@ -455,21 +429,6 @@ const createStyles = (theme: DefaultTheme) =>
       fontSize: 14,
       textAlign: "center",
       paddingHorizontal: theme.spacing.lg,
-    },
-    scanButton: {
-      marginTop: theme.spacing.md,
-      borderRadius: theme.radii.lg,
-      backgroundColor: theme.colors.primary,
-      paddingVertical: theme.spacing.md,
-      paddingHorizontal: theme.spacing.lg,
-      alignItems: "center",
-    },
-    scanButtonText: {
-      color: theme.colors.white,
-      fontSize: 16,
-      fontWeight: "700",
-      letterSpacing: 0.4,
-      textTransform: "uppercase",
     },
     fixedUninstallButtonContainer: {
       position: "absolute",

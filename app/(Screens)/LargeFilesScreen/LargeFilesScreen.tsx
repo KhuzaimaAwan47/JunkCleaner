@@ -1,20 +1,14 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import {
-    ActivityIndicator,
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
-} from "react-native";
+import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
 import DeleteButton from "../../../components/DeleteButton";
 import NeumorphicContainer from "../../../components/NeumorphicContainer";
+import ScanActionButton from "../../../components/ScanActionButton";
+import ScanProgressCard from "../../../components/ScanProgressCard";
 import ScreenWrapper from "../../../components/ScreenWrapper";
 import formatBytes from "../../../constants/formatBytes";
 import {
@@ -328,22 +322,18 @@ const LargeFilesScreen: React.FC = () => {
           showsVerticalScrollIndicator={false}
         >
         {!loading && !resultsAvailable && (
-          <View style={[styles.primaryButtonContainer, styles.sectionSpacing]}>
-            <TouchableOpacity style={styles.primaryButton} onPress={handleScan} activeOpacity={0.8}>
-              <Text style={styles.primaryButtonText}>start storage scan</Text>
-            </TouchableOpacity>
+          <View style={[styles.sectionSpacing]}>
+            <ScanActionButton label="start storage scan" onPress={handleScan} fullWidth />
           </View>
         )}
 
         {loading && (
-          <View style={[styles.progressCard, styles.sectionSpacing]}>
-            <View style={styles.progressHeader}>
-              <ActivityIndicator color={theme.colors.primary} size="small" />
-              <Text style={styles.progressPercent}>{Math.min(100, Math.max(0, scanProgress.percent))}%</Text>
-            </View>
-            <Text style={styles.progressText}>{progressLabel}</Text>
-            <Text style={styles.progressSubtext}>{progressDetail}</Text>
-          </View>
+          <ScanProgressCard
+            progress={scanProgress.percent}
+            title={progressLabel}
+            subtitle={progressDetail}
+            style={styles.sectionSpacing}
+          />
         )}
 
         {!loading && resultsAvailable && (
@@ -355,10 +345,8 @@ const LargeFilesScreen: React.FC = () => {
             </View>
 
             {!hasDatabaseResults && (
-              <View style={[styles.rescanContainer, styles.sectionSpacing]}>
-                <TouchableOpacity style={styles.rescanButton} onPress={handleScan} activeOpacity={0.8}>
-                  <Text style={styles.rescanButtonText}>rescan</Text>
-                </TouchableOpacity>
+              <View style={[styles.sectionSpacing]}>
+                <ScanActionButton variant="outline" label="rescan" onPress={handleScan} />
               </View>
             )}
           </>
@@ -456,55 +444,6 @@ const createStyles = (theme: DefaultTheme) =>
     },
     sectionSpacing: {
       marginBottom: theme.spacing.lg,
-    },
-    primaryButtonContainer: {
-      marginTop: theme.spacing.md,
-    },
-    primaryButton: {
-      backgroundColor: theme.colors.primary,
-      borderRadius: theme.radii.xl,
-      paddingVertical: theme.spacing.md,
-      alignItems: "center",
-      justifyContent: "center",
-      shadowColor: theme.mode === "dark" ? "#000000" : "rgba(0,0,0,0.2)",
-      shadowOpacity: theme.mode === "dark" ? 0.4 : 0.2,
-      shadowRadius: 12,
-      shadowOffset: { width: 0, height: 6 },
-      elevation: 6,
-    },
-    primaryButtonText: {
-      color: theme.colors.white,
-      fontSize: theme.fontSize.md,
-      fontWeight: theme.fontWeight.bold,
-      textTransform: "uppercase",
-      letterSpacing: 0.8,
-    },
-    progressCard: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.lg,
-      padding: theme.spacing.lg,
-      borderWidth: 1,
-      borderColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}66` : `${theme.colors.surfaceAlt}44`,
-      gap: theme.spacing.xs,
-    },
-    progressHeader: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-    },
-    progressPercent: {
-      fontSize: theme.fontSize.lg,
-      fontWeight: theme.fontWeight.bold,
-      color: theme.colors.primary,
-    },
-    progressText: {
-      fontSize: theme.fontSize.md,
-      color: theme.colors.text,
-      fontWeight: theme.fontWeight.semibold,
-    },
-    progressSubtext: {
-      fontSize: theme.fontSize.sm,
-      color: theme.colors.textMuted,
     },
     resultsContainer: {
       gap: theme.spacing.xs,
@@ -645,23 +584,6 @@ const createStyles = (theme: DefaultTheme) =>
     pathText: {
       color: theme.colors.textMuted,
       fontSize: theme.fontSize.xs,
-    },
-    rescanContainer: {
-      marginTop: theme.spacing.md,
-    },
-    rescanButton: {
-      alignSelf: "flex-start",
-      borderRadius: theme.radii.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.primary,
-      paddingHorizontal: theme.spacing.lg,
-      paddingVertical: theme.spacing.sm,
-    },
-    rescanButtonText: {
-      color: theme.colors.primary,
-      fontSize: theme.fontSize.sm,
-      fontWeight: theme.fontWeight.semibold,
-      textTransform: "uppercase",
     },
     emptyCard: {
       backgroundColor: theme.colors.surface,

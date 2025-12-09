@@ -1,28 +1,23 @@
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import {
-    ActivityIndicator,
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
-} from "react-native";
-import { useDispatch, useSelector } from "react-redux";
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useDispatch, useSelector } from "react-redux";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
-import DeleteButton from "../../../components/DeleteButton";
-import NeumorphicContainer from "../../../components/NeumorphicContainer";
+import EmptyState from "../../../components/EmptyState";
+import FileListItem from "../../../components/FileListItem";
+import LoadingOverlay from "../../../components/LoadingOverlay";
+import ScanActionButton from "../../../components/ScanActionButton";
+import ScanProgressCard from "../../../components/ScanProgressCard";
 import ScreenWrapper from "../../../components/ScreenWrapper";
+import SelectionBar from "../../../components/SelectionBar";
 import formatBytes from "../../../constants/formatBytes";
 import {
+  clearSelections,
   setApkResults,
   setLoading,
-  toggleItemSelection,
-  clearSelections,
   setSelectedItems,
+  toggleItemSelection,
 } from "../../../redux-code/action";
 import type { RootState } from "../../../redux-code/store";
 import { initDatabase, loadApkScanResults, saveApkScanResults } from "../../../utils/db";
@@ -92,8 +87,6 @@ const APKsRemoverScreen = () => {
     });
     return stats;
   }, [selectedFilePaths, apkFiles]);
-
-  const deleteDisabled = selectedStats.items === 0;
 
   const isAllSelected = useMemo(() => {
     return apkFiles.length > 0 && apkFiles.every((file) => selectedFilePaths.has(file.path));
@@ -189,53 +182,23 @@ const APKsRemoverScreen = () => {
     (item: ApkFile) => {
       const isDeleting = deleting.has(item.path);
       const isSelected = selectedFilePaths.has(item.path);
-      
       return (
-        <TouchableOpacity
+        <FileListItem
           key={item.path}
-          style={styles.itemWrapper}
-          onPress={() => toggleFileSelection(item.path)}
+          title={item.name}
+          subtitle={item.path}
+          size={item.size}
+          icon="package-variant"
+          selected={isSelected}
           disabled={isDeleting}
-          activeOpacity={0.85}
-        >
-          <NeumorphicContainer 
-            padding={theme.spacing.md}
-            style={isSelected ? styles.itemSelected : undefined}
-          >
-            <View style={styles.itemInner}>
-              <View style={styles.iconBubble}>
-                <MaterialCommunityIcons
-                  name="package-variant"
-                  size={28}
-                  color={theme.colors.primary}
-                />
-                {isSelected && (
-                  <View style={styles.selectionBadge}>
-                    <MaterialCommunityIcons
-                      name="check"
-                      size={16}
-                      color={theme.colors.white}
-                    />
-                  </View>
-                )}
-              </View>
-              <View style={styles.infoColumn}>
-                <View style={styles.fileHeader}>
-                  <Text style={styles.fileName} numberOfLines={1}>
-                    {item.name}
-                  </Text>
-                  <Text style={styles.fileSize}>{formatBytes(item.size || 0)}</Text>
-                </View>
-                <Text style={styles.path} numberOfLines={1}>
-                  {item.path}
-                </Text>
-              </View>
-            </View>
-          </NeumorphicContainer>
-        </TouchableOpacity>
+          onPress={() => toggleFileSelection(item.path)}
+          rightAccessory={
+            isDeleting ? <ActivityIndicator size="small" color={theme.colors.primary} /> : null
+          }
+        />
       );
     },
-    [styles, theme, deleting, selectedFilePaths, toggleFileSelection]
+    [deleting, selectedFilePaths, toggleFileSelection, theme.colors.primary]
   );
 
   const resultsAvailable = apkFiles.length > 0;
@@ -257,71 +220,64 @@ const APKsRemoverScreen = () => {
         <ScrollView 
           contentContainerStyle={[
             styles.content,
-            !deleteDisabled && resultsAvailable ? { paddingBottom: theme.spacing.xl * 3 } : {}
+            resultsAvailable ? { paddingBottom: theme.spacing.xl * 3 } : {}
           ]} 
           showsVerticalScrollIndicator={false}
         >
-        {!loading && !resultsAvailable && (
-          <View style={[styles.primaryButtonContainer, styles.sectionSpacing]}>
-            <TouchableOpacity style={styles.primaryButton} onPress={scan} activeOpacity={0.8}>
-              <Text style={styles.primaryButtonText}>start scan</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {loading && (
-          <View style={[styles.progressCard, styles.sectionSpacing]}>
-            <View style={styles.progressHeader}>
-              <ActivityIndicator color={theme.colors.primary} size="small" />
+          {!loading && !resultsAvailable && (
+            <View style={[styles.sectionSpacing]}>
+              <ScanActionButton label="start scan" onPress={scan} fullWidth />
             </View>
-            <Text style={styles.progressText}>Scanning for APK files...</Text>
-            <Text style={styles.progressSubtext}>checking common installation directories</Text>
-          </View>
-        )}
+          )}
 
-        {!loading && resultsAvailable && (
-          <>
-          
-
-            <View style={[styles.resultsContainer, styles.sectionSpacing]}>
-              {apkFiles.map((file) => renderItem(file))}
-            </View>
-
-            {!hasScanned && (
-              <View style={[styles.rescanContainer, styles.sectionSpacing]}>
-                <TouchableOpacity style={styles.rescanButton} onPress={scan} activeOpacity={0.8}>
-                  <Text style={styles.rescanButtonText}>rescan</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </>
-        )}
-
-        {!loading && hasScanned && apkFiles.length === 0 && (
-          <View style={[styles.emptyCard, styles.sectionSpacing]}>
-            <MaterialCommunityIcons
-              name="package-variant-closed"
-              size={48}
-              color={theme.colors.textMuted}
-              style={styles.emptyIcon}
+          {loading && (
+            <ScanProgressCard
+              title="Scanning for APK files..."
+              subtitle="checking common installation directories"
+              style={styles.sectionSpacing}
             />
-            <Text style={styles.emptyTitle}>no APK files found</Text>
-            <Text style={styles.emptySubtitle}>
-              No APK installer files were found on your device.
-            </Text>
+          )}
+
+          {!loading && resultsAvailable && (
+            <>
+              <View style={[styles.resultsContainer, styles.sectionSpacing]}>
+                {apkFiles.map((file) => renderItem(file))}
+              </View>
+
+              {!hasScanned && (
+                <View style={[styles.sectionSpacing]}>
+                  <ScanActionButton variant="outline" label="rescan" onPress={scan} />
+                </View>
+              )}
+            </>
+          )}
+
+          {!loading && hasScanned && apkFiles.length === 0 && (
+            <EmptyState
+              icon="package-variant-closed"
+              title="No APK files found"
+              description="We could not find APK installer files on your device."
+              actionLabel="Rescan"
+              onAction={scan}
+            />
+          )}
+        </ScrollView>
+        {resultsAvailable && (
+          <View style={styles.fixedDeleteButtonContainer}>
+            <SelectionBar
+              selectedCount={selectedStats.items}
+              selectedSize={selectedStats.size}
+              totalCount={apkFiles.length}
+              onSelectAll={toggleSelectAll}
+              allSelected={isAllSelected}
+              onClear={() => dispatch(clearSelections("apk"))}
+              actionLabel="Delete"
+              onAction={handleDelete}
+              actionDisabled={clearing}
+            />
           </View>
         )}
-      </ScrollView>
-      {!deleteDisabled && resultsAvailable && (
-        <View style={styles.fixedDeleteButtonContainer}>
-          <DeleteButton
-            items={selectedStats.items}
-            size={selectedStats.size}
-            disabled={clearing}
-            onPress={handleDelete}
-          />
-        </View>
-      )}
+        <LoadingOverlay visible={loading} label="Scanning APK files..." />
       </SafeAreaView>
     </ScreenWrapper>
   );
@@ -344,181 +300,8 @@ const createStyles = (theme: DefaultTheme) =>
     sectionSpacing: {
       marginBottom: theme.spacing.lg,
     },
-    primaryButtonContainer: {
-      marginTop: theme.spacing.md,
-    },
-    primaryButton: {
-      backgroundColor: theme.colors.primary,
-      borderRadius: theme.radii.xl,
-      paddingVertical: theme.spacing.md,
-      alignItems: "center",
-      justifyContent: "center",
-      shadowColor: theme.mode === "dark" ? "#000000" : "rgba(0,0,0,0.2)",
-      shadowOpacity: theme.mode === "dark" ? 0.4 : 0.2,
-      shadowRadius: 12,
-      shadowOffset: { width: 0, height: 6 },
-      elevation: 6,
-    },
-    primaryButtonText: {
-      color: theme.colors.white,
-      fontSize: theme.fontSize.md,
-      fontWeight: theme.fontWeight.bold,
-      textTransform: "uppercase",
-      letterSpacing: 0.8,
-    },
-    progressCard: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.lg,
-      padding: theme.spacing.lg,
-      borderWidth: 1,
-      borderColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}66` : `${theme.colors.surfaceAlt}44`,
-      gap: theme.spacing.xs,
-    },
-    progressHeader: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-    },
-    progressText: {
-      fontSize: theme.fontSize.md,
-      color: theme.colors.text,
-      fontWeight: theme.fontWeight.semibold,
-    },
-    progressSubtext: {
-      fontSize: theme.fontSize.sm,
-      color: theme.colors.textMuted,
-    },
-    selectionMetaCard: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      padding: theme.spacing.md,
-      borderRadius: theme.radii.lg,
-      backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}66` : `${theme.colors.surfaceAlt}44`,
-    },
-    selectionTextWrap: {
-      flex: 1,
-      marginRight: theme.spacing.sm,
-    },
-    selectionLabel: {
-      color: theme.colors.textMuted,
-      fontSize: theme.fontSize.xs,
-      textTransform: "uppercase",
-      letterSpacing: 0.8,
-    },
-    selectionValue: {
-      color: theme.colors.text,
-      fontSize: theme.fontSize.md,
-      fontWeight: theme.fontWeight.semibold,
-      marginTop: 4,
-    },
     resultsContainer: {
       gap: theme.spacing.xs,
-    },
-    itemWrapper: {
-      marginVertical: 0,
-    },
-    itemInner: {
-      width: "100%",
-      flexDirection: "row",
-      alignItems: "center",
-      gap: theme.spacing.sm,
-    },
-    itemSelected: {
-      borderWidth: 1,
-      borderColor: theme.colors.primary,
-    },
-    iconBubble: {
-      width: 56,
-      height: 56,
-      borderRadius: 18,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: `${theme.colors.primary}18`,
-      position: "relative",
-    },
-    selectionBadge: {
-      position: "absolute",
-      top: 6,
-      right: 6,
-      width: 22,
-      height: 22,
-      borderRadius: 11,
-      backgroundColor: theme.colors.primary,
-      alignItems: "center",
-      justifyContent: "center",
-      shadowColor: "rgba(0, 0, 0, 0.25)",
-      shadowOpacity: 0.3,
-      shadowRadius: 4,
-      shadowOffset: { width: 0, height: 2 },
-      elevation: 4,
-    },
-    infoColumn: {
-      flex: 1,
-      gap: theme.spacing.xs / 2,
-    },
-    fileHeader: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "baseline",
-    },
-    fileName: {
-      flex: 1,
-      color: theme.colors.text,
-      fontSize: theme.fontSize.md,
-      fontWeight: theme.fontWeight.bold,
-    },
-    fileSize: {
-      color: theme.colors.accent,
-      fontSize: theme.fontSize.sm,
-      fontWeight: theme.fontWeight.bold,
-    },
-    path: {
-      color: theme.colors.textMuted,
-      fontSize: theme.fontSize.xs,
-    },
-    rescanContainer: {
-      marginTop: theme.spacing.md,
-    },
-    rescanButton: {
-      alignSelf: "flex-start",
-      borderRadius: theme.radii.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.primary,
-      paddingHorizontal: theme.spacing.lg,
-      paddingVertical: theme.spacing.sm,
-    },
-    rescanButtonText: {
-      color: theme.colors.primary,
-      fontSize: theme.fontSize.sm,
-      fontWeight: theme.fontWeight.semibold,
-      textTransform: "uppercase",
-    },
-    emptyCard: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.xl,
-      padding: theme.spacing.lg,
-      borderWidth: 1,
-      borderColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}66` : `${theme.colors.surfaceAlt}44`,
-      alignItems: "center",
-      gap: theme.spacing.sm,
-    },
-    emptyIcon: {
-      opacity: 0.5,
-    },
-    emptyTitle: {
-      color: theme.colors.text,
-      fontSize: theme.fontSize.lg,
-      fontWeight: theme.fontWeight.bold,
-      textTransform: "capitalize",
-      textAlign: "center",
-    },
-    emptySubtitle: {
-      color: theme.colors.textMuted,
-      fontSize: theme.fontSize.sm,
-      textAlign: "center",
     },
     fixedDeleteButtonContainer: {
       position: "absolute",

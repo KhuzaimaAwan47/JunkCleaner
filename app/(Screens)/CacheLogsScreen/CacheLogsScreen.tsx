@@ -1,28 +1,22 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import {
-    ActivityIndicator,
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
-} from "react-native";
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useDispatch, useSelector } from "react-redux";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
 import DeleteButton from "../../../components/DeleteButton";
 import NeumorphicContainer from "../../../components/NeumorphicContainer";
+import ScanActionButton from "../../../components/ScanActionButton";
+import ScanProgressCard from "../../../components/ScanProgressCard";
 import ScreenWrapper from "../../../components/ScreenWrapper";
 import formatBytes from "../../../constants/formatBytes";
 import {
+  clearSelections,
   setCacheLogsResults,
   setLoading,
-  toggleItemSelection as toggleItemSelectionAction,
-  clearSelections,
   setSelectedItems,
+  toggleItemSelection as toggleItemSelectionAction,
 } from "../../../redux-code/action";
 import type { RootState } from "../../../redux-code/store";
 import { initDatabase, loadCacheLogsResults, saveCacheLogsResults } from "../../../utils/db";
@@ -149,7 +143,7 @@ const CacheLogsScreen = () => {
         },
       ]
     );
-  }, [selectedStats, selectedFilePaths, clearing, items]);
+  }, [selectedStats, selectedFilePaths, clearing, items, dispatch]);
 
   // Clear selection when items change
   useEffect(() => {
@@ -242,21 +236,17 @@ const CacheLogsScreen = () => {
           showsVerticalScrollIndicator={false}
         >
           {!loading && !resultsAvailable && (
-            <View style={[styles.primaryButtonContainer, styles.sectionSpacing]}>
-              <TouchableOpacity style={styles.primaryButton} onPress={refresh} activeOpacity={0.8}>
-                <Text style={styles.primaryButtonText}>start cache scan</Text>
-              </TouchableOpacity>
+            <View style={[styles.sectionSpacing]}>
+              <ScanActionButton label="start cache scan" onPress={refresh} fullWidth />
             </View>
           )}
 
           {loading && (
-            <View style={[styles.progressCard, styles.sectionSpacing]}>
-              <View style={styles.progressHeader}>
-                <ActivityIndicator color={theme.colors.primary} size="small" />
-                <Text style={styles.progressText}>scanning cache & logs…</Text>
-              </View>
-              <Text style={styles.progressSubtext}>checking Android data, obb, and app caches</Text>
-            </View>
+            <ScanProgressCard
+              title="scanning cache & logs…"
+              subtitle="checking Android data, obb, and app caches"
+              style={styles.sectionSpacing}
+            />
           )}
 
           {!loading && resultsAvailable && (
@@ -268,10 +258,8 @@ const CacheLogsScreen = () => {
               </View>
 
               {!hasDatabaseResults && (
-                <View style={[styles.rescanContainer, styles.sectionSpacing]}>
-                  <TouchableOpacity style={styles.rescanButton} onPress={refresh} activeOpacity={0.8}>
-                    <Text style={styles.rescanButtonText}>rescan</Text>
-                  </TouchableOpacity>
+                <View style={[styles.sectionSpacing]}>
+                  <ScanActionButton variant="outline" label="rescan" onPress={refresh} />
                 </View>
               )}
             </>
@@ -323,50 +311,6 @@ const createStyles = (theme: DefaultTheme) =>
     },
     sectionSpacing: {
       marginBottom: theme.spacing.lg,
-    },
-    primaryButtonContainer: {
-      marginTop: theme.spacing.md,
-    },
-    primaryButton: {
-      backgroundColor: theme.colors.primary,
-      borderRadius: theme.radii.xl,
-      paddingVertical: theme.spacing.md,
-      alignItems: "center",
-      justifyContent: "center",
-      shadowColor: theme.mode === "dark" ? "#000000" : "rgba(0,0,0,0.2)",
-      shadowOpacity: theme.mode === "dark" ? 0.4 : 0.2,
-      shadowRadius: 12,
-      shadowOffset: { width: 0, height: 6 },
-      elevation: 6,
-    },
-    primaryButtonText: {
-      color: theme.colors.white,
-      fontSize: theme.fontSize.md,
-      fontWeight: theme.fontWeight.bold,
-      textTransform: "uppercase",
-      letterSpacing: 0.8,
-    },
-    progressCard: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.lg,
-      padding: theme.spacing.lg,
-      borderWidth: 1,
-      borderColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}66` : `${theme.colors.surfaceAlt}44`,
-      gap: theme.spacing.xs,
-    },
-    progressHeader: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: theme.spacing.sm,
-    },
-    progressText: {
-      fontSize: theme.fontSize.md,
-      color: theme.colors.text,
-      fontWeight: theme.fontWeight.semibold,
-    },
-    progressSubtext: {
-      fontSize: theme.fontSize.sm,
-      color: theme.colors.textMuted,
     },
     resultsContainer: {
       gap: theme.spacing.xs,
@@ -482,23 +426,6 @@ const createStyles = (theme: DefaultTheme) =>
     path: {
       color: theme.colors.textMuted,
       fontSize: theme.fontSize.xs,
-    },
-    rescanContainer: {
-      marginTop: theme.spacing.md,
-    },
-    rescanButton: {
-      alignSelf: "flex-start",
-      borderRadius: theme.radii.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.primary,
-      paddingHorizontal: theme.spacing.lg,
-      paddingVertical: theme.spacing.sm,
-    },
-    rescanButtonText: {
-      color: theme.colors.primary,
-      fontSize: theme.fontSize.sm,
-      fontWeight: theme.fontWeight.semibold,
-      textTransform: "uppercase",
     },
     emptyCard: {
       backgroundColor: theme.colors.surface,

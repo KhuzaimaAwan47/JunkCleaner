@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { DefaultTheme, useTheme } from "styled-components/native";
+import ScanActionButton from "../../../components/ScanActionButton";
 import ScreenWrapper from "../../../components/ScreenWrapper";
 import { appRoutes } from "../../../routes";
 
@@ -102,10 +103,14 @@ const OnboardingScreen = () => {
               </TouchableOpacity>
             ))}
           </View>
-          <TouchableOpacity style={styles.primaryButton} onPress={handleGetStarted} activeOpacity={0.9}>
-            <Text style={styles.buttonLabel}>get started</Text>
-            <MaterialCommunityIcons name="arrow-right" size={20} color={theme.colors.white} style={styles.buttonIcon} />
-          </TouchableOpacity>
+          <ScanActionButton
+            label="get started"
+            onPress={handleGetStarted}
+            fullWidth
+            leadingIcon={
+              <MaterialCommunityIcons name="arrow-right" size={20} color={theme.colors.white} />
+            }
+          />
         </View>
       </SafeAreaView>
     </ScreenWrapper>
@@ -189,22 +194,6 @@ const createStyles = (theme: DefaultTheme) =>
     dotActive: {
       backgroundColor: theme.colors.primary,
       width: 28,
-    },
-    primaryButton: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: theme.colors.primary,
-      borderRadius: theme.radii.xl,
-      paddingVertical: theme.spacing.md,
-      paddingHorizontal: theme.spacing.lg,
-    },
-    buttonLabel: {
-      color: theme.colors.white,
-      fontSize: theme.fontSize.md,
-      fontWeight: theme.fontWeight.semibold,
-      textTransform: "uppercase",
-      letterSpacing: 0.4,
     },
     buttonIcon: {
       marginLeft: theme.spacing.sm,

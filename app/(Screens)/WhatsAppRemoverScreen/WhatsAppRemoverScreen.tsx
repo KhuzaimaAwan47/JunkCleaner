@@ -16,6 +16,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { DefaultTheme, useTheme } from 'styled-components/native';
 import AppHeader from '../../../components/AppHeader';
 import DeleteButton from '../../../components/DeleteButton';
+import ScanActionButton from '../../../components/ScanActionButton';
+import ScanProgressCard from '../../../components/ScanProgressCard';
 import ScreenWrapper from '../../../components/ScreenWrapper';
 import formatBytes from '../../../constants/formatBytes';
 import {
@@ -280,18 +282,14 @@ const WhatsAppRemoverScreen = () => {
         <View style={styles.stickyFilterContainer}>
           {!hasSavedResults && (
             <View style={styles.actionsRow}>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.actionButtonPrimary, isScanning && styles.actionButtonDisabled]}
-                disabled={isScanning}
-                onPress={onRescan}
-                accessibilityRole="button"
-              >
-                {isScanning ? (
-                  <ActivityIndicator color={theme.colors.white} />
-                ) : (
-                  <Text style={styles.actionLabel}>rescan</Text>
-                )}
-              </TouchableOpacity>
+              {isScanning ? (
+                <ScanProgressCard
+                  title="scanning whatsapp folders"
+                  subtitle="indexing images, videos, docs, and voice notes"
+                />
+              ) : (
+                <ScanActionButton label="rescan" onPress={onRescan} fullWidth />
+              )}
             </View>
           )}
 
@@ -335,11 +333,10 @@ const WhatsAppRemoverScreen = () => {
           ListEmptyComponent={
             <View style={styles.emptyCard}>
               {isScanning ? (
-                <>
-                  <ActivityIndicator color={theme.colors.primary} />
-                  <Text style={styles.emptyTitle}>scanning whatsapp folders</Text>
-                  <Text style={styles.emptySubtitle}>sit tight while we index your chats and media.</Text>
-                </>
+                <ScanProgressCard
+                  title="scanning whatsapp folders"
+                  subtitle="sit tight while we index your chats and media."
+                />
               ) : (
                 <>
                   <Text style={styles.emptyTitle}>
@@ -402,25 +399,6 @@ const createStyles = (theme: DefaultTheme) =>
     actionsRow: {
       flexDirection: 'row',
       gap: theme.spacing.sm,
-    },
-    actionButton: {
-      flex: 1,
-      paddingVertical: theme.spacing.md - 2,
-      borderRadius: theme.radii.lg,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    actionButtonPrimary: {
-      backgroundColor: theme.colors.primary,
-    },
-    actionButtonDisabled: {
-      opacity: 0.5,
-    },
-    actionLabel: {
-      color: theme.colors.white,
-      fontSize: 14,
-      fontWeight: '600',
-      textTransform: 'uppercase',
     },
     filtersScrollContent: {
       paddingRight: theme.spacing.lg,
