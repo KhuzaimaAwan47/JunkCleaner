@@ -291,25 +291,44 @@ export const scanForDuplicates = scanDuplicateImages;
 
 export const useScanner = () => {
   const [isScanning, setIsScanning] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(true);
   const [progress, setProgress] = useState<ScanProgress>({ total: 0, current: 0 });
   const [duplicates, setDuplicates] = useState<DuplicateGroup[]>([]);
   const [error, setError] = useState<string | null>(null);
   const cancelRef = useRef(false);
 
-  // Load saved results on mount
+  // Load saved results on mount so UI can render immediately with prior scan data
   useEffect(() => {
+    let isMounted = true;
+
     const loadSavedResults = async () => {
       try {
         await initDatabase();
         const savedResults = await loadDuplicateGroups();
-        if (savedResults.length > 0) {
+        if (isMounted && savedResults.length > 0) {
           setDuplicates(savedResults);
+          // Mark progress as complete so summary / rescan logic behaves like other screens
+          setProgress((prev) => ({
+            ...prev,
+            total: savedResults.length,
+            current: savedResults.length,
+            stage: 'restored',
+          }));
         }
       } catch (error) {
         console.error('Failed to load saved duplicate groups:', error);
+      } finally {
+        if (isMounted) {
+          setIsRestoring(false);
+        }
       }
     };
+
     loadSavedResults();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const startScan = useCallback(async () => {
@@ -383,6 +402,7 @@ export const useScanner = () => {
 
   return {
     isScanning,
+    isRestoring,
     progress,
     duplicates,
     error,

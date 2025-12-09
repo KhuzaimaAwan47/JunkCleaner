@@ -73,7 +73,7 @@ function ensurePreviewUri(path: string): string | null {
 }
 
 export default function DuplicateImagesScreen() {
-  const { isScanning, progress, duplicates, error, startScan, stopScan } = useScanner();
+  const { isScanning, isRestoring, progress, duplicates, error, startScan, stopScan } = useScanner();
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const pulseScale = useSharedValue(1);
@@ -195,7 +195,6 @@ export default function DuplicateImagesScreen() {
     ? Math.min(100, (progress.current / progress.total) * 100)
     : 0;
 
-  const totalDuplicates = duplicateFiles.length;
   const scannedFiles = progress.scannedFiles ?? progress.current;
   const totalFiles = progress.totalFiles ?? progress.total;
 
@@ -285,6 +284,11 @@ export default function DuplicateImagesScreen() {
     setPreviewFile(null);
   };
 
+  const showResults = !isScanning && duplicateFiles.length > 0;
+  const showStartButton = !isScanning && !isRestoring && duplicateFiles.length === 0;
+  const showNoResultsSummary = !isScanning && !isRestoring && duplicateFiles.length === 0 && !error && progress.total > 0;
+  const showEmptyState = !isScanning && !isRestoring && duplicateFiles.length === 0 && !error && progress.total === 0;
+
   return (
     <ScreenWrapper style={styles.screen}>
       <SafeAreaView style={{ flex: 1 }} edges={['bottom', 'left', 'right']}>
@@ -344,7 +348,7 @@ export default function DuplicateImagesScreen() {
            showsVerticalScrollIndicator={false}
          >
 
-          {!isScanning && duplicateFiles.length === 0 && (
+          {showStartButton && (
           <Animated.View style={[buttonAnimatedStyle, styles.sectionSpacing]}>
             <TouchableOpacity style={styles.primaryButton} onPress={startScan} activeOpacity={0.8}>
               <Text style={styles.primaryButtonText}>start scan</Text>
@@ -375,7 +379,7 @@ export default function DuplicateImagesScreen() {
           </View>
           )}
 
-          {!isScanning && (duplicateFiles.length > 0 || totalDuplicates > 0) && (
+          {showResults && (
           <View style={[styles.resultsContainer, styles.sectionSpacing]}>
               {duplicates.map((group) => {
                 const groupFiles = duplicateFiles.filter((file) => file.groupHash === group.hash);
@@ -464,7 +468,7 @@ export default function DuplicateImagesScreen() {
           </View>
           )}
 
-          {!isScanning && duplicateFiles.length === 0 && !error && progress.total > 0 && (
+          {showNoResultsSummary && (
           <View style={[styles.summaryCard, styles.sectionSpacing]}>
               {progress.currentFile === 'Cancelled' ? (
                 <>
@@ -485,7 +489,7 @@ export default function DuplicateImagesScreen() {
           </View>
           )}
 
-          {!isScanning && duplicateFiles.length === 0 && !error && progress.total === 0 && (
+          {showEmptyState && (
           <View style={[styles.emptyCard, styles.sectionSpacing]}>
             <Text style={styles.emptyTitle}>no duplicate images yet</Text>
             <Text style={styles.emptySubtitle}>
