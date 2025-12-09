@@ -1,12 +1,12 @@
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
 import DeleteButton from "../../../components/DeleteButton";
-import NeumorphicContainer from "../../../components/NeumorphicContainer";
+import EmptyState from "../../../components/EmptyState";
+import FileListItem from "../../../components/FileListItem";
 import ScanActionButton from "../../../components/ScanActionButton";
 import ScanProgressCard from "../../../components/ScanProgressCard";
 import ScreenWrapper from "../../../components/ScreenWrapper";
@@ -20,7 +20,7 @@ import {
 } from "../../../redux-code/action";
 import type { RootState } from "../../../redux-code/store";
 import { initDatabase, loadCacheLogsResults, saveCacheLogsResults } from "../../../utils/db";
-import { ScanResult, deleteFile, scanCachesAndLogs } from "./CacheLogsScanner";
+import { deleteFile, scanCachesAndLogs } from "./CacheLogsScanner";
 
 const CacheLogsScreen = () => {
   const dispatch = useDispatch();
@@ -156,64 +156,6 @@ const CacheLogsScreen = () => {
 
   const resultsAvailable = sortedItems.length > 0;
 
-  const renderItem = useCallback(
-    (item: ScanResult) => {
-      const filename = item.path.split("/").pop() || item.path;
-      const isSelected = selectedFilePaths.has(item.path);
-      const typeIcon = item.type === "cache" ? "cached" : "file-document-outline";
-
-      return (
-        <TouchableOpacity
-          key={item.path}
-          style={styles.itemWrapper}
-          onPress={() => toggleItemSelection(item.path)}
-          activeOpacity={0.85}
-        >
-          <NeumorphicContainer 
-            padding={theme.spacing.md}
-            style={isSelected ? styles.itemSelected : undefined}
-          >
-            <View style={styles.itemInner}>
-              <View style={styles.iconWrapper}>
-                <View style={styles.iconContainer}>
-                  <MaterialCommunityIcons
-                    name={typeIcon as any}
-                    size={24}
-                    color={theme.colors.primary}
-                  />
-                </View>
-                {isSelected && (
-                  <View style={styles.selectionBadge}>
-                    <MaterialCommunityIcons
-                      name="check"
-                      size={16}
-                      color={theme.colors.white}
-                    />
-                  </View>
-                )}
-              </View>
-              <View style={styles.infoColumn}>
-                <View style={styles.fileHeader}>
-                  <Text style={styles.fileName} numberOfLines={1}>
-                    {filename}
-                  </Text>
-                  <Text style={styles.fileSize}>{formatBytes(item.size || 0)}</Text>
-                </View>
-                <View style={styles.badgeRow}>
-                  <Text style={styles.tag}>{item.type}</Text>
-                </View>
-                <Text style={styles.path} numberOfLines={1}>
-                  {item.path}
-                </Text>
-              </View>
-            </View>
-          </NeumorphicContainer>
-        </TouchableOpacity>
-      );
-    },
-    [selectedFilePaths, toggleItemSelection, theme.colors.primary, theme.colors.white, theme.spacing.md, styles]
-  );
-
   return (
     <ScreenWrapper style={styles.screen}>
       <SafeAreaView style={{ flex: 1 }} edges={['bottom', 'left', 'right']}>
@@ -235,12 +177,6 @@ const CacheLogsScreen = () => {
           ]} 
           showsVerticalScrollIndicator={false}
         >
-          {!loading && !resultsAvailable && (
-            <View style={[styles.sectionSpacing]}>
-              <ScanActionButton label="start cache scan" onPress={refresh} fullWidth />
-            </View>
-          )}
-
           {loading && (
             <ScanProgressCard
               title="scanning cache & logs…"
@@ -251,10 +187,23 @@ const CacheLogsScreen = () => {
 
           {!loading && resultsAvailable && (
             <>
-              
-
               <View style={[styles.resultsContainer, styles.sectionSpacing]}>
-                {sortedItems.map((item) => renderItem(item))}
+                {sortedItems.map((item) => {
+                  const filename = item.path.split("/").pop() || item.path;
+                  const typeIcon = item.type === "cache" ? "cached" : "file-document-outline";
+                  return (
+                    <FileListItem
+                      key={item.path}
+                      title={filename}
+                      subtitle={item.path}
+                      meta={item.type}
+                      size={item.size}
+                      icon={typeIcon}
+                      selected={selectedFilePaths.has(item.path)}
+                      onPress={() => toggleItemSelection(item.path)}
+                    />
+                  );
+                })}
               </View>
 
               {!hasDatabaseResults && (
@@ -265,19 +214,18 @@ const CacheLogsScreen = () => {
             </>
           )}
 
-          {!loading && !resultsAvailable && (
-            <View style={[styles.emptyCard, styles.sectionSpacing]}>
-              <MaterialCommunityIcons
-                name="file-search-outline"
-                size={48}
-                color={theme.colors.textMuted}
-                style={styles.emptyIcon}
-              />
-              <Text style={styles.emptyTitle}>no cache or log clutter detected</Text>
-              <Text style={styles.emptySubtitle}>
-                Run a scan to find cache files and logs consuming storage space
-              </Text>
+          {!loading && !resultsAvailable && !hasDatabaseResults && (
+            <View style={[styles.sectionSpacing]}>
+              <ScanActionButton label="start cache scan" onPress={refresh} fullWidth />
             </View>
+          )}
+
+          {!loading && !resultsAvailable && hasDatabaseResults && (
+            <EmptyState
+              icon="file-search-outline"
+              title="no cache or log clutter detected"
+              description="Run a scan to find cache files and logs consuming storage space"
+            />
           )}
         </ScrollView>
         {!deleteDisabled && resultsAvailable && (
@@ -314,142 +262,6 @@ const createStyles = (theme: DefaultTheme) =>
     },
     resultsContainer: {
       gap: theme.spacing.xs,
-    },
-    selectionMetaCard: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      padding: theme.spacing.md,
-      borderRadius: theme.radii.lg,
-      backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}66` : `${theme.colors.surfaceAlt}44`,
-    },
-    selectionTextWrap: {
-      flex: 1,
-      marginRight: theme.spacing.sm,
-    },
-    selectionLabel: {
-      color: theme.colors.textMuted,
-      fontSize: theme.fontSize.xs,
-      textTransform: "uppercase",
-      letterSpacing: 0.8,
-    },
-    selectionValue: {
-      color: theme.colors.text,
-      fontSize: theme.fontSize.md,
-      fontWeight: theme.fontWeight.semibold,
-      marginTop: 4,
-    },
-    itemWrapper: {
-      marginVertical: 0,
-    },
-    itemInner: {
-      width: "100%",
-      flexDirection: "row",
-      alignItems: "center",
-      gap: theme.spacing.sm,
-    },
-    itemSelected: {
-      borderWidth: 1,
-      borderColor: theme.colors.primary,
-    },
-    iconWrapper: {
-      width: 56,
-      height: 56,
-      borderRadius: 18,
-      overflow: "hidden",
-      backgroundColor: `${theme.colors.surfaceAlt}cc`,
-      alignItems: "center",
-      justifyContent: "center",
-      position: "relative",
-    },
-    iconContainer: {
-      width: "100%",
-      height: "100%",
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: `${theme.colors.primary}18`,
-    },
-    selectionBadge: {
-      position: "absolute",
-      top: 6,
-      right: 6,
-      width: 22,
-      height: 22,
-      borderRadius: 11,
-      backgroundColor: theme.colors.primary,
-      alignItems: "center",
-      justifyContent: "center",
-      shadowColor: "rgba(0, 0, 0, 0.25)",
-      shadowOpacity: 0.3,
-      shadowRadius: 4,
-      shadowOffset: { width: 0, height: 2 },
-      elevation: 4,
-    },
-    infoColumn: {
-      flex: 1,
-      gap: theme.spacing.xs / 2,
-    },
-    fileHeader: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "baseline",
-    },
-    fileName: {
-      flex: 1,
-      color: theme.colors.text,
-      fontSize: theme.fontSize.md,
-      fontWeight: theme.fontWeight.bold,
-    },
-    fileSize: {
-      color: theme.colors.accent,
-      fontSize: theme.fontSize.sm,
-      fontWeight: theme.fontWeight.bold,
-    },
-    badgeRow: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      alignItems: "center",
-      gap: theme.spacing.xs,
-    },
-    tag: {
-      paddingHorizontal: theme.spacing.sm,
-      paddingVertical: theme.spacing.xs / 2,
-      borderRadius: theme.radii.lg,
-      backgroundColor: `${theme.colors.surfaceAlt}66`,
-      color: theme.colors.text,
-      fontSize: theme.fontSize.xs,
-      textTransform: "uppercase",
-      letterSpacing: 0.6,
-    },
-    path: {
-      color: theme.colors.textMuted,
-      fontSize: theme.fontSize.xs,
-    },
-    emptyCard: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.xl,
-      padding: theme.spacing.lg,
-      borderWidth: 1,
-      borderColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}66` : `${theme.colors.surfaceAlt}44`,
-      alignItems: "center",
-      gap: theme.spacing.sm,
-    },
-    emptyIcon: {
-      opacity: 0.5,
-    },
-    emptyTitle: {
-      color: theme.colors.text,
-      fontSize: theme.fontSize.lg,
-      fontWeight: theme.fontWeight.bold,
-      textTransform: "capitalize",
-      textAlign: "center",
-    },
-    emptySubtitle: {
-      color: theme.colors.textMuted,
-      fontSize: theme.fontSize.sm,
-      textAlign: "center",
     },
     fixedDeleteButtonContainer: {
       position: "absolute",
