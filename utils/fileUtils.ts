@@ -68,12 +68,77 @@ export function isImageFile(path: string): boolean {
 }
 
 export function getFileTypeIcon(path: string): string {
-  if (isVideoFile(path)) {
-    return "video-outline";
+  const lower = path.toLowerCase();
+  
+  // Image files
+  if (lower.match(/\.(jpg|jpeg|png|gif|webp|heic|heif|bmp)$/)) {
+    return 'image';
   }
-  if (isImageFile(path)) {
-    return "image-outline";
+  
+  // Video files
+  if (lower.match(/\.(mp4|mkv|avi|mov|wmv|flv|webm)$/)) {
+    return 'video';
   }
-  return "file-document-outline";
+  
+  // Audio files
+  if (lower.match(/\.(mp3|m4a|aac|wav|flac|ogg|wma)$/)) {
+    return 'music';
+  }
+  
+  // Documents
+  if (lower.endsWith('.pdf')) return 'file-pdf-box';
+  if (lower.match(/\.(doc|docx)$/)) return 'file-word-box';
+  if (lower.match(/\.(xls|xlsx)$/)) return 'file-excel-box';
+  if (lower.match(/\.(ppt|pptx)$/)) return 'file-powerpoint-box';
+  if (lower.endsWith('.txt')) return 'file-document-outline';
+  if (lower.match(/\.(zip|rar|7z|tar|gz)$/)) return 'folder-zip';
+  
+  return 'file-outline';
+}
+
+export function formatModifiedDate(timestamp: number): string {
+  const date = new Date(timestamp);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) {
+    return 'today';
+  } else if (diffDays === 1) {
+    return 'yesterday';
+  } else if (diffDays < 7) {
+    return `${diffDays} days ago`;
+  } else if (diffDays < 30) {
+    const weeks = Math.floor(diffDays / 7);
+    return `${weeks} week${weeks !== 1 ? 's' : ''} ago`;
+  } else if (diffDays < 365) {
+    const months = Math.floor(diffDays / 30);
+    return `${months} month${months !== 1 ? 's' : ''} ago`;
+  } else {
+    const years = Math.floor(diffDays / 365);
+    return `${years} year${years !== 1 ? 's' : ''} ago`;
+  }
+}
+
+export function formatAgeDays(days: number): string {
+  if (days < 30) {
+    return `${days} day${days !== 1 ? 's' : ''}`;
+  } else if (days < 365) {
+    const months = Math.floor(days / 30);
+    return `${months} month${months !== 1 ? 's' : ''}`;
+  } else {
+    const years = Math.floor(days / 365);
+    const remainingMonths = Math.floor((days % 365) / 30);
+    if (remainingMonths > 0) {
+      return `${years} year${years !== 1 ? 's' : ''}, ${remainingMonths} month${remainingMonths !== 1 ? 's' : ''}`;
+    }
+    return `${years} year${years !== 1 ? 's' : ''}`;
+  }
+}
+
+export function isPreviewableMedia(path: string): boolean {
+  const lower = path.toLowerCase();
+  const PREVIEWABLE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif', '.gif', '.mp4', '.mov'];
+  return PREVIEWABLE_EXTENSIONS.some((ext) => lower.endsWith(ext));
 }
 
