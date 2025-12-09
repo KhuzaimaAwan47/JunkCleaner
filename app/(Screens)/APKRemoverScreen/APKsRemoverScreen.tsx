@@ -174,7 +174,7 @@ const APKsRemoverScreen = () => {
         },
       ]
     );
-  }, [selectedFilePaths, selectedStats.items, apkFiles, clearing]);
+  }, [selectedStats.items, clearing, apkFiles, selectedFilePaths, dispatch]);
 
   // Clear selection when files change
   useEffect(() => {
