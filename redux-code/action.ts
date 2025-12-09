@@ -5,11 +5,7 @@ export const reduxAction = (payload: any, type: ActionTypes) => ({
   payload
 });
 
-// User actions
-export const setUserData = (payload: any) => reduxAction(payload, ActionTypes.USER_DATA);
-export const clearUser = () => ({
-  type: ActionTypes.CLEAR_USER,
-});
+
 
 // Scanner results
 export const setApkResults = (payload: any[]) => reduxAction(payload, ActionTypes.SET_APK_RESULTS);

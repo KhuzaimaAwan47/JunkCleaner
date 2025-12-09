@@ -109,11 +109,6 @@ const appReducer = (state: AppState | undefined = initialState, action: any): Ap
     state = initialState;
   }
   switch (action.type) {
-    case ActionTypes.USER_DATA:
-      return { ...state, user: action.payload };
-    
-    case ActionTypes.CLEAR_USER:
-      return { ...state, user: null };
     
     // Scanner results
     case ActionTypes.SET_APK_RESULTS:

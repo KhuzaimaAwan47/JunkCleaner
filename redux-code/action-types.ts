@@ -1,7 +1,5 @@
 export enum ActionTypes {
-    // User actions
-    USER_DATA = "USER_DATA",
-    CLEAR_USER = "CLEAR_USER",
+  
     
     // Scanner results
     SET_APK_RESULTS = "SET_APK_RESULTS",
