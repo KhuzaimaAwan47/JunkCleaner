@@ -11,18 +11,19 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useDispatch, useSelector } from 'react-redux';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useDispatch, useSelector } from 'react-redux';
 import { DefaultTheme, useTheme } from 'styled-components/native';
 import AppHeader from '../../../components/AppHeader';
 import DeleteButton from '../../../components/DeleteButton';
 import ScreenWrapper from '../../../components/ScreenWrapper';
 import formatBytes from '../../../constants/formatBytes';
 import {
-  setWhatsappResults,
-  setLoading,
-  toggleItemSelection,
   clearSelections,
+  setLoading,
+  setSelectedItems,
+  setWhatsappResults,
+  toggleItemSelection,
 } from '../../../redux-code/action';
 import type { RootState } from '../../../redux-code/store';
 import { initDatabase, loadWhatsAppResults, saveWhatsAppResults } from '../../../utils/db';
@@ -169,16 +170,18 @@ const WhatsAppRemoverScreen = () => {
 
 
   const toggleSelectAllFiltered = useCallback(() => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (isAllFilteredSelected) {
-        filteredFiles.forEach((file) => next.delete(file.path));
-      } else {
-        filteredFiles.forEach((file) => next.add(file.path));
-      }
-      return next;
-    });
-  }, [filteredFiles, isAllFilteredSelected]);
+    if (isAllFilteredSelected) {
+      // Deselect all filtered files
+      const currentSelected = new Set(selectedArray);
+      filteredFiles.forEach((file) => currentSelected.delete(file.path));
+      dispatch(setSelectedItems("whatsapp", Array.from(currentSelected)));
+    } else {
+      // Select all filtered files
+      const currentSelected = new Set(selectedArray);
+      filteredFiles.forEach((file) => currentSelected.add(file.path));
+      dispatch(setSelectedItems("whatsapp", Array.from(currentSelected)));
+    }
+  }, [filteredFiles, isAllFilteredSelected, selectedArray, dispatch]);
 
   const recordThumbnailError = useCallback((path: string) => {
     setThumbnailFallbacks((prev) => {
@@ -197,13 +200,13 @@ const WhatsAppRemoverScreen = () => {
     try {
       await deleteSelected(filesToDelete);
       const remaining = files.filter((file) => !selected.has(file.path));
-      setFiles(remaining);
-      setSelected(new Set());
+      dispatch(setWhatsappResults(remaining));
+      dispatch(clearSelections("whatsapp"));
       await saveWhatsAppResults(remaining);
     } catch (err) {
       setError((err as Error).message || 'delete failed');
     }
-  }, [selectedStats.items, filteredFiles, selected, files]);
+  }, [selectedStats.items, filteredFiles, selected, files, dispatch]);
 
   const listContentInset = useMemo(
     () => ({
