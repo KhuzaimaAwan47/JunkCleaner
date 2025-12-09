@@ -10,13 +10,20 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
-
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useDispatch, useSelector } from "react-redux";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
 import DeleteButton from "../../../components/DeleteButton";
 import ScreenWrapper from "../../../components/ScreenWrapper";
 import formatBytes from "../../../constants/formatBytes";
+import {
+  clearSelections,
+  setJunkFileResults,
+  setSelectedItems,
+  toggleItemSelection
+} from "../../../redux-code/action";
+import type { RootState } from "../../../redux-code/store";
 import { initDatabase, loadJunkFileResults } from "../../../utils/db";
 import { deleteJunkFiles, JunkFileItem } from "./JunkFileScanner";
 
@@ -27,14 +34,18 @@ const PREVIEWABLE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.hei
 
 
 const JunkFileScannerScreen = () => {
+  const dispatch = useDispatch();
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const [items, setItems] = useState<JunkFileItem[]>([]);
-  const [loading,] = useState(false);
+  
+  // Redux state
+  const items = useSelector((state: RootState) => state.appState.junkFileResults);
+  const loading = useSelector((state: RootState) => state.appState.loadingStates.junk);
+  const selectedFilePathsArray = useSelector((state: RootState) => state.appState.selectedItems.junk);
+  const selectedFilePaths = useMemo(() => new Set(selectedFilePathsArray), [selectedFilePathsArray]);
+  
+  // Local UI state
   const [clearing, setClearing] = useState(false);
-
-  const [, setShowSuccess] = useState(false);
-  const [selectedFilePaths, setSelectedFilePaths] = useState<Set<string>>(new Set());
   const [thumbnailFallbacks, setThumbnailFallbacks] = useState<Record<string, boolean>>({});
 
   // Load saved results on mount
@@ -44,14 +55,14 @@ const JunkFileScannerScreen = () => {
         await initDatabase();
         const savedResults = await loadJunkFileResults();
         if (savedResults.length > 0) {
-          setItems(savedResults);
+          dispatch(setJunkFileResults(savedResults));
         }
       } catch (error) {
         console.error("Failed to load saved junk file results:", error);
       }
     };
     loadSavedResults();
-  }, []);
+  }, [dispatch]);
 
 
 
@@ -75,30 +86,17 @@ const JunkFileScannerScreen = () => {
   }, [items, selectedFilePaths]);
 
   const toggleFileSelection = useCallback((path: string) => {
-    setSelectedFilePaths((prev) => {
-      const next = new Set(prev);
-      if (next.has(path)) {
-        next.delete(path);
-      } else {
-        next.add(path);
-      }
-      return next;
-    });
-  }, []);
+    dispatch(toggleItemSelection("junk", path));
+  }, [dispatch]);
 
   const toggleSelectAll = useCallback(() => {
-    setSelectedFilePaths((prev) => {
-      const next = new Set(prev);
-      if (isAllSelected) {
-        // Deselect all
-        items.forEach((item) => next.delete(item.path));
-      } else {
-        // Select all
-        items.forEach((item) => next.add(item.path));
-      }
-      return next;
-    });
-  }, [isAllSelected, items]);
+    if (isAllSelected) {
+      dispatch(clearSelections("junk"));
+    } else {
+      const allPaths = items.map((item) => item.path);
+      dispatch(setSelectedItems("junk", allPaths));
+    }
+  }, [isAllSelected, items, dispatch]);
 
   const handleClean = useCallback(() => {
     const itemsToDelete = selectedStats.items > 0
@@ -121,11 +119,10 @@ const JunkFileScannerScreen = () => {
             setClearing(true);
             try {
               await deleteJunkFiles(itemsToDelete);
-              setShowSuccess(true);
               setTimeout(() => {
-                setShowSuccess(false);
-                setItems((prev) => prev.filter((item) => !itemsToDelete.some((deleted) => deleted.path === item.path)));
-                setSelectedFilePaths(new Set());
+                const remainingItems = items.filter((item) => !itemsToDelete.some((deleted) => deleted.path === item.path));
+                dispatch(setJunkFileResults(remainingItems));
+                dispatch(clearSelections("junk"));
               }, 2000);
             } catch (error) {
               console.warn("Clean failed", error);
@@ -141,17 +138,12 @@ const JunkFileScannerScreen = () => {
 
   // Clear selection when items change
   useEffect(() => {
-    setSelectedFilePaths((prev) => {
-      const availablePaths = new Set(items.map((item) => item.path));
-      const next = new Set<string>();
-      prev.forEach((path) => {
-        if (availablePaths.has(path)) {
-          next.add(path);
-        }
-      });
-      return next;
-    });
-  }, [items]);
+    const availablePaths = new Set(items.map((item) => item.path));
+    const validSelections = selectedFilePathsArray.filter((path) => availablePaths.has(path));
+    if (validSelections.length !== selectedFilePathsArray.length) {
+      dispatch(setSelectedItems("junk", validSelections));
+    }
+  }, [items, selectedFilePathsArray, dispatch]);
 
   const formatModifiedDate = useCallback((timestamp: number): string => {
     const date = new Date(timestamp);

@@ -9,6 +9,7 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
+import { useDispatch, useSelector } from "react-redux";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
@@ -16,6 +17,14 @@ import DeleteButton from "../../../components/DeleteButton";
 import NeumorphicContainer from "../../../components/NeumorphicContainer";
 import ScreenWrapper from "../../../components/ScreenWrapper";
 import formatBytes from "../../../constants/formatBytes";
+import {
+  setLargeFileResults,
+  setLoading,
+  toggleItemSelection,
+  clearSelections,
+  setSelectedItems,
+} from "../../../redux-code/action";
+import type { RootState } from "../../../redux-code/store";
 import { initDatabase, loadLargeFileResults, saveLargeFileResults } from "../../../utils/db";
 import {
     LargeFileResult,
@@ -28,10 +37,17 @@ type SourceFilter = LargeFileSource | "all";
 type ProgressPhase = ScanPhase | "idle";
 
 const LargeFilesScreen: React.FC = () => {
+  const dispatch = useDispatch();
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const [files, setFiles] = useState<LargeFileResult[]>([]);
-  const [loading, setLoading] = useState(false);
+  
+  // Redux state
+  const files = useSelector((state: RootState) => state.appState.largeFileResults);
+  const loading = useSelector((state: RootState) => state.appState.loadingStates.large);
+  const selectedFilePathsArray = useSelector((state: RootState) => state.appState.selectedItems.large);
+  const selectedFilePaths = useMemo(() => new Set(selectedFilePathsArray), [selectedFilePathsArray]);
+  
+  // Local UI state
   const [clearing, setClearing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasDatabaseResults, setHasDatabaseResults] = useState<boolean>(false);
@@ -42,7 +58,6 @@ const LargeFilesScreen: React.FC = () => {
     percent: 0,
     phase: "idle",
   });
-  const [selectedFilePaths, setSelectedFilePaths] = useState<Set<string>>(new Set());
 
   const filteredFiles = useMemo(() => {
     if (sourceFilter === "all") {
@@ -89,30 +104,17 @@ const LargeFilesScreen: React.FC = () => {
   }, [sortedFiles, selectedFilePaths]);
 
   const toggleFileSelection = useCallback((path: string) => {
-    setSelectedFilePaths((prev) => {
-      const next = new Set(prev);
-      if (next.has(path)) {
-        next.delete(path);
-      } else {
-        next.add(path);
-      }
-      return next;
-    });
-  }, []);
+    dispatch(toggleItemSelection("large", path));
+  }, [dispatch]);
 
   const toggleSelectAll = useCallback(() => {
-    setSelectedFilePaths((prev) => {
-      const next = new Set(prev);
-      if (isAllSelected) {
-        // Deselect all
-        sortedFiles.forEach((file) => next.delete(file.path));
-      } else {
-        // Select all
-        sortedFiles.forEach((file) => next.add(file.path));
-      }
-      return next;
-    });
-  }, [isAllSelected, sortedFiles]);
+    if (isAllSelected) {
+      dispatch(clearSelections("large"));
+    } else {
+      const allPaths = sortedFiles.map((file) => file.path);
+      dispatch(setSelectedItems("large", allPaths));
+    }
+  }, [isAllSelected, sortedFiles, dispatch]);
 
   const handleDelete = useCallback(async () => {
     if (selectedStats.items === 0 || clearing) {
@@ -123,8 +125,9 @@ const LargeFilesScreen: React.FC = () => {
     setClearing(true);
     try {
       // After deletion, remove from state and update files
-      setFiles((prev) => prev.filter((file) => !selectedFilePaths.has(file.path)));
-      setSelectedFilePaths(new Set());
+      const remainingFiles = files.filter((file) => !selectedFilePaths.has(file.path));
+      dispatch(setLargeFileResults(remainingFiles));
+      dispatch(clearSelections("large"));
     } finally {
       setClearing(false);
     }
@@ -156,7 +159,7 @@ const LargeFilesScreen: React.FC = () => {
         const savedResults = await loadLargeFileResults();
         setHasDatabaseResults(savedResults.length > 0);
         if (savedResults.length > 0) {
-          setFiles(savedResults);
+          dispatch(setLargeFileResults(savedResults));
         }
       } catch (error) {
         console.error("Failed to load saved large file results:", error);
@@ -164,13 +167,13 @@ const LargeFilesScreen: React.FC = () => {
       }
     };
     loadSavedResults();
-  }, []);
+  }, [dispatch]);
 
   const handleScan = useCallback(async () => {
     if (loading) {
       return;
     }
-    setLoading(true);
+    dispatch(setLoading("large", true));
     setError(null);
     setThumbnailFallbacks({});
     setScanProgress({ percent: 0, phase: "permissions", detail: "requesting access" });
@@ -182,7 +185,8 @@ const LargeFilesScreen: React.FC = () => {
           detail: snapshot.detail,
         });
       });
-      setFiles(results);
+      dispatch(setLargeFileResults(results));
+      dispatch(clearSelections("large"));
       // Save results to database
       await saveLargeFileResults(results);
       setHasDatabaseResults(results.length > 0);
@@ -192,9 +196,9 @@ const LargeFilesScreen: React.FC = () => {
     } catch (err) {
       setError(err instanceof Error ? err.message : "unable to scan files. please try again.");
     } finally {
-      setLoading(false);
+      dispatch(setLoading("large", false));
     }
-  }, [loading]);
+  }, [loading, dispatch]);
 
   const recordThumbnailError = useCallback((path: string) => {
     setThumbnailFallbacks((prev) => {
@@ -207,17 +211,12 @@ const LargeFilesScreen: React.FC = () => {
 
   // Clear selection when files change
   useEffect(() => {
-    setSelectedFilePaths((prev) => {
-      const availablePaths = new Set(sortedFiles.map((file) => file.path));
-      const next = new Set<string>();
-      prev.forEach((path) => {
-        if (availablePaths.has(path)) {
-          next.add(path);
-        }
-      });
-      return next;
-    });
-  }, [sortedFiles]);
+    const availablePaths = new Set(sortedFiles.map((file) => file.path));
+    const validSelections = selectedFilePathsArray.filter((path) => availablePaths.has(path));
+    if (validSelections.length !== selectedFilePathsArray.length) {
+      dispatch(setSelectedItems("large", validSelections));
+    }
+  }, [sortedFiles, selectedFilePathsArray, dispatch]);
 
   const renderFileItem = useCallback(
     (item: LargeFileResult) => {

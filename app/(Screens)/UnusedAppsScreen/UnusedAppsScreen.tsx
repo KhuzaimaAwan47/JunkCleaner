@@ -10,9 +10,18 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useDispatch, useSelector } from "react-redux";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
 import ScreenWrapper from "../../../components/ScreenWrapper";
+import {
+  clearSelections,
+  setLoading,
+  setSelectedItems,
+  setUnusedAppsResults,
+  toggleItemSelection as toggleItemSelectionAction,
+} from "../../../redux-code/action";
+import type { RootState } from "../../../redux-code/store";
 import { initDatabase, loadUnusedAppsResults, saveUnusedAppsResults } from "../../../utils/db";
 import { scanUnusedApps, UnusedAppInfo } from "./UnusedAppsScanner";
 
@@ -22,13 +31,19 @@ type SectionData = {
 };
 
 const UnusedAppsScreen = () => {
+  const dispatch = useDispatch();
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const [apps, setApps] = useState<UnusedAppInfo[]>([]);
-  const [loading, setLoading] = useState(false);
+  
+  // Redux state
+  const apps = useSelector((state: RootState) => state.appState.unusedAppsResults);
+  const loading = useSelector((state: RootState) => state.appState.loadingStates.unused);
+  const selectedPackageNamesArray = useSelector((state: RootState) => state.appState.selectedItems.unused);
+  const selectedPackageNames = useMemo(() => new Set(selectedPackageNamesArray), [selectedPackageNamesArray]);
+  
+  // Local UI state
   const [hasScanned, setHasScanned] = useState(false);
   const [uninstalling, setUninstalling] = useState(false);
-  const [selectedPackageNames, setSelectedPackageNames] = useState<Set<string>>(new Set());
 
   // Load saved results on mount
   useEffect(() => {
@@ -37,7 +52,7 @@ const UnusedAppsScreen = () => {
         await initDatabase();
         const savedResults = await loadUnusedAppsResults();
         if (savedResults.length > 0) {
-          setApps(savedResults);
+          dispatch(setUnusedAppsResults(savedResults));
           setHasScanned(true);
         }
       } catch (error) {
@@ -45,15 +60,15 @@ const UnusedAppsScreen = () => {
       }
     };
     loadSavedResults();
-  }, []);
+  }, [dispatch]);
 
   const scan = useCallback(async () => {
-    setLoading(true);
-    setApps([]);
-    setSelectedPackageNames(new Set());
+    dispatch(setLoading("unused", true));
+    dispatch(setUnusedAppsResults([]));
+    dispatch(clearSelections("unused"));
     try {
       const result = await scanUnusedApps();
-      setApps(result);
+      dispatch(setUnusedAppsResults(result));
       setHasScanned(true);
       // Save results to database
       await saveUnusedAppsResults(result);
@@ -62,9 +77,9 @@ const UnusedAppsScreen = () => {
       Alert.alert("Scan Failed", "Unable to scan for unused apps. Please try again.");
       setHasScanned(true);
     } finally {
-      setLoading(false);
+      dispatch(setLoading("unused", false));
     }
-  }, []);
+  }, [dispatch]);
 
   const selectedStats = useMemo(() => {
     return {
@@ -77,30 +92,17 @@ const UnusedAppsScreen = () => {
   }, [apps, selectedPackageNames]);
 
   const toggleAppSelection = useCallback((packageName: string) => {
-    setSelectedPackageNames((prev) => {
-      const next = new Set(prev);
-      if (next.has(packageName)) {
-        next.delete(packageName);
-      } else {
-        next.add(packageName);
-      }
-      return next;
-    });
-  }, []);
+    dispatch(toggleItemSelectionAction("unused", packageName));
+  }, [dispatch]);
 
   const toggleSelectAll = useCallback(() => {
-    setSelectedPackageNames((prev) => {
-      const next = new Set(prev);
-      if (isAllSelected) {
-        // Deselect all
-        apps.forEach((app) => next.delete(app.packageName));
-      } else {
-        // Select all
-        apps.forEach((app) => next.add(app.packageName));
-      }
-      return next;
-    });
-  }, [isAllSelected, apps]);
+    if (isAllSelected) {
+      dispatch(clearSelections("unused"));
+    } else {
+      const allPackageNames = apps.map((app) => app.packageName);
+      dispatch(setSelectedItems("unused", allPackageNames));
+    }
+  }, [isAllSelected, apps, dispatch]);
 
   const handleUninstall = useCallback(() => {
     const appsToUninstall = selectedStats.items > 0
@@ -125,8 +127,9 @@ const UnusedAppsScreen = () => {
               // TODO: Implement actual uninstall functionality
               // For now, just remove from list
               await new Promise((resolve) => setTimeout(resolve, 1000));
-              setApps((prev) => prev.filter((app) => !appsToUninstall.some((uninstalled) => uninstalled.packageName === app.packageName)));
-              setSelectedPackageNames(new Set());
+              const remainingApps = apps.filter((app) => !appsToUninstall.some((uninstalled) => uninstalled.packageName === app.packageName));
+              dispatch(setUnusedAppsResults(remainingApps));
+              dispatch(clearSelections("unused"));
               Alert.alert("Success", `${appsToUninstall.length} app${appsToUninstall.length > 1 ? "s" : ""} uninstalled successfully.`);
             } catch (error) {
               console.warn("Uninstall failed", error);
@@ -138,21 +141,16 @@ const UnusedAppsScreen = () => {
         },
       ]
     );
-  }, [apps, uninstalling, selectedStats.items, selectedPackageNames]);
+  }, [apps, uninstalling, selectedStats.items, selectedPackageNames, dispatch]);
 
   // Clear selection when items change
   useEffect(() => {
-    setSelectedPackageNames((prev) => {
-      const availablePackageNames = new Set(apps.map((app) => app.packageName));
-      const next = new Set<string>();
-      prev.forEach((packageName) => {
-        if (availablePackageNames.has(packageName)) {
-          next.add(packageName);
-        }
-      });
-      return next;
-    });
-  }, [apps]);
+    const availablePackageNames = new Set(apps.map((app) => app.packageName));
+    const validSelections = selectedPackageNamesArray.filter((packageName) => availablePackageNames.has(packageName));
+    if (validSelections.length !== selectedPackageNamesArray.length) {
+      dispatch(setSelectedItems("unused", validSelections));
+    }
+  }, [apps, selectedPackageNamesArray, dispatch]);
 
   const groupedData = useMemo<SectionData[]>(() => {
     const unused = apps.filter((app) => app.category === "UNUSED");

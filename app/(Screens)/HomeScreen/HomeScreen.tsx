@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import React from "react";
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import { useDispatch, useSelector } from "react-redux";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import AdPlaceholder from "../../../components/AdPlaceholder";
@@ -14,17 +15,35 @@ import ScreenWrapper from "../../../components/ScreenWrapper";
 import type { Feature } from "../../../dummydata/features";
 import { featureCards } from "../../../dummydata/features";
 import {
+  setScanProgress,
+  clearScanProgress,
+  setStorageInfo,
+  setSystemHealth,
+  setFeatureProgress,
+  setApkResults,
+  setWhatsappResults,
+  setJunkFileResults,
+  setLargeFileResults,
+  setOldFileResults,
+  setCacheLogsResults,
+  setDuplicateResults,
+  setUnusedAppsResults,
+  setLoading,
+} from "../../../redux-code/action";
+import type { RootState } from "../../../redux-code/store";
+import {
   initDatabase,
   loadAllScanResults,
   loadSmartScanStatus,
   type ScanDataSnapshot,
 } from "../../../utils/db";
-import { runSmartScan, type SmartScanProgress } from "../../../utils/smartScan";
+import { runSmartScan } from "../../../utils/smartScan";
 import { getStorageInfo } from "../../../utils/storage";
-import { calculateSystemHealth, type SystemHealthResult } from "../../../utils/systemHealth";
+import { calculateSystemHealth } from "../../../utils/systemHealth";
 
 const HomeScreen = () => {
   const router = useRouter();
+  const dispatch = useDispatch();
   const theme = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const topFeatures = featureCards.slice(0, 4);
@@ -37,13 +56,16 @@ const HomeScreen = () => {
     return rows;
   }, [remainingFeatures]);
 
-  const [, setStorageInfo] = React.useState({ total: 0, used: 0, free: 0 });
-  const [isScanning, setIsScanning] = React.useState(false);
-  const [scanProgress, setScanProgress] = React.useState<SmartScanProgress | null>(null);
+  // Redux state
+  const storageInfo = useSelector((state: RootState) => state.appState.storageInfo);
+  const scanProgress = useSelector((state: RootState) => state.appState.scanProgress);
+  const featureProgress = useSelector((state: RootState) => state.appState.featureProgress);
+  const systemHealth = useSelector((state: RootState) => state.appState.systemHealth);
+  const isScanning = useSelector((state: RootState) => state.appState.loadingStates.smartScan);
+
+  // Local UI state
   const [showFeatureCards, setShowFeatureCards] = React.useState(false);
   const [showRemainingRows, setShowRemainingRows] = React.useState(false);
-  const [featureProgress, setFeatureProgress] = React.useState<Record<string, number>>({});
-  const [systemHealth, setSystemHealth] = React.useState<SystemHealthResult | null>(null);
   const scanCancelledRef = React.useRef(false);
   const featureVisibility = useSharedValue(0);
 
@@ -130,13 +152,13 @@ const HomeScreen = () => {
     const loadStorage = async () => {
       try {
         const info = await getStorageInfo();
-        setStorageInfo(info);
+        dispatch(setStorageInfo(info));
       } catch (error) {
         console.error("Failed to load storage info:", error);
       }
     };
     loadStorage();
-  }, []);
+  }, [dispatch]);
 
   const refreshHomeState = React.useCallback(async () => {
     try {
@@ -146,32 +168,42 @@ const HomeScreen = () => {
         loadAllScanResults(),
       ]);
 
+      // Update Redux with scan results
+      dispatch(setApkResults(snapshot.apkResults));
+      dispatch(setWhatsappResults(snapshot.whatsappResults));
+      dispatch(setJunkFileResults(snapshot.junkFileResults));
+      dispatch(setLargeFileResults(snapshot.largeFileResults));
+      dispatch(setOldFileResults(snapshot.oldFileResults));
+      dispatch(setCacheLogsResults(snapshot.cacheLogsResults));
+      dispatch(setDuplicateResults(snapshot.duplicateResults));
+      dispatch(setUnusedAppsResults(snapshot.unusedAppsResults));
+
       const dataExists = hasDataInSnapshot(snapshot);
 
       const isComplete = status?.completed === true;
       const firstLaunchState = !dataExists && !isComplete;
 
       const progress = calculateProgressFromSnapshot(snapshot);
-      setFeatureProgress(progress);
+      dispatch(setFeatureProgress(progress));
 
       const showFeatures = (dataExists || isComplete) && !firstLaunchState;
       setShowFeatureCards(showFeatures);
       setShowRemainingRows(showFeatures);
 
-      const health: SystemHealthResult = dataExists || isComplete
+      const health = dataExists || isComplete
         ? calculateSystemHealth(snapshot)
         : {
             score: 0,
-            status: "fair",
+            status: "fair" as const,
             message: "not calculated yet",
             totalItems: 0,
             totalSize: 0,
           };
-      setSystemHealth(health);
+      dispatch(setSystemHealth(health));
     } catch (error) {
       console.error("Failed to check scan status:", error);
     }
-  }, [calculateProgressFromSnapshot, hasDataInSnapshot]);
+  }, [calculateProgressFromSnapshot, hasDataInSnapshot, dispatch]);
 
   React.useEffect(() => {
     refreshHomeState();
@@ -189,14 +221,14 @@ const HomeScreen = () => {
   const handleSmartScan = React.useCallback(async () => {
     if (isScanning) return;
 
-    setIsScanning(true);
-    setScanProgress(null);
+    dispatch(setLoading("smartScan", true));
+    dispatch(clearScanProgress());
     scanCancelledRef.current = false;
 
     try {
       await runSmartScan((progress) => {
         if (!scanCancelledRef.current) {
-          setScanProgress(progress);
+          dispatch(setScanProgress(progress));
         }
       });
       await refreshHomeState();
@@ -206,17 +238,17 @@ const HomeScreen = () => {
         Alert.alert("Scan Error", (error as Error).message || "An error occurred during the scan.");
       }
     } finally {
-      setIsScanning(false);
-      setScanProgress(null);
+      dispatch(setLoading("smartScan", false));
+      dispatch(clearScanProgress());
       scanCancelledRef.current = false;
     }
-  }, [isScanning, refreshHomeState]);
+  }, [isScanning, refreshHomeState, dispatch]);
 
   const handleStopScan = React.useCallback(() => {
     scanCancelledRef.current = true;
-    setIsScanning(false);
-    setScanProgress(null);
-  }, []);
+    dispatch(setLoading("smartScan", false));
+    dispatch(clearScanProgress());
+  }, [dispatch]);
 
   const handleNavigate = React.useCallback(
     (route: Feature["route"]) => {

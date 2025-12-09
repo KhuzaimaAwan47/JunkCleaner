@@ -1,5 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import {
     ActivityIndicator,
     Alert,
@@ -16,16 +17,30 @@ import DeleteButton from "../../../components/DeleteButton";
 import NeumorphicContainer from "../../../components/NeumorphicContainer";
 import ScreenWrapper from "../../../components/ScreenWrapper";
 import formatBytes from "../../../constants/formatBytes";
+import {
+  setCacheLogsResults,
+  setLoading,
+  toggleItemSelection as toggleItemSelectionAction,
+  clearSelections,
+  setSelectedItems,
+} from "../../../redux-code/action";
+import type { RootState } from "../../../redux-code/store";
 import { initDatabase, loadCacheLogsResults, saveCacheLogsResults } from "../../../utils/db";
 import { ScanResult, deleteFile, scanCachesAndLogs } from "./CacheLogsScanner";
 
 const CacheLogsScreen = () => {
+  const dispatch = useDispatch();
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const [items, setItems] = useState<ScanResult[]>([]);
-  const [loading, setLoading] = useState(false);
+  
+  // Redux state
+  const items = useSelector((state: RootState) => state.appState.cacheLogsResults);
+  const loading = useSelector((state: RootState) => state.appState.loadingStates.cache);
+  const selectedFilePathsArray = useSelector((state: RootState) => state.appState.selectedItems.cache);
+  const selectedFilePaths = useMemo(() => new Set(selectedFilePathsArray), [selectedFilePathsArray]);
+  
+  // Local UI state
   const [clearing, setClearing] = useState(false);
-  const [selectedFilePaths, setSelectedFilePaths] = useState<Set<string>>(new Set());
   const [hasDatabaseResults, setHasDatabaseResults] = useState<boolean>(false);
 
   // Load saved results on mount
@@ -36,7 +51,7 @@ const CacheLogsScreen = () => {
         const savedResults = await loadCacheLogsResults();
         setHasDatabaseResults(savedResults.length > 0);
         if (savedResults.length > 0) {
-          setItems(savedResults);
+          dispatch(setCacheLogsResults(savedResults));
         }
       } catch (error) {
         console.error("Failed to load saved cache logs results:", error);
@@ -44,26 +59,26 @@ const CacheLogsScreen = () => {
       }
     };
     loadSavedResults();
-  }, []);
+  }, [dispatch]);
 
   const refresh = useCallback(async () => {
     if (loading) {
       return;
     }
-    setLoading(true);
-    setSelectedFilePaths(new Set());
+    dispatch(setLoading("cache", true));
+    dispatch(clearSelections("cache"));
     try {
       const data = await scanCachesAndLogs();
-      setItems(data);
+      dispatch(setCacheLogsResults(data));
       // Save results to database
       await saveCacheLogsResults(data);
       setHasDatabaseResults(data.length > 0);
     } catch (error) {
       console.warn("CacheLogs scan failed", error);
     } finally {
-      setLoading(false);
+      dispatch(setLoading("cache", false));
     }
-  }, [loading]);
+  }, [loading, dispatch]);
 
   const sortedItems = useMemo(() => {
     return [...items].sort((a, b) => b.size - a.size);
@@ -89,30 +104,17 @@ const CacheLogsScreen = () => {
   }, [sortedItems, selectedFilePaths]);
 
   const toggleItemSelection = useCallback((path: string) => {
-    setSelectedFilePaths((prev) => {
-      const next = new Set(prev);
-      if (next.has(path)) {
-        next.delete(path);
-      } else {
-        next.add(path);
-      }
-      return next;
-    });
-  }, []);
+    dispatch(toggleItemSelectionAction("cache", path));
+  }, [dispatch]);
 
   const toggleSelectAll = useCallback(() => {
-    setSelectedFilePaths((prev) => {
-      const next = new Set(prev);
-      if (isAllSelected) {
-        // Deselect all
-        sortedItems.forEach((item) => next.delete(item.path));
-      } else {
-        // Select all
-        sortedItems.forEach((item) => next.add(item.path));
-      }
-      return next;
-    });
-  }, [isAllSelected, sortedItems]);
+    if (isAllSelected) {
+      dispatch(clearSelections("cache"));
+    } else {
+      const allPaths = sortedItems.map((item) => item.path);
+      dispatch(setSelectedItems("cache", allPaths));
+    }
+  }, [isAllSelected, sortedItems, dispatch]);
 
   const handleDelete = useCallback(async () => {
     if (selectedStats.items === 0 || clearing) {
@@ -133,8 +135,8 @@ const CacheLogsScreen = () => {
               await Promise.allSettled(pathsToDelete.map((path) => deleteFile(path)));
               // Remove deleted items from state
               const remainingItems = items.filter((item) => !selectedFilePaths.has(item.path));
-              setItems(remainingItems);
-              setSelectedFilePaths(new Set());
+              dispatch(setCacheLogsResults(remainingItems));
+              dispatch(clearSelections("cache"));
               // Update database
               await saveCacheLogsResults(remainingItems);
               setHasDatabaseResults(remainingItems.length > 0);
@@ -151,17 +153,12 @@ const CacheLogsScreen = () => {
 
   // Clear selection when items change
   useEffect(() => {
-    setSelectedFilePaths((prev) => {
-      const availablePaths = new Set(sortedItems.map((item) => item.path));
-      const next = new Set<string>();
-      prev.forEach((path) => {
-        if (availablePaths.has(path)) {
-          next.add(path);
-        }
-      });
-      return next;
-    });
-  }, [sortedItems]);
+    const availablePaths = new Set(sortedItems.map((item) => item.path));
+    const validSelections = selectedFilePathsArray.filter((path) => availablePaths.has(path));
+    if (validSelections.length !== selectedFilePathsArray.length) {
+      dispatch(setSelectedItems("cache", validSelections));
+    }
+  }, [sortedItems, selectedFilePathsArray, dispatch]);
 
   const resultsAvailable = sortedItems.length > 0;
 

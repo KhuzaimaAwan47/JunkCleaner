@@ -1,5 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import {
   ActivityIndicator,
   Alert,
@@ -19,6 +20,14 @@ import AppHeader from "../../../components/AppHeader";
 import DeleteButton from "../../../components/DeleteButton";
 import ScreenWrapper from "../../../components/ScreenWrapper";
 import formatBytes from "../../../constants/formatBytes";
+import {
+  setOldFileResults,
+  setLoading,
+  toggleItemSelection,
+  clearSelections,
+  setSelectedItems,
+} from "../../../redux-code/action";
+import type { RootState } from "../../../redux-code/store";
 import { initDatabase, loadOldFileResults, saveOldFileResults } from "../../../utils/db";
 import { deleteOldFiles, OldFileInfo, scanOldFiles } from "./OldFilesScanner";
 
@@ -127,10 +136,16 @@ const formatAgeDays = (days: number): string => {
 const OldFilesScreen = () => {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const [oldFiles, setOldFiles] = useState<OldFileInfo[]>([]);
-  const [loading, setLoading] = useState(false);
+  const dispatch = useDispatch();
+  
+  // Redux state
+  const oldFiles = useSelector((state: RootState) => state.appState.oldFileResults);
+  const loading = useSelector((state: RootState) => state.appState.loadingStates.old);
+  const selectedFilePathsArray = useSelector((state: RootState) => state.appState.selectedItems.old);
+  const selectedFilePaths = useMemo(() => new Set(selectedFilePathsArray), [selectedFilePathsArray]);
+  
+  // Local UI state
   const [clearing, setClearing] = useState(false);
-  const [selectedFilePaths, setSelectedFilePaths] = useState<Set<string>>(new Set());
   const [thumbnailFallbacks, setThumbnailFallbacks] = useState<Record<string, boolean>>({});
   const [filterType, setFilterType] = useState<FileCategory>('All');
 
@@ -141,28 +156,29 @@ const OldFilesScreen = () => {
         await initDatabase();
         const savedResults = await loadOldFileResults();
         if (savedResults.length > 0) {
-          setOldFiles(savedResults);
+          dispatch(setOldFileResults(savedResults));
         }
       } catch (error) {
         console.error("Failed to load saved old file results:", error);
       }
     };
     loadSavedResults();
-  }, []);
+  }, [dispatch]);
 
   const handleScan = useCallback(async () => {
-    setLoading(true);
+    dispatch(setLoading("old", true));
+    dispatch(clearSelections("old"));
     try {
       const files = await scanOldFiles(90);
-      setOldFiles(files);
+      dispatch(setOldFileResults(files));
       // Save results to database
       await saveOldFileResults(files);
     } catch (error) {
       console.warn("OldFiles scan failed", error);
     } finally {
-      setLoading(false);
+      dispatch(setLoading("old", false));
     }
-  }, []);
+  }, [dispatch]);
 
   const totalSize = useMemo(() => oldFiles.reduce((sum, file) => sum + file.size, 0), [oldFiles]);
 
@@ -211,30 +227,17 @@ const OldFilesScreen = () => {
   }, [filteredFiles, selectedFilePaths]);
 
   const toggleFileSelection = useCallback((path: string) => {
-    setSelectedFilePaths((prev) => {
-      const next = new Set(prev);
-      if (next.has(path)) {
-        next.delete(path);
-      } else {
-        next.add(path);
-      }
-      return next;
-    });
-  }, []);
+    dispatch(toggleItemSelection("old", path));
+  }, [dispatch]);
 
   const toggleSelectAll = useCallback(() => {
-    setSelectedFilePaths((prev) => {
-      const next = new Set(prev);
-      if (isAllSelected) {
-        // Deselect all filtered files
-        filteredFiles.forEach((file) => next.delete(file.path));
-      } else {
-        // Select all filtered files
-        filteredFiles.forEach((file) => next.add(file.path));
-      }
-      return next;
-    });
-  }, [isAllSelected, filteredFiles]);
+    if (isAllSelected) {
+      dispatch(clearSelections("old"));
+    } else {
+      const allPaths = filteredFiles.map((file) => file.path);
+      dispatch(setSelectedItems("old", allPaths));
+    }
+  }, [isAllSelected, filteredFiles, dispatch]);
 
   const getFileIcon = useCallback((path: string): string => {
     const lower = path.toLowerCase();
@@ -309,8 +312,8 @@ const OldFilesScreen = () => {
               await deleteOldFiles(filesToDelete);
               // Remove deleted items from state
               const remainingFiles = oldFiles.filter((file) => !selectedFilePaths.has(file.path));
-              setOldFiles(remainingFiles);
-              setSelectedFilePaths(new Set());
+              dispatch(setOldFileResults(remainingFiles));
+              dispatch(clearSelections("old"));
               // Update database
               await saveOldFileResults(remainingFiles);
             } catch (error) {
@@ -327,17 +330,12 @@ const OldFilesScreen = () => {
 
   // Clear selection when files change
   useEffect(() => {
-    setSelectedFilePaths((prev) => {
-      const availablePaths = new Set(oldFiles.map((file) => file.path));
-      const next = new Set<string>();
-      prev.forEach((path) => {
-        if (availablePaths.has(path)) {
-          next.add(path);
-        }
-      });
-      return next;
-    });
-  }, [oldFiles]);
+    const availablePaths = new Set(oldFiles.map((file) => file.path));
+    const validSelections = selectedFilePathsArray.filter((path) => availablePaths.has(path));
+    if (validSelections.length !== selectedFilePathsArray.length) {
+      dispatch(setSelectedItems("old", validSelections));
+    }
+  }, [oldFiles, selectedFilePathsArray, dispatch]);
 
   const renderFileItem = useCallback<ListRenderItem<OldFileInfo>>(({ item: file }) => {
     const filename = getFilename(file.path);

@@ -1,5 +1,6 @@
 ﻿import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
+import { useSelector } from "react-redux";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { DefaultTheme, useTheme } from "styled-components/native";
@@ -19,6 +20,7 @@ import {
   loadOldFileResults,
   loadWhatsAppResults,
 } from "../../../utils/db";
+import type { RootState } from "../../../redux-code/store";
 import { getStorageInfo } from "../../../utils/storage";
 import type { ApkFile } from "../APKRemoverScreen/APKScanner";
 import type { ScanResult } from "../CacheLogsScreen/CacheLogsScanner";
@@ -181,7 +183,18 @@ const categorizeAllFiles = (
 const StorageDashboardScreen = () => {
   const theme = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
-  const [storageInfo, setStorageInfo] = React.useState({ total: 0, used: 0, free: 0 });
+  
+  // Redux state
+  const storageInfo = useSelector((state: RootState) => state.appState.storageInfo) || { total: 0, used: 0, free: 0 };
+  const apkResults = useSelector((state: RootState) => state.appState.apkResults);
+  const whatsappResults = useSelector((state: RootState) => state.appState.whatsappResults);
+  const largeFileResults = useSelector((state: RootState) => state.appState.largeFileResults);
+  const junkFileResults = useSelector((state: RootState) => state.appState.junkFileResults);
+  const oldFileResults = useSelector((state: RootState) => state.appState.oldFileResults);
+  const cacheLogsResults = useSelector((state: RootState) => state.appState.cacheLogsResults);
+  const duplicateResults = useSelector((state: RootState) => state.appState.duplicateResults);
+  
+  // Local UI state
   const [fileCategories, setFileCategories] = React.useState<FileCategory[]>([]);
   const [loading, setLoading] = React.useState(true);
 
@@ -191,38 +204,52 @@ const StorageDashboardScreen = () => {
         setLoading(true);
         await initDatabase();
         
-        // Load storage info
-        const info = await getStorageInfo();
-        setStorageInfo(info);
+        // Use Redux state for scan results, fallback to database if empty
+        let apkData = apkResults;
+        let whatsappData = whatsappResults;
+        let largeData = largeFileResults;
+        let junkData = junkFileResults;
+        let oldData = oldFileResults;
+        let cacheData = cacheLogsResults;
+        let duplicateData = duplicateResults;
 
-        // Load all scan results
-        const [
-          apkResults,
-          whatsappResults,
-          largeFileResults,
-          junkFileResults,
-          oldFileResults,
-          cacheLogsResults,
-          duplicateGroups,
-        ] = await Promise.all([
-          loadApkScanResults(),
-          loadWhatsAppResults(),
-          loadLargeFileResults(),
-          loadJunkFileResults(),
-          loadOldFileResults(),
-          loadCacheLogsResults(),
-          loadDuplicateGroups(),
-        ]);
+        // If Redux state is empty, load from database
+        if (apkData.length === 0 && whatsappData.length === 0 && largeData.length === 0) {
+          const [
+            apkResultsDb,
+            whatsappResultsDb,
+            largeFileResultsDb,
+            junkFileResultsDb,
+            oldFileResultsDb,
+            cacheLogsResultsDb,
+            duplicateGroupsDb,
+          ] = await Promise.all([
+            loadApkScanResults(),
+            loadWhatsAppResults(),
+            loadLargeFileResults(),
+            loadJunkFileResults(),
+            loadOldFileResults(),
+            loadCacheLogsResults(),
+            loadDuplicateGroups(),
+          ]);
+          apkData = apkResultsDb;
+          whatsappData = whatsappResultsDb;
+          largeData = largeFileResultsDb;
+          junkData = junkFileResultsDb;
+          oldData = oldFileResultsDb;
+          cacheData = cacheLogsResultsDb;
+          duplicateData = duplicateGroupsDb;
+        }
 
         // Categorize files
         const categories = categorizeAllFiles(
-          apkResults,
-          whatsappResults,
-          largeFileResults,
-          junkFileResults,
-          oldFileResults,
-          cacheLogsResults,
-          duplicateGroups,
+          apkData,
+          whatsappData,
+          largeData,
+          junkData,
+          oldData,
+          cacheData,
+          duplicateData,
           theme
         );
         setFileCategories(categories);
@@ -233,7 +260,7 @@ const StorageDashboardScreen = () => {
       }
     };
     loadData();
-  }, [theme]);
+  }, [theme, apkResults, whatsappResults, largeFileResults, junkFileResults, oldFileResults, cacheLogsResults, duplicateResults]);
 
   const totalSize = fileCategories.reduce((sum, cat) => sum + cat.size, 0);
 

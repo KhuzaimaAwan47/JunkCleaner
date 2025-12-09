@@ -11,12 +11,20 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DefaultTheme, useTheme } from 'styled-components/native';
 import AppHeader from '../../../components/AppHeader';
 import DeleteButton from '../../../components/DeleteButton';
 import ScreenWrapper from '../../../components/ScreenWrapper';
 import formatBytes from '../../../constants/formatBytes';
+import {
+  setWhatsappResults,
+  setLoading,
+  toggleItemSelection,
+  clearSelections,
+} from '../../../redux-code/action';
+import type { RootState } from '../../../redux-code/store';
 import { initDatabase, loadWhatsAppResults, saveWhatsAppResults } from '../../../utils/db';
 import {
   deleteSelected,
@@ -79,11 +87,17 @@ const getFileIcon = (path: string, type: WhatsAppFileType): string => {
 };
 
 const WhatsAppRemoverScreen = () => {
+  const dispatch = useDispatch();
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const [files, setFiles] = useState<WhatsAppScanResult[]>([]);
-  const [selected, setSelected] = useState<Set<string>>(() => new Set());
-  const [isScanning, setIsScanning] = useState(false);
+  
+  // Redux state
+  const files = useSelector((state: RootState) => state.appState.whatsappResults);
+  const isScanning = useSelector((state: RootState) => state.appState.loadingStates.whatsapp);
+  const selectedArray = useSelector((state: RootState) => state.appState.selectedItems.whatsapp);
+  const selected = useMemo(() => new Set(selectedArray), [selectedArray]);
+  
+  // Local UI state
   const [error, setError] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<FilterType>('All');
   const [thumbnailFallbacks, setThumbnailFallbacks] = useState<Record<string, boolean>>({});
@@ -96,7 +110,7 @@ const WhatsAppRemoverScreen = () => {
         await initDatabase();
         const savedResults = await loadWhatsAppResults();
         if (savedResults.length > 0) {
-          setFiles(savedResults);
+          dispatch(setWhatsappResults(savedResults));
           setHasSavedResults(true);
         } else {
           setHasSavedResults(false);
@@ -107,37 +121,29 @@ const WhatsAppRemoverScreen = () => {
       }
     };
     loadSavedResults();
-  }, []);
+  }, [dispatch]);
 
   const onRescan = useCallback(async () => {
-    setIsScanning(true);
+    dispatch(setLoading("whatsapp", true));
     setError(null);
     setThumbnailFallbacks({});
     try {
       const results = await scanWhatsApp();
-      setFiles(results);
-      setSelected(new Set());
+      dispatch(setWhatsappResults(results));
+      dispatch(clearSelections("whatsapp"));
       // Save results to database
       await saveWhatsAppResults(results);
       setHasSavedResults(true);
     } catch (err) {
       setError((err as Error).message || 'scan failed');
     } finally {
-      setIsScanning(false);
+      dispatch(setLoading("whatsapp", false));
     }
-  }, []);
+  }, [dispatch]);
 
   const toggleSelect = useCallback((path: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(path)) {
-        next.delete(path);
-      } else {
-        next.add(path);
-      }
-      return next;
-    });
-  }, []);
+    dispatch(toggleItemSelection("whatsapp", path));
+  }, [dispatch]);
 
   const filteredFiles = useMemo(
     () => (filterType === 'All' ? files : files.filter((file) => file.type === filterType)),

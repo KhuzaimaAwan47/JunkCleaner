@@ -9,6 +9,7 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
+import { useDispatch, useSelector } from "react-redux";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
@@ -16,18 +17,32 @@ import DeleteButton from "../../../components/DeleteButton";
 import NeumorphicContainer from "../../../components/NeumorphicContainer";
 import ScreenWrapper from "../../../components/ScreenWrapper";
 import formatBytes from "../../../constants/formatBytes";
+import {
+  setApkResults,
+  setLoading,
+  toggleItemSelection,
+  clearSelections,
+  setSelectedItems,
+} from "../../../redux-code/action";
+import type { RootState } from "../../../redux-code/store";
 import { initDatabase, loadApkScanResults, saveApkScanResults } from "../../../utils/db";
 import { ApkFile, deleteApkFile, scanForAPKs } from "./APKScanner";
 
 const APKsRemoverScreen = () => {
+  const dispatch = useDispatch();
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const [apkFiles, setApkFiles] = useState<ApkFile[]>([]);
-  const [loading, setLoading] = useState(false);
+  
+  // Redux state
+  const apkFiles = useSelector((state: RootState) => state.appState.apkResults);
+  const loading = useSelector((state: RootState) => state.appState.loadingStates.apk);
+  const selectedFilePathsArray = useSelector((state: RootState) => state.appState.selectedItems.apk);
+  const selectedFilePaths = useMemo(() => new Set(selectedFilePathsArray), [selectedFilePathsArray]);
+  
+  // Local UI state
   const [deleting, setDeleting] = useState<Set<string>>(new Set());
   const [clearing, setClearing] = useState(false);
   const [hasScanned, setHasScanned] = useState(false);
-  const [selectedFilePaths, setSelectedFilePaths] = useState<Set<string>>(new Set());
 
   // Load saved results on mount
   useEffect(() => {
@@ -36,7 +51,7 @@ const APKsRemoverScreen = () => {
         await initDatabase();
         const savedResults = await loadApkScanResults();
         if (savedResults.length > 0) {
-          setApkFiles(savedResults);
+          dispatch(setApkResults(savedResults));
           setHasScanned(true);
         }
       } catch (error) {
@@ -44,14 +59,15 @@ const APKsRemoverScreen = () => {
       }
     };
     loadSavedResults();
-  }, []);
+  }, [dispatch]);
 
   const scan = useCallback(async () => {
-    setLoading(true);
-    setApkFiles([]);
+    dispatch(setLoading("apk", true));
+    dispatch(setApkResults([]));
+    dispatch(clearSelections("apk"));
     try {
       const result = await scanForAPKs();
-      setApkFiles(result);
+      dispatch(setApkResults(result));
       setHasScanned(true);
       // Save results to database
       await saveApkScanResults(result);
@@ -60,9 +76,9 @@ const APKsRemoverScreen = () => {
       Alert.alert("Scan Failed", "Unable to scan for APK files. Please try again.");
       setHasScanned(true);
     } finally {
-      setLoading(false);
+      dispatch(setLoading("apk", false));
     }
-  }, []);
+  }, [dispatch]);
 
   const totalSize = useMemo(() => apkFiles.reduce((sum, item) => sum + (item.size || 0), 0), [apkFiles]);
 
@@ -84,30 +100,17 @@ const APKsRemoverScreen = () => {
   }, [apkFiles, selectedFilePaths]);
 
   const toggleFileSelection = useCallback((path: string) => {
-    setSelectedFilePaths((prev) => {
-      const next = new Set(prev);
-      if (next.has(path)) {
-        next.delete(path);
-      } else {
-        next.add(path);
-      }
-      return next;
-    });
-  }, []);
+    dispatch(toggleItemSelection("apk", path));
+  }, [dispatch]);
 
   const toggleSelectAll = useCallback(() => {
-    setSelectedFilePaths((prev) => {
-      const next = new Set(prev);
-      if (isAllSelected) {
-        // Deselect all
-        apkFiles.forEach((file) => next.delete(file.path));
-      } else {
-        // Select all
-        apkFiles.forEach((file) => next.add(file.path));
-      }
-      return next;
-    });
-  }, [isAllSelected, apkFiles]);
+    if (isAllSelected) {
+      dispatch(clearSelections("apk"));
+    } else {
+      const allPaths = apkFiles.map((file) => file.path);
+      dispatch(setSelectedItems("apk", allPaths));
+    }
+  }, [isAllSelected, apkFiles, dispatch]);
 
   const handleDelete = useCallback(async () => {
     if (selectedStats.items === 0 || clearing) {
@@ -149,8 +152,9 @@ const APKsRemoverScreen = () => {
               }
 
               // Remove successfully deleted files from state
-              setApkFiles((prev) => prev.filter((item) => !pathsToDelete.includes(item.path)));
-              setSelectedFilePaths(new Set());
+              const remainingFiles = apkFiles.filter((item) => !pathsToDelete.includes(item.path));
+              dispatch(setApkResults(remainingFiles));
+              dispatch(clearSelections("apk"));
 
               if (failCount > 0) {
                 Alert.alert(
@@ -174,17 +178,12 @@ const APKsRemoverScreen = () => {
 
   // Clear selection when files change
   useEffect(() => {
-    setSelectedFilePaths((prev) => {
-      const availablePaths = new Set(apkFiles.map((file) => file.path));
-      const next = new Set<string>();
-      prev.forEach((path) => {
-        if (availablePaths.has(path)) {
-          next.add(path);
-        }
-      });
-      return next;
-    });
-  }, [apkFiles]);
+    const availablePaths = new Set(apkFiles.map((file) => file.path));
+    const validSelections = selectedFilePathsArray.filter((path) => availablePaths.has(path));
+    if (validSelections.length !== selectedFilePathsArray.length) {
+      dispatch(setSelectedItems("apk", validSelections));
+    }
+  }, [apkFiles, selectedFilePathsArray, dispatch]);
 
   const renderItem = useCallback(
     (item: ApkFile) => {
