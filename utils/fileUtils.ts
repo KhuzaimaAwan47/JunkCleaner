@@ -45,3 +45,35 @@ export function ensurePreviewUri(path: string): string | null {
   return `file://${path}`;
 }
 
+export function formatTimestamp(seconds: number): string {
+  const date = new Date(seconds * 1000);
+  return date.toLocaleDateString();
+}
+
+const PREVIEW_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"];
+const VIDEO_EXTENSIONS = [".mp4", ".mov", ".avi", ".mkv", ".webm", ".flv", ".wmv", ".m4v", ".3gp", ".mpg", ".mpeg"];
+
+export function isPreviewableAsset(path: string): boolean {
+  const lower = path.toLowerCase();
+  return PREVIEW_EXTENSIONS.some((ext) => lower.endsWith(ext));
+}
+
+export function isVideoFile(path: string): boolean {
+  const lower = path.toLowerCase();
+  return VIDEO_EXTENSIONS.some((ext) => lower.endsWith(ext));
+}
+
+export function isImageFile(path: string): boolean {
+  return isPreviewableAsset(path);
+}
+
+export function getFileTypeIcon(path: string): string {
+  if (isVideoFile(path)) {
+    return "video-outline";
+  }
+  if (isImageFile(path)) {
+    return "image-outline";
+  }
+  return "file-document-outline";
+}
+
