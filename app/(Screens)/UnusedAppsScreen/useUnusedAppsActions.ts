@@ -93,3 +93,8 @@ export const useUnusedAppsActions = (
   return { hasScanned, handleScan, handleUninstall, uninstalling };
 };
 
+// Default export to satisfy expo-router while keeping this as a non-route module
+export default function UnusedAppsActionsRoute(): null {
+  return null;
+}
+

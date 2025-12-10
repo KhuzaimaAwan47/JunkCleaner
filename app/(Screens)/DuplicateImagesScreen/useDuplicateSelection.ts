@@ -150,3 +150,8 @@ export function useDuplicateSelection(duplicates: DuplicateGroup[], duplicateFil
   };
 }
 
+// Default export to satisfy expo-router while keeping this as a non-route module
+export default function DuplicateSelectionRoute(): null {
+  return null;
+}
+

@@ -414,3 +414,8 @@ export const useScanner = () => {
 export const ScannerProvider = ({ children }: { children: ReactNode }): ReactNode => {
   return children;
 };
+
+// Default export to satisfy expo-router while keeping this as a non-route module
+export default function DuplicateImagesScannerRoute(): null {
+  return null;
+}

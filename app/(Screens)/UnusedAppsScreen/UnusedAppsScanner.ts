@@ -233,6 +233,8 @@ export const scanUnusedApps = async (): Promise<UnusedAppInfo[]> => {
   }
 };
 
-// Default export to prevent expo-router from treating this as a route
-export default null;
+// Default export to satisfy expo-router while keeping this as a non-route module
+export default function UnusedAppsScannerRoute(): null {
+  return null;
+}
 

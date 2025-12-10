@@ -84,3 +84,8 @@ export const useOldFilesActions = (
   return { hasSavedResults, handleScan, handleDelete, clearing };
 };
 
+// Default export to satisfy expo-router while keeping this as a non-route module
+export default function OldFilesActionsRoute(): null {
+  return null;
+}
+

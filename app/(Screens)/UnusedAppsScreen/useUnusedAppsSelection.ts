@@ -35,3 +35,8 @@ export const useUnusedAppsSelection = (
   return { selectedStats, isAllSelected, toggleAppSelection, toggleSelectAll };
 };
 
+// Default export to satisfy expo-router while keeping this as a non-route module
+export default function UnusedAppsSelectionRoute(): null {
+  return null;
+}
+

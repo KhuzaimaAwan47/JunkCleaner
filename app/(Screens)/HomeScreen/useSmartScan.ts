@@ -61,3 +61,8 @@ export const useSmartScan = (onScanComplete: () => Promise<void>) => {
   };
 };
 
+// Default export to satisfy expo-router while keeping this as a non-route module
+export default function SmartScanRoute(): null {
+  return null;
+}
+

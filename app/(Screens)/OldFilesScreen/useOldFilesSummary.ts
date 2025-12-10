@@ -60,3 +60,8 @@ export const useOldFilesSummary = (oldFiles: OldFileInfo[], filterType: FileCate
   return { totalSize, filteredFiles, categoryCounts, fileSummary };
 };
 
+// Default export to satisfy expo-router while keeping this as a non-route module
+export default function OldFilesSummaryRoute(): null {
+  return null;
+}
+

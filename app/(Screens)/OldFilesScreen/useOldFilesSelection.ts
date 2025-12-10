@@ -23,3 +23,8 @@ export const useOldFilesSelection = (
   return { selectedStats, isAllSelected };
 };
 
+// Default export to satisfy expo-router while keeping this as a non-route module
+export default function OldFilesSelectionRoute(): null {
+  return null;
+}
+

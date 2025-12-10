@@ -39,3 +39,8 @@ export function useScanTimer(isScanning: boolean) {
   return { elapsedTime, pulseScale };
 }
 
+// Default export to satisfy expo-router while keeping this as a non-route module
+export default function ScanTimerRoute(): null {
+  return null;
+}
+
