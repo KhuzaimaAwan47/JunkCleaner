@@ -183,18 +183,24 @@ export const scanUnusedApps = async (): Promise<UnusedAppInfo[]> => {
 
       const stat30 = usageStats30Days.get(packageName);
       const stat7 = usageStats7Days.get(packageName);
+      const hasUsageData = Boolean(stat30 || stat7);
+
+      // If we have no usage data at all, skip to avoid false positives.
+      if (!hasUsageData) {
+        continue;
+      }
 
       const lastTimeUsed = stat30?.lastTimeUsed || stat7?.lastTimeUsed || 0;
       const launchCount = stat30?.launchCount || stat7?.launchCount || 0;
       const installDate = app.firstInstallTime || app.lastUpdateTime || currentTime;
       const daysSinceInstall = Math.floor((currentTime - installDate) / (1000 * 60 * 60 * 24));
 
-      let lastUsedDays: number;
-      if (lastTimeUsed === 0) {
-        lastUsedDays = Infinity;
-      } else {
-        lastUsedDays = Math.floor((currentTime - lastTimeUsed) / (1000 * 60 * 60 * 24));
+      // If there is usage data but lastTimeUsed is zero or missing, treat as active to avoid misclassification.
+      if (!lastTimeUsed || lastTimeUsed <= 0) {
+        continue;
       }
+
+      const lastUsedDays = Math.floor((currentTime - lastTimeUsed) / (1000 * 60 * 60 * 24));
 
       const hasNotifications = false;
       const confidenceScore = calculateConfidenceScore(
@@ -204,11 +210,9 @@ export const scanUnusedApps = async (): Promise<UnusedAppInfo[]> => {
         hasNotifications,
       );
 
-      // Treat apps unused for 30+ days (or never used) as UNUSED, 7-29 days as LOW_USAGE.
+      // Treat apps unused for 30+ days as UNUSED, 7-29 days as LOW_USAGE.
       let category: 'UNUSED' | 'LOW_USAGE' | 'ACTIVE';
-      if ((lastUsedDays === Infinity && daysSinceInstall < 7)) {
-        category = 'LOW_USAGE';
-      } else if (lastUsedDays === Infinity || lastUsedDays >= 30) {
+      if (lastUsedDays >= 30) {
         category = 'UNUSED';
       } else if (lastUsedDays >= 7) {
         category = 'LOW_USAGE';
@@ -226,7 +230,7 @@ export const scanUnusedApps = async (): Promise<UnusedAppInfo[]> => {
         appName,
         icon: app.icon,
         lastUsed: lastTimeUsed,
-        lastUsedDays: lastUsedDays === Infinity ? -1 : lastUsedDays,
+        lastUsedDays,
         launchCount,
         installDate,
         confidenceScore,

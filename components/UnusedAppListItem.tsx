@@ -25,7 +25,7 @@ const UnusedAppListItem: React.FC<UnusedAppListItemProps> = ({
 
   const lastUsedText =
     item.lastUsedDays === -1
-      ? "Never used"
+      ? "No recent usage"
       : item.lastUsedDays === 0
       ? "Used today"
       : item.lastUsedDays === 1
@@ -63,9 +63,6 @@ const UnusedAppListItem: React.FC<UnusedAppListItemProps> = ({
         </Text>
         <View style={styles.metaRow}>
           <Text style={styles.metaText}>{lastUsedText}</Text>
-          <Text style={styles.confidenceScore}>
-            {item.confidenceScore}%
-          </Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -136,17 +133,12 @@ const createStyles = (theme: DefaultTheme) =>
     metaRow: {
       flexDirection: "row",
       alignItems: "center",
-      justifyContent: "space-between",
+      justifyContent: "flex-start",
       marginTop: theme.spacing.xs / 2,
     },
     metaText: {
       color: theme.colors.textMuted,
       fontSize: 13,
-    },
-    confidenceScore: {
-      color: theme.colors.accent,
-      fontSize: 13,
-      fontWeight: "600",
     },
   });
 
