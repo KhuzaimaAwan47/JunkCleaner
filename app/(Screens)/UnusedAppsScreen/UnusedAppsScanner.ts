@@ -6,6 +6,7 @@ const { UsageStatsModule } = NativeModules;
 export interface UnusedAppInfo {
   packageName: string;
   appName: string;
+  icon?: string | null;
   lastUsed: number;
   lastUsedDays: number;
   launchCount: number;
@@ -26,6 +27,7 @@ interface InstalledApp {
   appName: string;
   firstInstallTime?: number;
   lastUpdateTime?: number;
+  icon?: string;
 }
 
 const SYSTEM_PACKAGE_PREFIXES = [
@@ -151,16 +153,6 @@ const calculateConfidenceScore = (
   return Math.round(score);
 };
 
-const classifyApp = (confidenceScore: number): 'UNUSED' | 'LOW_USAGE' | 'ACTIVE' => {
-  if (confidenceScore >= 75) {
-    return 'UNUSED';
-  }
-  if (confidenceScore >= 50) {
-    return 'LOW_USAGE';
-  }
-  return 'ACTIVE';
-};
-
 export const scanUnusedApps = async (): Promise<UnusedAppInfo[]> => {
   if (Platform.OS !== 'android') {
     return [];
@@ -212,11 +204,27 @@ export const scanUnusedApps = async (): Promise<UnusedAppInfo[]> => {
         hasNotifications,
       );
 
-      const category = classifyApp(confidenceScore);
+      // Treat apps unused for 30+ days (or never used) as UNUSED, 7-29 days as LOW_USAGE.
+      let category: 'UNUSED' | 'LOW_USAGE' | 'ACTIVE';
+      if ((lastUsedDays === Infinity && daysSinceInstall < 7)) {
+        category = 'LOW_USAGE';
+      } else if (lastUsedDays === Infinity || lastUsedDays >= 30) {
+        category = 'UNUSED';
+      } else if (lastUsedDays >= 7) {
+        category = 'LOW_USAGE';
+      } else {
+        category = 'ACTIVE';
+      }
+
+      // Skip clearly active apps to avoid flooding the list.
+      if (category === 'ACTIVE') {
+        continue;
+      }
 
       results.push({
         packageName,
         appName,
+        icon: app.icon,
         lastUsed: lastTimeUsed,
         lastUsedDays: lastUsedDays === Infinity ? -1 : lastUsedDays,
         launchCount,

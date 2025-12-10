@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import type { UnusedAppInfo } from "../app/(Screens)/UnusedAppsScreen/UnusedAppsScanner";
 
@@ -18,6 +18,11 @@ const UnusedAppListItem: React.FC<UnusedAppListItemProps> = ({
   const theme = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
 
+  const iconSource = React.useMemo(
+    () => (item.icon ? { uri: `data:image/png;base64,${item.icon}` } : null),
+    [item.icon]
+  );
+
   const lastUsedText =
     item.lastUsedDays === -1
       ? "Never used"
@@ -34,11 +39,15 @@ const UnusedAppListItem: React.FC<UnusedAppListItemProps> = ({
       onPress={onPress}
     >
       <View style={styles.iconBubble}>
-        <MaterialCommunityIcons
-          name="application"
-          size={28}
-          color={theme.colors.primary}
-        />
+        {iconSource ? (
+          <Image source={iconSource} style={styles.appIcon} resizeMode="cover" />
+        ) : (
+          <MaterialCommunityIcons
+            name="application"
+            size={28}
+            color={theme.colors.primary}
+          />
+        )}
         {selected ? (
           <View style={styles.selectionBadge}>
             <MaterialCommunityIcons name="check" size={16} color={theme.colors.white} />
@@ -87,6 +96,11 @@ const createStyles = (theme: DefaultTheme) =>
       backgroundColor: `${theme.colors.primary}18`,
       marginRight: theme.spacing.md,
       position: "relative",
+    },
+    appIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 14,
     },
     selectionBadge: {
       position: "absolute",
