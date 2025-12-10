@@ -3,8 +3,8 @@ import { useRouter } from "expo-router";
 import React from "react";
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
-import { useDispatch, useSelector } from "react-redux";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useDispatch, useSelector } from "react-redux";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import AdPlaceholder from "../../../components/AdPlaceholder";
 import CircularLoadingIndicator from "../../../components/CircularLoadingIndicator";
@@ -15,20 +15,20 @@ import ScreenWrapper from "../../../components/ScreenWrapper";
 import type { Feature } from "../../../dummydata/features";
 import { featureCards } from "../../../dummydata/features";
 import {
-  setScanProgress,
   clearScanProgress,
-  setStorageInfo,
-  setSystemHealth,
-  setFeatureProgress,
   setApkResults,
-  setWhatsappResults,
-  setJunkFileResults,
-  setLargeFileResults,
-  setOldFileResults,
   setCacheLogsResults,
   setDuplicateResults,
-  setUnusedAppsResults,
+  setFeatureProgress,
+  setJunkFileResults,
+  setLargeFileResults,
   setLoading,
+  setOldFileResults,
+  setScanProgress,
+  setStorageInfo,
+  setSystemHealth,
+  setUnusedAppsResults,
+  setWhatsappResults,
 } from "../../../redux-code/action";
 import type { RootState } from "../../../redux-code/store";
 import {
@@ -65,8 +65,14 @@ const HomeScreen = () => {
   // Local UI state
   const [showFeatureCards, setShowFeatureCards] = React.useState(false);
   const [showRemainingRows, setShowRemainingRows] = React.useState(false);
+  const [localIsScanning, setLocalIsScanning] = React.useState(false);
   const scanCancelledRef = React.useRef(false);
   const featureVisibility = useSharedValue(0);
+  
+  // Sync local state with Redux state, but prioritize local for instant feedback
+  React.useEffect(() => {
+    setLocalIsScanning(isScanning);
+  }, [isScanning]);
 
   const hasDataInSnapshot = React.useCallback((snapshot: ScanDataSnapshot) => {
     return (
@@ -218,8 +224,10 @@ const HomeScreen = () => {
   }));
 
   const handleSmartScan = React.useCallback(async () => {
-    if (isScanning) return;
+    if (localIsScanning) return;
 
+    // Update local state immediately for instant button feedback
+    setLocalIsScanning(true);
     dispatch(setLoading("smartScan", true));
     dispatch(clearScanProgress());
     scanCancelledRef.current = false;
@@ -237,13 +245,16 @@ const HomeScreen = () => {
         Alert.alert("Scan Error", (error as Error).message || "An error occurred during the scan.");
       }
     } finally {
+      setLocalIsScanning(false);
       dispatch(setLoading("smartScan", false));
       dispatch(clearScanProgress());
       scanCancelledRef.current = false;
     }
-  }, [isScanning, refreshHomeState, dispatch]);
+  }, [localIsScanning, refreshHomeState, dispatch]);
 
   const handleStopScan = React.useCallback(() => {
+    // Update local state immediately for instant button feedback
+    setLocalIsScanning(false);
     scanCancelledRef.current = true;
     dispatch(setLoading("smartScan", false));
     dispatch(clearScanProgress());
@@ -262,13 +273,13 @@ const HomeScreen = () => {
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.indicatorCard}>
             <CircularLoadingIndicator
-              scanProgress={isScanning ? scanProgress : null}
-              systemHealth={!isScanning ? systemHealth : null}
+              scanProgress={localIsScanning ? scanProgress : null}
+              systemHealth={!localIsScanning ? systemHealth : null}
             />
             <ScanButton
-              onPress={isScanning ? handleStopScan : handleSmartScan}
-              label={isScanning ? "Stop Scan" : "Smart Scan"}
-              style={[styles.scanButton, isScanning && { backgroundColor: "#EF4444" }]}
+              onPress={localIsScanning ? handleStopScan : handleSmartScan}
+              label={localIsScanning ? "Stop Scan" : "Smart Scan"}
+              style={[styles.scanButton, localIsScanning && { backgroundColor: "#EF4444" }]}
               disabled={false}
             />
           </View>
