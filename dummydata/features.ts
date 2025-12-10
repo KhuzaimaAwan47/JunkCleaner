@@ -70,7 +70,7 @@ export const featureCards: Feature[] = [
   {
     id: 'unused',
     title: 'Unused Apps',
-    subtitle: 'Dormant 45d',
+    subtitle: 'Dormant 30d',
     icon: 'apps',
     route: appRoutes.unusedApps,
     accent: '#F06292',
@@ -96,7 +96,7 @@ export const featureCards: Feature[] = [
   },
   {
     id: 'storage',
-    title: 'Storage IQ',
+    title: 'Storage Dashboard',
     subtitle: 'Usage trends',
     icon: 'chart-bell-curve',
     route: appRoutes.storageDashboard,
