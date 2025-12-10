@@ -1,7 +1,8 @@
 ﻿import { LinearGradient } from "expo-linear-gradient";
 import React, { ReactNode, useMemo } from "react";
-import { Pressable, StyleProp, StyleSheet, View, ViewStyle } from "react-native";
+import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 import { DefaultTheme, useTheme } from "styled-components/native";
+import DebouncedTouchableOpacity from "./DebouncedTouchableOpacity";
 
 type Props = {
   children: ReactNode;
@@ -36,10 +37,19 @@ const NeumorphicContainer: React.FC<Props> = ({
       ? ['rgba(255,255,255,0.06)', 'rgba(255,255,255,0.01)']
       : ['rgba(255,255,255,0.95)', 'rgba(255,255,255,0.55)'];
 
+  const ContainerComponent = onPress ? DebouncedTouchableOpacity : View;
+
+  const pressableProps = onPress
+    ? {
+        onPress,
+        disabled: false,
+        activeOpacity: 0.9,
+      }
+    : {};
+
   return (
-    <Pressable
-      onPress={onPress}
-      disabled={!onPress}
+    <ContainerComponent
+      {...pressableProps}
       style={[
         styles.base,
         {
@@ -63,7 +73,7 @@ const NeumorphicContainer: React.FC<Props> = ({
       ) : (
         <View style={styles.content}>{children}</View>
       )}
-    </Pressable>
+    </ContainerComponent>
   );
 };
 

@@ -1,9 +1,10 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useMemo } from "react";
-import { Pressable, PressableProps, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import formatBytes from "../constants/formatBytes";
+import DebouncedTouchableOpacity from "./DebouncedTouchableOpacity";
 
 type Props = {
   title: string;
@@ -44,7 +45,7 @@ const AppHeader: React.FC<Props> = ({
   return (
     <View style={styles.container}>
       <View style={styles.titleRow}>
-        <Pressable
+        <DebouncedTouchableOpacity
           style={[styles.iconButton, { opacity: isInteractive ? 1 : 0.4 }]}
           onPress={pressHandler}
           disabled={!isInteractive}
@@ -52,13 +53,14 @@ const AppHeader: React.FC<Props> = ({
           accessibilityRole="button"
           accessibilityLabel="navigate back"
           accessibilityState={{ disabled: !isInteractive }}
+          activeOpacity={0.85}
         >
           <MaterialCommunityIcons
             name={rightIcon as any}
             size={28}
             color={theme.mode === "dark" ? theme.colors.text : theme.colors.primary}
           />
-        </Pressable>
+        </DebouncedTouchableOpacity>
 
         <View style={styles.titleContent}>
           <Text style={styles.heading}>{title}</Text>

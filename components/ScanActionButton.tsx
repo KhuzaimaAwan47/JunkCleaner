@@ -1,6 +1,7 @@
 import React from "react";
-import { StyleSheet, Text, TouchableOpacity, ViewStyle, TextStyle, View } from "react-native";
+import { StyleSheet, Text, ViewStyle, TextStyle, View } from "react-native";
 import { DefaultTheme, useTheme } from "styled-components/native";
+import DebouncedTouchableOpacity from "./DebouncedTouchableOpacity";
 
 type Variant = "primary" | "outline";
 
@@ -33,7 +34,7 @@ const ScanActionButton: React.FC<Props> = ({
   const isPrimary = variant === "primary";
 
   return (
-    <TouchableOpacity
+    <DebouncedTouchableOpacity
       accessibilityRole="button"
       activeOpacity={0.85}
       onPress={onPress}
@@ -49,7 +50,7 @@ const ScanActionButton: React.FC<Props> = ({
       {leadingIcon ? <View style={styles.icon}>{leadingIcon}</View> : null}
       <Text style={[styles.label, !isPrimary && styles.outlineLabel, textStyle]}>{label}</Text>
       {trailing ? <View style={styles.trailing}>{trailing}</View> : null}
-    </TouchableOpacity>
+    </DebouncedTouchableOpacity>
   );
 };
 

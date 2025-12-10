@@ -1,17 +1,15 @@
 ﻿import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
-import {
-  Pressable,
-  PressableProps,
-  PressableStateCallbackType,
-  StyleProp,
-  Text,
-  ViewStyle,
-} from "react-native";
+import { StyleProp, Text, ViewStyle } from "react-native";
 import { useTheme } from "styled-components/native";
+import DebouncedTouchableOpacity from "./DebouncedTouchableOpacity";
 
-type Props = PressableProps & {
+type Props = {
   label?: string;
+  style?: StyleProp<ViewStyle>;
+  onPress?: () => void;
+  disabled?: boolean;
+  accessibilityRole?: string;
 };
 
 const staticButtonStyle: ViewStyle = {
@@ -28,43 +26,38 @@ const staticLabelStyle = (theme: ReturnType<typeof useTheme>) => ({
   marginLeft: 10,
 });
 
-const resolveStyle = (
-  style: Props["style"],
-  state: PressableStateCallbackType,
-): StyleProp<ViewStyle> => {
-  if (typeof style === "function") {
-    return style(state);
-  }
-
-  return style;
-};
-
 const ScanButton: React.FC<Props> = ({
   label = "Clean Now",
   style,
+  onPress,
+  disabled,
+  accessibilityRole = "button",
   ...rest
 }) => {
   const theme = useTheme();
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      {...rest}
-      style={(state) => [
+    <DebouncedTouchableOpacity
+      accessibilityRole={accessibilityRole}
+      activeOpacity={0.9}
+      onPress={onPress}
+      disabled={disabled}
+      style={[
         staticButtonStyle,
         {
           padding: theme.spacing.lg,
           backgroundColor: theme.colors.primary,
           marginTop: theme.spacing.md,
           marginBottom: theme.spacing.md,
-          opacity: state.pressed ? 0.9 : 1,
+          opacity: disabled ? 0.65 : 1,
         },
-        resolveStyle(style, state),
+        style,
       ]}
+      {...rest}
     >
       <MaterialCommunityIcons name="lightning-bolt" size={24} color={theme.colors.white} />
       <Text style={staticLabelStyle(theme)}>{label}</Text>
-    </Pressable>
+    </DebouncedTouchableOpacity>
   );
 };
 

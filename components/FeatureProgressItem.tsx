@@ -1,9 +1,10 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import type { Feature } from "../dummydata/features";
+import DebouncedTouchableOpacity from "./DebouncedTouchableOpacity";
 
 type Props = {
   feature: Feature;
@@ -25,7 +26,7 @@ const FeatureProgressItem = React.memo<Props>(({ feature, progress, onPress }) =
   }));
 
   return (
-    <TouchableOpacity
+    <DebouncedTouchableOpacity
       accessibilityRole="button"
       accessibilityLabel={`open ${feature.title}`}
       activeOpacity={0.8}
@@ -52,7 +53,7 @@ const FeatureProgressItem = React.memo<Props>(({ feature, progress, onPress }) =
           </View>
         )}
       </View>
-    </TouchableOpacity>
+    </DebouncedTouchableOpacity>
   );
 });
 
