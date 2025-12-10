@@ -10,6 +10,16 @@ import ResultStatCard from "./ResultStatCard";
 import ScanButton from "./ScanButton";
 import ScreenWrapper from "./ScreenWrapper";
 
+type SupportStat = {
+  label: string;
+  value: string;
+};
+
+type FeatureItem = {
+  label: string;
+  status?: string;
+};
+
 type Props = {
   title: string;
   subtitle: string;
@@ -17,6 +27,8 @@ type Props = {
   statLabel: string;
   statValue: string;
   summaryLines?: string[];
+  supportStats?: SupportStat[];
+  featureItems?: FeatureItem[];
   onScan?: () => void;
 };
 
@@ -27,6 +39,8 @@ const FeatureScreenTemplate: React.FC<Props> = ({
   statLabel,
   statValue,
   summaryLines = ["Quick scan ready", "Safe to clean"],
+  supportStats,
+  featureItems,
   onScan,
 }) => {
   const theme = useTheme();
@@ -49,14 +63,58 @@ const FeatureScreenTemplate: React.FC<Props> = ({
             </View>
           </NeumorphicContainer>
         </View>
-        <View style={styles.placeholderList}>
-          {[0, 1, 2].map((index) => (
-            <NeumorphicContainer key={index} padding={18} glass style={styles.placeholderRow}>
-              <Text style={styles.appText}>List placeholder {index + 1}</Text>
-            </NeumorphicContainer>
-          ))}
-        </View>
+        {featureItems && featureItems.length > 0 ? (
+          <View style={styles.featureList}>
+            {featureItems.map((item) => (
+              <NeumorphicContainer
+                key={item.label}
+                padding={18}
+                glass
+                style={styles.featureRow}
+              >
+                <View style={styles.featureRowInner}>
+                  <Text style={styles.appText}>{item.label}</Text>
+                  {item.status ? (
+                    <Text style={[styles.statusBadge, { color: accent }]}>
+                      {item.status}
+                    </Text>
+                  ) : null}
+                </View>
+              </NeumorphicContainer>
+            ))}
+          </View>
+        ) : (
+          <View style={styles.placeholderList}>
+            {[0, 1, 2].map((index) => (
+              <NeumorphicContainer
+                key={index}
+                padding={18}
+                glass
+                style={styles.placeholderRow}
+              >
+                <Text style={styles.appText}>List placeholder {index + 1}</Text>
+              </NeumorphicContainer>
+            ))}
+          </View>
+        )}
         <ResultStatCard label={statLabel} value={statValue} accent={accent} />
+        {supportStats && supportStats.length > 0 ? (
+          <View style={styles.supportStatsRow}>
+            {supportStats.map((item) => (
+              <NeumorphicContainer
+                key={item.label}
+                padding={16}
+                glass
+                style={styles.supportStatCard}
+              >
+                <Text style={styles.supportStatLabel}>{item.label}</Text>
+                <Text style={[styles.supportStatValue, { color: accent }]}>
+                  {item.value}
+                </Text>
+              </NeumorphicContainer>
+            ))}
+          </View>
+        ) : null}
         {summaryLines.map((line) => (
           <Text key={line} style={styles.summaryText}>
             {line}
@@ -90,6 +148,22 @@ const createStyles = (theme: DefaultTheme) =>
       backgroundColor: `${theme.colors.surfaceAlt}66`,
       overflow: "hidden",
     },
+    featureList: {
+      marginTop: theme.spacing.lg,
+      gap: theme.spacing.sm,
+    },
+    featureRow: {
+      marginBottom: theme.spacing.sm,
+    },
+    featureRowInner: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    statusBadge: {
+      fontSize: 13,
+      fontWeight: "600",
+    },
     placeholderList: {
       marginTop: theme.spacing.lg,
     },
@@ -103,5 +177,22 @@ const createStyles = (theme: DefaultTheme) =>
       color: theme.colors.textMuted,
       marginTop: theme.spacing.md,
       marginBottom: theme.spacing.md,
+    },
+    supportStatsRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      gap: theme.spacing.sm,
+      marginTop: theme.spacing.sm,
+    },
+    supportStatCard: {
+      flex: 1,
+    },
+    supportStatLabel: {
+      color: theme.colors.textMuted,
+      marginBottom: theme.spacing.xs,
+    },
+    supportStatValue: {
+      fontSize: 18,
+      fontWeight: "700",
     },
   });
