@@ -21,7 +21,6 @@ import {
   loadWhatsAppResults,
 } from "../../../utils/db";
 import type { RootState } from "../../../redux-code/store";
-import { getStorageInfo } from "../../../utils/storage";
 import type { ApkFile } from "../APKRemoverScreen/APKScanner";
 import type { ScanResult } from "../CacheLogsScreen/CacheLogsScanner";
 import type { DuplicateGroup } from "../DuplicateImagesScreen/DuplicateImageScanner";
@@ -196,7 +195,7 @@ const StorageDashboardScreen = () => {
   
   // Local UI state
   const [fileCategories, setFileCategories] = React.useState<FileCategory[]>([]);
-  const [loading, setLoading] = React.useState(true);
+  const [, setLoading] = React.useState(true);
 
   React.useEffect(() => {
     const loadData = async () => {
@@ -268,7 +267,7 @@ const StorageDashboardScreen = () => {
     <ScreenWrapper style={styles.screen}>
       <SafeAreaView style={{ flex: 1 }} edges={['bottom', 'left', 'right']}>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <AppHeader title="Storage IQ" subtitle="visual dashboard" />
+          <AppHeader title="Storage Dashboard" subtitle="visual dashboard" />
           
           {/* Circular Storage Indicator */}
           <View style={styles.indicatorSection}>

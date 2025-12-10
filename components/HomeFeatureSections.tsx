@@ -1,6 +1,6 @@
 import React from "react";
-import { StyleSheet, View } from "react-native";
-import Animated, { useAnimatedStyle } from "react-native-reanimated";
+import { StyleSheet, View, type ViewStyle } from "react-native";
+import Animated from "react-native-reanimated";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import type { Feature } from "../dummydata/features";
 import FeatureCard from "./FeatureCard";
@@ -11,7 +11,7 @@ type Props = {
   topFeatures: Feature[];
   remainingRows: Feature[][];
   featureProgress: Record<string, number>;
-  featureRevealStyle: ReturnType<typeof useAnimatedStyle>;
+  featureRevealStyle: ViewStyle;
   onNavigate: (route: Feature["route"]) => void;
 };
 
