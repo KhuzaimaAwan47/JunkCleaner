@@ -75,11 +75,16 @@ export async function runSmartScan(
   };
 
   const updateProgress = (current: number, scannerName: string, scannerProgress?: number, scannerDetail?: string) => {
+    // Ensure scannerProgress is always between 0-1 for smooth calculation
+    const normalizedScannerProgress = scannerProgress !== undefined 
+      ? Math.max(0, Math.min(1, scannerProgress))
+      : undefined;
+    
     onProgress?.({
       current,
       total: SCANNER_NAMES.length,
       scannerName,
-      scannerProgress,
+      scannerProgress: normalizedScannerProgress,
       scannerDetail,
     });
   };

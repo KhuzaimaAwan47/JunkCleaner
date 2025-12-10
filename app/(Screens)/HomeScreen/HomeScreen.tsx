@@ -57,7 +57,6 @@ const HomeScreen = () => {
   }, [remainingFeatures]);
 
   // Redux state
-  const storageInfo = useSelector((state: RootState) => state.appState.storageInfo);
   const scanProgress = useSelector((state: RootState) => state.appState.scanProgress);
   const featureProgress = useSelector((state: RootState) => state.appState.featureProgress);
   const systemHealth = useSelector((state: RootState) => state.appState.systemHealth);

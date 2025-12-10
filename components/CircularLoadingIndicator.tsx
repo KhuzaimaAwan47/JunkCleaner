@@ -1,9 +1,12 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Defs, Stop, LinearGradient as SvgGradient } from "react-native-svg";
+import Animated, { useSharedValue, useAnimatedProps, withTiming } from "react-native-reanimated";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import type { SmartScanProgress } from "../utils/smartScan";
 import type { SystemHealthResult } from "../utils/systemHealth";
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 type Props = {
   scanProgress?: SmartScanProgress | null;
@@ -20,12 +23,55 @@ const CircularLoadingIndicator: React.FC<Props> = ({ scanProgress, systemHealth,
   const gradientId = React.useMemo(() => `loadingGradient-${Math.random().toString(36).slice(2, 9)}`, []);
   const trackColor = `${theme.colors.surfaceAlt}55`;
 
+  // Animated progress value with monotonic tracking
+  const animatedProgress = useSharedValue(0);
+  const maxProgressRef = React.useRef(0);
+  const previousScanningRef = React.useRef(false);
+
   // Calculate progress based on scan or system health
-  const progress = scanProgress
-    ? Math.min(1, (scanProgress.current + (scanProgress.scannerProgress || 0)) / scanProgress.total)
-    : systemHealth
-    ? systemHealth.score / 100
-    : 0;
+  const calculateProgress = React.useCallback(() => {
+    if (scanProgress) {
+      // Calculate progress: (completedScanners + currentScannerProgress) / totalScanners
+      const completedScanners = scanProgress.current;
+      const currentScannerProgress = Math.max(0, Math.min(1, scanProgress.scannerProgress || 0));
+      return Math.min(1, (completedScanners + currentScannerProgress) / scanProgress.total);
+    } else if (systemHealth) {
+      return systemHealth.score / 100;
+    }
+    return 0;
+  }, [scanProgress, systemHealth]);
+
+  // Update animated progress with monotonic guarantee
+  React.useEffect(() => {
+    const isScanning = scanProgress !== null;
+    const wasScanning = previousScanningRef.current;
+    
+    // Reset when a new scan starts (transition from not scanning to scanning)
+    if (isScanning && !wasScanning) {
+      maxProgressRef.current = 0;
+      animatedProgress.value = 0;
+    }
+    
+    previousScanningRef.current = isScanning;
+    
+    const newProgress = calculateProgress();
+    
+    if (isScanning) {
+      // During scanning: ensure progress never decreases (monotonic)
+      const targetProgress = Math.max(maxProgressRef.current, newProgress);
+      maxProgressRef.current = targetProgress;
+      
+      // Animate to new progress value smoothly
+      animatedProgress.value = withTiming(targetProgress, {
+        duration: 400, // Smooth animation duration
+      });
+    } else {
+      // When not scanning (showing system health): use calculated progress directly
+      animatedProgress.value = withTiming(newProgress, {
+        duration: 400,
+      });
+    }
+  }, [scanProgress, systemHealth, calculateProgress, animatedProgress]);
 
   // Get health status color
   const getHealthColor = (status?: SystemHealthResult['status']): string => {
@@ -49,6 +95,15 @@ const CircularLoadingIndicator: React.FC<Props> = ({ scanProgress, systemHealth,
     ? getHealthColor(systemHealth.status)
     : `url(#${gradientId})`;
 
+  // Animated props for the progress circle
+  const animatedCircleProps = useAnimatedProps(() => {
+    const progressValue = animatedProgress.value;
+    return {
+      strokeDashoffset: circumference - progressValue * circumference,
+    };
+  });
+
+
   return (
     <View style={[styles.wrapper, { width: size, height: size }]}>
       <Svg width={size} height={size}>
@@ -66,7 +121,7 @@ const CircularLoadingIndicator: React.FC<Props> = ({ scanProgress, systemHealth,
           r={radius}
           strokeWidth={strokeWidth}
         />
-        <Circle
+        <AnimatedCircle
           stroke={strokeColor}
           fill="none"
           cx={size / 2}
@@ -74,8 +129,8 @@ const CircularLoadingIndicator: React.FC<Props> = ({ scanProgress, systemHealth,
           r={radius}
           strokeWidth={strokeWidth}
           strokeDasharray={`${circumference} ${circumference}`}
-          strokeDashoffset={circumference - progress * circumference}
           strokeLinecap="round"
+          animatedProps={animatedCircleProps}
         />
       </Svg>
       <View style={[styles.inner, { width: size - 80, height: size - 80 }]}>
