@@ -4,7 +4,14 @@ import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import type { LargeFileResult } from "../app/(Screens)/LargeFilesScreen/LargeFileScanner";
 import formatBytes from "../constants/formatBytes";
-import { formatTimestamp, getFileTypeIcon, isImageFile, isPreviewableAsset, isVideoFile } from "../utils/fileUtils";
+import {
+  ensurePreviewUri,
+  formatTimestamp,
+  getFileTypeIcon,
+  isImageFile,
+  isPreviewableMedia,
+  isVideoFile,
+} from "../utils/fileUtils";
 import NeumorphicContainer from "./NeumorphicContainer";
 
 type LargeFileListItemProps = {
@@ -23,10 +30,16 @@ const LargeFileListItem: React.FC<LargeFileListItemProps> = ({
   const [thumbnailError, setThumbnailError] = useState(false);
 
   const filename = item.path.split("/").pop() || item.path;
-  const previewable = isPreviewableAsset(item.path) && !thumbnailError;
-  const fileIcon = getFileTypeIcon(item.path);
   const isVideo = isVideoFile(item.path);
   const isImage = isImageFile(item.path);
+  const previewable = isPreviewableMedia(item.path) && !thumbnailError;
+  const showThumbnail = previewable && (isImage || isVideo);
+  const imageUri = showThumbnail ? ensurePreviewUri(item.path) : undefined;
+  const fileIcon = getFileTypeIcon(item.path);
+
+  const handleThumbnailError = () => {
+    setThumbnailError(true);
+  };
 
   return (
     <TouchableOpacity
@@ -40,12 +53,12 @@ const LargeFileListItem: React.FC<LargeFileListItemProps> = ({
       >
         <View style={styles.itemInner}>
           <View style={styles.thumbnailWrapper}>
-            {previewable ? (
+            {showThumbnail && imageUri ? (
               <Image
-                source={{ uri: item.path }}
+                source={{ uri: imageUri }}
                 resizeMode="cover"
                 style={styles.thumbnailImage}
-                onError={() => setThumbnailError(true)}
+                onError={handleThumbnailError}
               />
             ) : (
               <View style={styles.thumbnailFallback}>
@@ -60,15 +73,6 @@ const LargeFileListItem: React.FC<LargeFileListItemProps> = ({
               <View style={styles.selectionBadge}>
                 <MaterialCommunityIcons
                   name="check"
-                  size={16}
-                  color={theme.colors.white}
-                />
-              </View>
-            )}
-            {isVideo && !selected && (
-              <View style={styles.fileTypeBadge}>
-                <MaterialCommunityIcons
-                  name="play-circle"
                   size={16}
                   color={theme.colors.white}
                 />
