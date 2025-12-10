@@ -18,7 +18,7 @@ const SplashScreen = () => {
 
   return (
     <ScreenWrapper style={styles.screen}>
-      <SafeAreaView style={{ flex: 1 }}>
+      <SafeAreaView style={styles.content}>
         <MotiView
           from={{ scale: 0.8, opacity: 0.3 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -41,9 +41,12 @@ const createStyles = (theme: DefaultTheme) =>
   StyleSheet.create({
     screen: {
       flex: 1,
+      padding: theme.spacing.lg,
+    },
+    content: {
+      flex: 1,
       alignItems: "center",
       justifyContent: "center",
-      padding: theme.spacing.lg,
     },
     iconRing: {
       width: 180,
