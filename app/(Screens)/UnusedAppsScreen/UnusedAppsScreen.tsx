@@ -119,7 +119,7 @@ const UnusedAppsScreen = () => {
           visible={!uninstallDisabled && hasApps}
         />
       </SafeAreaView>
-    <LoadingOverlay visible={loading} label="Scanningnused Apps ..." />
+    <LoadingOverlay visible={loading} label="Scanning Uused Apps ..." />
     </ScreenWrapper>
   );
 };
