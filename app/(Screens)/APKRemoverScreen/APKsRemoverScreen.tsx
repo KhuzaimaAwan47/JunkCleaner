@@ -8,7 +8,6 @@ import EmptyState from "../../../components/EmptyState";
 import FileListItem from "../../../components/FileListItem";
 import LoadingOverlay from "../../../components/LoadingOverlay";
 import ScanActionButton from "../../../components/ScanActionButton";
-import ScanProgressCard from "../../../components/ScanProgressCard";
 import ScreenWrapper from "../../../components/ScreenWrapper";
 import SelectionBar from "../../../components/SelectionBar";
 import formatBytes from "../../../constants/formatBytes";
@@ -224,19 +223,7 @@ const APKsRemoverScreen = () => {
           ]} 
           showsVerticalScrollIndicator={false}
         >
-          {!loading && !resultsAvailable && (
-            <View style={[styles.sectionSpacing]}>
-              <ScanActionButton label="start scan" onPress={scan} fullWidth />
-            </View>
-          )}
-
-          {loading && (
-            <ScanProgressCard
-              title="Scanning for APK files..."
-              subtitle="checking common installation directories"
-              style={styles.sectionSpacing}
-            />
-          )}
+         
 
           {!loading && resultsAvailable && (
             <>
@@ -252,7 +239,7 @@ const APKsRemoverScreen = () => {
             </>
           )}
 
-          {!loading && hasScanned && apkFiles.length === 0 && (
+          {!loading && !resultsAvailable && (
             <EmptyState
               icon="package-variant-closed"
               title="No APK files found"
