@@ -12,7 +12,9 @@ export interface SystemHealthResult {
   status: 'excellent' | 'good' | 'fair' | 'poor';
   message: string;
   totalItems: number;
-  totalSize: number; // in bytes
+  totalSize: number; // in bytes (junk + cache/logs)
+  storageUsage?: number; // 0-1 ratio
+  memoryUsage?: number; // 0-1 ratio
 }
 
 export interface ScannerResults {
@@ -26,12 +28,23 @@ export interface ScannerResults {
   unusedAppsResults?: UnusedAppInfo[] | null;
 }
 
+export interface SystemResourceInfo {
+  storageUsage?: number; // ratio 0-1
+  memoryUsage?: number; // ratio 0-1
+}
+
+const clamp = (value: number, min = 0, max = 1) => Math.min(max, Math.max(min, value));
+
 /**
- * Calculate system health based on all scanner results
+ * Calculate system health based on junk/cache findings plus resource usage.
  * @param results Scanner results from all scanners
+ * @param resources Optional real-time resource usage (storage + memory) as ratios
  * @returns System health score, status, and message
  */
-export function calculateSystemHealth(results: ScannerResults): SystemHealthResult {
+export function calculateSystemHealth(
+  results: ScannerResults,
+  resources: SystemResourceInfo = {}
+): SystemHealthResult {
   // Handle nullable conditions - default to empty arrays
   const junkFileResults = results.junkFileResults ?? [];
   const cacheLogsResults = results.cacheLogsResults ?? [];
@@ -57,14 +70,27 @@ export function calculateSystemHealth(results: ScannerResults): SystemHealthResu
   // ).length;
   // totalItems += unusedAppsCount;
 
+  // Resource usage ratios (0-1). Defaults assume healthy mid-range usage.
+  const storageUsage = clamp(resources.storageUsage ?? 0.5);
+  const memoryUsage = clamp(resources.memoryUsage ?? 0.5);
+
   // Calculate health score (0-100)
-  // Lower items and size = higher score
-  // Very lenient thresholds for realistic scoring:
-  // - Item count (max 10000 items = 0 points, 0 items = 50 points)
-  // - Total size (max 100GB = 0 points, 0 bytes = 50 points)
-  const itemScore = Math.max(0, 50 - (totalItems / 10000) * 50);
-  const sizeScore = Math.max(0, 50 - (totalSize / (100 * 1024 * 1024 * 1024)) * 50);
-  const score = Math.round(itemScore + sizeScore);
+  // Weighted components:
+  // - Junk/cache size impact (max 45 points lost at ~10GB)
+  // - Junk/cache item count impact (max 20 points lost at ~2000 items)
+  // - Storage usage impact (max 25 points lost as storage approaches 100% full)
+  // - Memory usage impact (max 10 points lost as memory approaches 100% used)
+  const junkSizeGb = totalSize / (1024 * 1024 * 1024);
+  const junkSizePenalty = clamp(junkSizeGb / 10); // 10GB => full penalty
+  const junkSizeScore = 45 * (1 - junkSizePenalty);
+
+  const itemPenalty = clamp(totalItems / 2000); // 2000 items => full penalty
+  const itemScore = 20 * (1 - itemPenalty);
+
+  const storageScore = 25 * (1 - storageUsage);
+  const memoryScore = 10 * (1 - memoryUsage);
+
+  const score = Math.round(junkSizeScore + itemScore + storageScore + memoryScore);
 
   // Determine status and message with more lenient thresholds
   let status: 'excellent' | 'good' | 'fair' | 'poor';
@@ -72,16 +98,35 @@ export function calculateSystemHealth(results: ScannerResults): SystemHealthResu
 
   if (score >= 75) {
     status = 'excellent';
-    message = 'Excellent Condition';
+    message = 'Excellent condition';
   } else if (score >= 50) {
     status = 'good';
-    message = 'Good Condition';
+    message = 'Good condition';
   } else if (score >= 30) {
     status = 'fair';
-    message = 'Needs Attention';
+    message = 'Needs attention';
   } else {
     status = 'poor';
-    message = 'Needs Cleanup';
+    message = 'Needs cleanup';
+  }
+
+  // Tailor message based on top issues
+  const issues: string[] = [];
+  if (storageUsage >= 0.85) {
+    issues.push('Low storage');
+  } else if (storageUsage >= 0.7) {
+    issues.push('High storage use');
+  }
+  if (memoryUsage >= 0.85) {
+    issues.push('High memory use');
+  }
+  if (junkSizeGb >= 5) {
+    issues.push('Large junk/cache');
+  } else if (totalItems >= 1000) {
+    issues.push('Lots of junk items');
+  }
+  if (issues.length > 0) {
+    message = issues.join(' • ');
   }
 
   return {
@@ -90,6 +135,8 @@ export function calculateSystemHealth(results: ScannerResults): SystemHealthResu
     message,
     totalItems,
     totalSize,
+    storageUsage,
+    memoryUsage,
   };
 }
 

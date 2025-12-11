@@ -34,6 +34,7 @@ import {
 import { calculateProgressFromSnapshot, hasDataInSnapshot } from "../../../utils/homeScreenHelpers";
 import { getStorageInfo } from "../../../utils/storage";
 import { calculateSystemHealth } from "../../../utils/systemHealth";
+import { getMemoryInfo } from "../../../utils/memory";
 import { useSmartScan } from "./useSmartScan";
 
 const HomeScreen = () => {
@@ -53,9 +54,11 @@ const HomeScreen = () => {
   const refreshHomeState = React.useCallback(async () => {
     try {
       await initDatabase();
-      const [status, snapshot] = await Promise.all([
+      const [status, snapshot, storage, memory] = await Promise.all([
         loadSmartScanStatus(),
         loadAllScanResults(),
+        getStorageInfo(),
+        getMemoryInfo(),
       ]);
 
       dispatch(setApkResults(snapshot.apkResults));
@@ -71,10 +74,23 @@ const HomeScreen = () => {
       const isComplete = status?.completed === true;
       setShowFeatures(dataExists || isComplete);
       dispatch(setFeatureProgress(calculateProgressFromSnapshot(snapshot)));
+      dispatch(setStorageInfo(storage));
+
+      const storageUsage = storage.total > 0 ? storage.used / storage.total : undefined;
+      const memoryUsage = memory?.usage;
+
       dispatch(setSystemHealth(
         dataExists || isComplete
-          ? calculateSystemHealth(snapshot)
-          : { score: 0, status: "fair" as const, message: "not calculated yet", totalItems: 0, totalSize: 0 }
+          ? calculateSystemHealth(snapshot, { storageUsage, memoryUsage })
+          : {
+              score: 0,
+              status: "fair" as const,
+              message: "not calculated yet",
+              totalItems: 0,
+              totalSize: 0,
+              storageUsage,
+              memoryUsage,
+            }
       ));
     } catch (error) {
       console.error("Failed to check scan status:", error);
@@ -86,14 +102,6 @@ const HomeScreen = () => {
 
   React.useEffect(() => {
     refreshHomeState();
-    const loadStorage = async () => {
-      try {
-        dispatch(setStorageInfo(await getStorageInfo()));
-      } catch (error) {
-        console.error("Failed to load storage info:", error);
-      }
-    };
-    loadStorage();
   }, [refreshHomeState, isScanning, dispatch]);
 
   React.useEffect(() => {
