@@ -64,44 +64,45 @@ export default FeatureProgressItem;
 const createStyles = (theme: DefaultTheme) =>
   StyleSheet.create({
     remainingGridItem: {
-      width: "30%",
+      width: "100%",
+      flexDirection: "row",
       alignItems: "center",
-      paddingVertical: theme.spacing.xs,
+      gap: theme.spacing.sm,
     },
     remainingIcon: {
-      width: 40,
-      height: 40,
-      borderRadius: 14,
+      width: 44,
+      height: 44,
+      borderRadius: theme.radii.md,
       alignItems: "center",
       justifyContent: "center",
     },
     remainingTextWrap: {
-      alignItems: "center",
-      marginTop: theme.spacing.xs / 2,
+      flex: 1,
+      alignItems: "flex-start",
     },
     remainingTitle: {
       color: theme.colors.text,
-      fontSize: theme.fontSize.sm,
+      fontSize: theme.fontSize.md,
       fontWeight: theme.fontWeight.semibold,
     },
     remainingSubtitle: {
       color: theme.colors.textMuted,
-      fontSize: theme.fontSize.xs,
+      fontSize: theme.fontSize.sm,
       marginTop: 2,
     },
     progressBarContainer: {
-      marginTop: theme.spacing.xs / 2,
+      marginTop: theme.spacing.xs,
       width: "100%",
     },
     progressBarTrack: {
       width: "100%",
-      height: 3,
-      borderRadius: 2,
+      height: 4,
+      borderRadius: 4,
       overflow: "hidden",
     },
     progressBarFill: {
       height: "100%",
-      borderRadius: 2,
+      borderRadius: 4,
     },
   });
 

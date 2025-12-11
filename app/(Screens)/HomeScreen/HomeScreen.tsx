@@ -11,6 +11,7 @@ import ScanButton from "../../../components/ScanButton";
 import ScreenWrapper from "../../../components/ScreenWrapper";
 import type { Feature } from "../../../dummydata/features";
 import { featureCards } from "../../../dummydata/features";
+import { appRoutes } from "../../../routes";
 import {
   setApkResults,
   setCacheLogsResults,
@@ -41,15 +42,7 @@ const HomeScreen = () => {
   const theme = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   
-  const topFeatures = featureCards.slice(0, 4);
-  const remainingRows = React.useMemo(() => {
-    const remaining = featureCards.slice(4);
-    const rows: Feature[][] = [];
-    for (let i = 0; i < remaining.length; i += 3) {
-      rows.push(remaining.slice(i, i + 3));
-    }
-    return rows;
-  }, []);
+  const features = React.useMemo<Feature[]>(() => featureCards.filter((f) => f.id !== "smart"), []);
 
   const scanProgress = useSelector((state: RootState) => state.appState.scanProgress);
   const featureProgress = useSelector((state: RootState) => state.appState.featureProgress);
@@ -127,11 +120,16 @@ const HomeScreen = () => {
               style={[styles.scanButton, localIsScanning && { backgroundColor: "#EF4444" }]}
               disabled={false}
             />
+            <ScanButton
+              onPress={() => router.push(appRoutes.smartClean)}
+              label="Smart Clean"
+              style={[styles.scanButton, styles.smartCleanButton]}
+              disabled={false}
+            />
           </View>
           {showFeatures && (
             <HomeFeatureSections
-              topFeatures={topFeatures}
-              remainingRows={remainingRows}
+              features={features}
               featureProgress={featureProgress}
               featureRevealStyle={featureRevealStyle}
               onNavigate={(route) => router.push(route)}
@@ -169,5 +167,9 @@ const createStyles = (theme: DefaultTheme) =>
     scanButton: {
       marginTop: theme.spacing.lg,
       width: "100%",
+    },
+    smartCleanButton: {
+      backgroundColor: theme.colors.secondary,
+      marginTop: theme.spacing.sm,
     },
   });
