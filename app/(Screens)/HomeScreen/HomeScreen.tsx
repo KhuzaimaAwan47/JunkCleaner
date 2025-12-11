@@ -5,7 +5,6 @@ import { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reani
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import { DefaultTheme, useTheme } from "styled-components/native";
-import AdPlaceholder from "../../../components/AdPlaceholder";
 import CircularLoadingIndicator from "../../../components/CircularLoadingIndicator";
 import HomeFeatureSections from "../../../components/HomeFeatureSections";
 import ScanButton from "../../../components/ScanButton";
@@ -138,9 +137,6 @@ const HomeScreen = () => {
               onNavigate={(route) => router.push(route)}
             />
           )}
-          <View style={styles.adSection}>
-            <AdPlaceholder />
-          </View>
         </ScrollView>
       </SafeAreaView>
     </ScreenWrapper>
@@ -173,8 +169,5 @@ const createStyles = (theme: DefaultTheme) =>
     scanButton: {
       marginTop: theme.spacing.lg,
       width: "100%",
-    },
-    adSection: {
-      marginTop: theme.spacing.lg,
     },
   });

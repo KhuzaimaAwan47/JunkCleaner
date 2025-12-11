@@ -3,7 +3,6 @@ import React, { useMemo } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { DefaultTheme, useTheme } from "styled-components/native";
-import AdPlaceholder from "./AdPlaceholder";
 import AppHeader from "./AppHeader";
 import NeumorphicContainer from "./NeumorphicContainer";
 import ResultStatCard from "./ResultStatCard";
@@ -121,7 +120,6 @@ const FeatureScreenTemplate: React.FC<Props> = ({
           </Text>
         ))}
         <ScanButton label="Scan Now" onPress={onScan} />
-        <AdPlaceholder />
       </ScrollView>
       </SafeAreaView>
     </ScreenWrapper>
