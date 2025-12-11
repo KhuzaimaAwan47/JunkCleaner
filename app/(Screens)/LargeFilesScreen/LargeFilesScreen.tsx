@@ -224,6 +224,8 @@ const LargeFilesScreen: React.FC = () => {
                 icon="file-search-outline"
                 title="no large files detected"
                 description="Run a scan to find large files consuming storage space"
+                actionLabel="Rescan"
+                onAction={handleScan}
               />
             </View>
           )}

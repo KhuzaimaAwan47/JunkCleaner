@@ -72,8 +72,14 @@ const HomeScreen = () => {
 
       const dataExists = hasDataInSnapshot(snapshot);
       const isComplete = status?.completed === true;
-      setShowFeatures(dataExists || isComplete);
-      dispatch(setFeatureProgress(calculateProgressFromSnapshot(snapshot)));
+
+      // Always render feature cards; fall back to zeroed progress when no data yet.
+      setShowFeatures(true);
+      dispatch(
+        setFeatureProgress(
+          calculateProgressFromSnapshot(snapshot)
+        )
+      );
       dispatch(setStorageInfo(storage));
 
       const storageUsage = storage.total > 0 ? storage.used / storage.total : undefined;

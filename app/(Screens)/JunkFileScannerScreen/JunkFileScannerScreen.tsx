@@ -11,13 +11,14 @@ import ScreenWrapper from "../../../components/ScreenWrapper";
 import formatBytes from "../../../constants/formatBytes";
 import {
   clearSelections,
+  setLoading,
   setJunkFileResults,
   setSelectedItems,
   toggleItemSelection
 } from "../../../redux-code/action";
 import type { RootState } from "../../../redux-code/store";
-import { initDatabase, loadJunkFileResults } from "../../../utils/db";
-import { deleteJunkFiles } from "./JunkFileScanner";
+import { initDatabase, loadJunkFileResults, saveJunkFileResults } from "../../../utils/db";
+import { deleteJunkFiles, scanJunkFiles } from "./JunkFileScanner";
 
 const JunkFileScannerScreen = () => {
   const dispatch = useDispatch();
@@ -32,22 +33,43 @@ const JunkFileScannerScreen = () => {
   
   // Local UI state
   const [clearing, setClearing] = useState(false);
+  const [scanning, setScanning] = useState(false);
+
+  const loadSavedResults = useCallback(async () => {
+    try {
+      await initDatabase();
+      const savedResults = await loadJunkFileResults();
+      if (savedResults.length > 0) {
+        dispatch(setJunkFileResults(savedResults));
+      }
+    } catch (error) {
+      console.error("Failed to load saved junk file results:", error);
+    }
+  }, [dispatch]);
 
   // Load saved results on mount
   useEffect(() => {
-    const loadSavedResults = async () => {
-      try {
-        await initDatabase();
-        const savedResults = await loadJunkFileResults();
-        if (savedResults.length > 0) {
-          dispatch(setJunkFileResults(savedResults));
-        }
-      } catch (error) {
-        console.error("Failed to load saved junk file results:", error);
-      }
-    };
     loadSavedResults();
-  }, [dispatch]);
+  }, [loadSavedResults]);
+
+  const handleScan = useCallback(async () => {
+    if (loading || scanning) {
+      return;
+    }
+    setScanning(true);
+    dispatch(setLoading("junk", true));
+    dispatch(clearSelections("junk"));
+    try {
+      const result = await scanJunkFiles();
+      dispatch(setJunkFileResults(result.items));
+      await saveJunkFileResults(result.items);
+    } catch (error) {
+      console.error("Failed to scan junk files:", error);
+    } finally {
+      dispatch(setLoading("junk", false));
+      setScanning(false);
+    }
+  }, [dispatch, loading, scanning]);
 
   const totalSize = useMemo(() => items.reduce((sum, item) => sum + (item.size || 0), 0), [items]);
 
@@ -161,6 +183,8 @@ const JunkFileScannerScreen = () => {
             <EmptyState
               icon="file-search-outline"
               title={loading ? "scanning storage..." : "run a scan to find junk files"}
+              actionLabel={loading ? undefined : "Rescan"}
+              onAction={loading ? undefined : handleScan}
             />
           )}
         </View>

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Permission } from 'react-native';
 import { PermissionsAndroid, Platform } from 'react-native';
 import RNFS from 'react-native-fs';
-import { initDatabase, loadDuplicateGroups, saveDuplicateGroups } from '../../../utils/db';
+import { getCachedFile, initDatabase, loadDuplicateGroups, saveDuplicateGroups, saveFileCache } from '../../../utils/db';
 
 export interface ImageFile {
   path: string;
@@ -28,6 +28,8 @@ export interface ScanProgress {
 
 const BATCH_SIZE = 20;
 const HASH_BATCH_SIZE = 10;
+const MIN_IMAGE_SIZE_BYTES = 10 * 1024; // Skip tiny thumbnails to cut scan time
+const PROGRESS_THROTTLE_MS = 120;
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg', '.ico',
   '.tiff', '.tif', '.heic', '.heif', '.raw', '.cr2', '.nef', '.orf',
   '.sr2', '.arw', '.dng', '.psd', '.ai', '.eps', '.pcx', '.tga'];
@@ -74,6 +76,17 @@ const safeReadDir = async (directory: string): Promise<RNFS.ReadDirItem[]> => {
   }
 };
 
+const createThrottledProgress = (onProgress?: (progress: ScanProgress) => void) => {
+  let lastEmit = 0;
+  return (progress: ScanProgress) => {
+    const now = Date.now();
+    if (now - lastEmit >= PROGRESS_THROTTLE_MS) {
+      lastEmit = now;
+      onProgress?.(progress);
+    }
+  };
+};
+
 const ensurePerms = async (): Promise<boolean> => {
   if (Platform.OS !== 'android') {
     return true;
@@ -106,6 +119,7 @@ const collectImageFiles = async (
   onProgress?: (progress: ScanProgress) => void,
   cancelRef?: { current: boolean },
 ): Promise<ImageFile[]> => {
+  const emitProgress = createThrottledProgress(onProgress);
   const hasAccess = await ensurePerms();
   if (!hasAccess) {
     return [];
@@ -117,7 +131,7 @@ const collectImageFiles = async (
   const visited = new Set<string>();
   let processed = 0;
 
-  onProgress?.({ total: 0, current: 0, stage: 'collecting', currentFile: 'initializing' });
+  emitProgress({ total: 0, current: 0, stage: 'collecting', currentFile: 'initializing' });
 
   while (queue.length > 0) {
     if (cancelRef?.current) {
@@ -160,7 +174,7 @@ const collectImageFiles = async (
             const size = typeof entry.size === 'number' && !Number.isNaN(entry.size) ? entry.size : 0;
             const modifiedDate = entry.mtime ? entry.mtime.getTime() : Date.now();
 
-            if (size > 0) {
+            if (size > MIN_IMAGE_SIZE_BYTES) {
               results.push({
                 path: entry.path,
                 size,
@@ -173,7 +187,7 @@ const collectImageFiles = async (
     }
 
     const total = processed + queue.length || 1;
-    onProgress?.({
+    emitProgress({
       total,
       current: processed,
       scannedFiles: results.length,
@@ -187,6 +201,17 @@ const collectImageFiles = async (
 
 const computeMD5Hash = async (filePath: string): Promise<string> => {
   try {
+    if (typeof (RNFS as any).hash === 'function') {
+      const hash = await (RNFS as any).hash(filePath, 'md5');
+      if (hash) {
+        return hash;
+      }
+    }
+  } catch {
+    // Fall through to manual hashing
+  }
+
+  try {
     const content = await RNFS.readFile(filePath, 'base64');
     const wordArray = CryptoJS.enc.Base64.parse(content);
     return CryptoJS.MD5(wordArray).toString();
@@ -195,16 +220,52 @@ const computeMD5Hash = async (filePath: string): Promise<string> => {
   }
 };
 
+const getOrComputeHash = async (file: ImageFile): Promise<string> => {
+  try {
+    const cached = await getCachedFile(file.path);
+    if (
+      cached &&
+      cached.size === file.size &&
+      cached.modifiedDate === file.modifiedDate &&
+      cached.fullHash
+    ) {
+      return cached.fullHash;
+    }
+  } catch {
+    // ignore cache errors, fall back to hashing
+  }
+
+  const hash = await computeMD5Hash(file.path);
+
+  if (hash) {
+    // Persist hash so future scans can skip hashing unchanged files
+    try {
+      await saveFileCache({
+        path: file.path,
+        size: file.size,
+        partialHash: hash.slice(0, 12) || hash,
+        fullHash: hash,
+        modifiedDate: file.modifiedDate,
+      });
+    } catch {
+      // Cache failures should not break scanning
+    }
+  }
+
+  return hash;
+};
+
 const findDuplicates = async (
   files: ImageFile[],
   onProgress?: (progress: ScanProgress) => void,
   cancelRef?: { current: boolean },
 ): Promise<DuplicateGroup[]> => {
+  const emitProgress = createThrottledProgress(onProgress);
   if (files.length === 0) {
     return [];
   }
 
-  onProgress?.({ total: files.length, current: 0, stage: 'grouping', currentFile: 'analyzing sizes' });
+  emitProgress({ total: files.length, current: 0, stage: 'grouping', currentFile: 'analyzing sizes' });
 
   const sizeGroups = new Map<number, ImageFile[]>();
   for (const file of files) {
@@ -223,7 +284,7 @@ const findDuplicates = async (
     return [];
   }
 
-  onProgress?.({ total: candidates.length, current: 0, stage: 'hashing', currentFile: 'computing hashes' });
+  emitProgress({ total: candidates.length, current: 0, stage: 'hashing', currentFile: 'computing hashes' });
 
   const hashGroups = new Map<string, ImageFile[]>();
   let hashed = 0;
@@ -244,14 +305,26 @@ const findDuplicates = async (
           return;
         }
 
-        const hash = await computeMD5Hash(file.path);
+        if (file.size < MIN_IMAGE_SIZE_BYTES) {
+          hashed += 1;
+          emitProgress({
+            total: candidates.length,
+            current: hashed,
+            scannedFiles: hashed,
+            stage: 'hashing',
+            currentFile: file.path.split('/').pop() || file.path,
+          });
+          return;
+        }
+
+        const hash = await getOrComputeHash(file);
         if (hash) {
           const existing = hashGroups.get(hash) || [];
           hashGroups.set(hash, [...existing, file]);
         }
 
         hashed += 1;
-        onProgress?.({
+        emitProgress({
           total: candidates.length,
           current: hashed,
           scannedFiles: hashed,
@@ -276,13 +349,23 @@ export const scanDuplicateImages = async (
   onProgress?: (progress: ScanProgress) => void,
   cancelRef?: { current: boolean },
 ): Promise<DuplicateGroup[]> => {
+  const startedAt = Date.now();
   const files = await collectImageFiles(onProgress, cancelRef);
+  const collectedAt = Date.now();
   if (cancelRef?.current || files.length === 0) {
+    console.log('[DuplicateScan] skipped - no files or cancelled');
     return [];
   }
 
+  await initDatabase();
   const duplicates = await findDuplicates(files, onProgress, cancelRef);
   onProgress?.({ total: files.length, current: files.length, scannedFiles: files.length, stage: 'complete' });
+  const finishedAt = Date.now();
+
+  console.log(
+    `[DuplicateScan] files=${files.length} groups=${duplicates.length} collectMs=${collectedAt - startedAt} ` +
+      `hashMs=${finishedAt - collectedAt} totalMs=${finishedAt - startedAt}`,
+  );
 
   return duplicates;
 };

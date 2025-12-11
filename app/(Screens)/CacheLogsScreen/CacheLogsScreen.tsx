@@ -225,6 +225,8 @@ const CacheLogsScreen = () => {
               icon="file-search-outline"
               title="no cache or log clutter detected"
               description="Run a scan to find cache files and logs consuming storage space"
+              actionLabel="Rescan"
+              onAction={refresh}
             />
           )}
         </ScrollView>

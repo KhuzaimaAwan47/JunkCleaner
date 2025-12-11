@@ -26,6 +26,7 @@ const OLD_FILE_MS = OLD_FILE_DAYS * 24 * 60 * 60 * 1000;
 const JUNK_EXTENSIONS = ['.tmp', '.log', '.cache', '.bak', '.old', '.temp', '.download'];
 const MEDIA_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif', '.mp4', '.mkv', '.avi', '.mov', '.mp3', '.wav', '.flac'];
 const DOCUMENT_EXTENSIONS = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt', '.rtf'];
+const PROGRESS_THROTTLE_MS = 120;
 
 const buildJunkRootPaths = (): string[] => {
   const base = RNFS.ExternalStorageDirectoryPath;
@@ -153,6 +154,17 @@ const chunkArray = <T>(items: T[], chunkSize: number): T[][] => {
   return chunks;
 };
 
+const createThrottledReporter = (report?: (progress: number, detail?: string) => void) => {
+  let lastEmit = 0;
+  return (progress: number, detail?: string) => {
+    const now = Date.now();
+    if (now - lastEmit >= PROGRESS_THROTTLE_MS) {
+      lastEmit = now;
+      report?.(progress, detail);
+    }
+  };
+};
+
 const ensurePerms = async (): Promise<boolean> => {
   if (Platform.OS !== 'android') {
     return true;
@@ -185,6 +197,8 @@ const ensurePerms = async (): Promise<boolean> => {
 export const scanJunkFiles = async (
   onProgress?: (progress: number, detail?: string) => void,
 ): Promise<JunkFileScanResult> => {
+  const emitProgress = createThrottledReporter(onProgress);
+  const startedAt = Date.now();
   const hasAccess = await ensurePerms();
   if (!hasAccess) {
     return { totalFiles: 0, totalSize: 0, items: [] };
@@ -197,7 +211,7 @@ export const scanJunkFiles = async (
   let processed = 0;
   const totalDirs = new Set<string>(rootPaths);
 
-  onProgress?.(0, 'initializing scan');
+  emitProgress(0, 'initializing scan');
 
   while (queue.length > 0) {
     const currentDir = queue.shift();
@@ -212,7 +226,7 @@ export const scanJunkFiles = async (
     const detail = currentDir.split('/').pop() ?? currentDir;
     const total = processed + queue.length || 1;
     const progress = Math.min(processed / total, 0.99);
-    onProgress?.(progress, detail);
+    emitProgress(progress, detail);
 
     const batches = chunkArray(entries, BATCH_SIZE);
     for (const batch of batches) {
@@ -273,10 +287,14 @@ export const scanJunkFiles = async (
     }
   }
 
-  onProgress?.(1, 'scan complete');
+  emitProgress(1, 'scan complete');
 
   const totalSize = results.reduce((sum, item) => sum + item.size, 0);
   const sortedResults = results.sort((a, b) => b.size - a.size);
+  const finishedAt = Date.now();
+  console.log(
+    `[JunkScan] files=${sortedResults.length} totalSize=${totalSize} durationMs=${finishedAt - startedAt}`,
+  );
 
   return {
     totalFiles: sortedResults.length,

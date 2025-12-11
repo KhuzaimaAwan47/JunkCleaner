@@ -1,18 +1,21 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { DefaultTheme, useTheme } from 'styled-components/native';
+import ScanActionButton from './ScanActionButton';
 import ScanProgressCard from './ScanProgressCard';
 
 type WhatsAppEmptyStateProps = {
   loading: boolean;
   hasFiles: boolean;
   hasSavedResults: boolean;
+  onScan?: () => void;
 };
 
 const WhatsAppEmptyState: React.FC<WhatsAppEmptyStateProps> = ({
   loading,
   hasFiles,
   hasSavedResults,
+  onScan,
 }) => {
   const theme = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
@@ -34,6 +37,9 @@ const WhatsAppEmptyState: React.FC<WhatsAppEmptyStateProps> = ({
               ? 'try switching to another media type.'
               : 'tap rescan to fetch images, audio, and docs instantly.'}
           </Text>
+          {!hasFiles && onScan && (
+            <ScanActionButton label={hasSavedResults ? 'Rescan' : 'Start scan'} onPress={onScan} fullWidth />
+          )}
         </>
       )}
     </View>

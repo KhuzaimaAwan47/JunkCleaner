@@ -161,6 +161,8 @@ export default function DuplicateImagesScreen() {
                 icon="image-outline"
                 title="no duplicate images yet"
                 description="Start a scan to find identical photos and free up storage space."
+                actionLabel="Rescan"
+                onAction={startScan}
               />
             </View>
           )}

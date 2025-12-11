@@ -208,6 +208,7 @@ const WhatsAppRemoverScreen = () => {
               loading={isScanning}
               hasFiles={files.length > 0}
               hasSavedResults={hasSavedResults}
+              onScan={onRescan}
             />
           }
           ListFooterComponent={<View style={styles.footerSpacer} />}

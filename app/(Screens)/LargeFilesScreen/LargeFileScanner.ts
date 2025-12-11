@@ -61,6 +61,7 @@ export const scanLargeFiles = async (
   threshold: number = DEFAULT_THRESHOLD,
   onProgress?: (snapshot: ScanProgressSnapshot) => void,
 ): Promise<LargeFileResult[]> => {
+  const startedAt = Date.now();
   const emit = (phase: ScanPhase, localRatio: number, detail?: string) => {
     const start = PHASE_OFFSETS[phase] ?? 0;
     const ratio = clamp(start + PHASE_WEIGHTS[phase] * clamp(localRatio));
@@ -80,7 +81,11 @@ export const scanLargeFiles = async (
   emit('directories', 1, 'file system traversal complete');
 
   emit('finalizing', 1, 'compiling results');
-  return dedupeResults(files).sort((a, b) => b.size - a.size);
+  const results = dedupeResults(files).sort((a, b) => b.size - a.size);
+  console.log(
+    `[LargeFileScan] files=${results.length} threshold=${threshold} durationMs=${Date.now() - startedAt}`,
+  );
+  return results;
 };
 
 const scanFileSystem = async (
