@@ -4,11 +4,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
+import EmptyState from "../../../components/EmptyState";
 import FixedUninstallButton from "../../../components/FixedUninstallButton";
+import LoadingOverlay from "../../../components/LoadingOverlay";
 import ScreenWrapper from "../../../components/ScreenWrapper";
 import UnusedAppListItem from "../../../components/UnusedAppListItem";
 import UnusedAppSectionHeader from "../../../components/UnusedAppSectionHeader";
-import UnusedAppsEmptyState from "../../../components/UnusedAppsEmptyState";
 import { setSelectedItems } from "../../../redux-code/action";
 import type { RootState } from "../../../redux-code/store";
 import type { UnusedAppInfo } from "./UnusedAppsScanner";
@@ -26,7 +27,7 @@ const UnusedAppsScreen = () => {
   const selectedPackageNamesArray = useSelector((state: RootState) => state.appState.selectedItems.unused);
   const selectedPackageNames = useMemo(() => new Set(selectedPackageNamesArray), [selectedPackageNamesArray]);
   
-  const { hasScanned, handleScan, handleUninstall, uninstalling } = useUnusedAppsActions(apps, selectedPackageNames);
+  const { handleScan, handleUninstall, uninstalling } = useUnusedAppsActions(apps, selectedPackageNames);
   const { selectedStats, isAllSelected, toggleAppSelection, toggleSelectAll } = useUnusedAppsSelection(apps, selectedPackageNames);
   const groupedData = useUnusedAppsGrouping(apps);
 
@@ -101,7 +102,13 @@ const UnusedAppsScreen = () => {
               ListFooterComponent={<View style={styles.footerSpacer} />}
             />
           ) : !loading ? (
-            <UnusedAppsEmptyState hasScanned={hasScanned} onScan={handleScan} />
+            <EmptyState
+              icon="package-variant-closed"
+              title="No unused apps found"
+              description="We could not find unused applications on your device."
+              actionLabel="Rescan"
+              onAction={handleScan}
+            />
           ) : null}
         </View>
         <FixedUninstallButton
@@ -112,6 +119,7 @@ const UnusedAppsScreen = () => {
           visible={!uninstallDisabled && hasApps}
         />
       </SafeAreaView>
+    <LoadingOverlay visible={loading} label="Scanningnused Apps ..." />
     </ScreenWrapper>
   );
 };
