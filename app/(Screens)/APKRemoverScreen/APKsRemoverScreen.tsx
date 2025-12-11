@@ -7,7 +7,6 @@ import AppHeader from "../../../components/AppHeader";
 import EmptyState from "../../../components/EmptyState";
 import FileListItem from "../../../components/FileListItem";
 import LoadingOverlay from "../../../components/LoadingOverlay";
-import ScanActionButton from "../../../components/ScanActionButton";
 import ScreenWrapper from "../../../components/ScreenWrapper";
 import SelectionBar from "../../../components/SelectionBar";
 import formatBytes from "../../../constants/formatBytes";
@@ -36,7 +35,7 @@ const APKsRemoverScreen = () => {
   // Local UI state
   const [deleting, setDeleting] = useState<Set<string>>(new Set());
   const [clearing, setClearing] = useState(false);
-  const [hasScanned, setHasScanned] = useState(false);
+  const [, setHasScanned] = useState(false);
 
   // Load saved results on mount
   useEffect(() => {
@@ -231,11 +230,7 @@ const APKsRemoverScreen = () => {
                 {apkFiles.map((file) => renderItem(file))}
               </View>
 
-              {!hasScanned && (
-                <View style={[styles.sectionSpacing]}>
-                  <ScanActionButton variant="outline" label="rescan" onPress={scan} />
-                </View>
-              )}
+              
             </>
           )}
 

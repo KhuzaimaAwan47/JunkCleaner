@@ -5,7 +5,6 @@ import { useDispatch, useSelector } from "react-redux";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
 import FixedUninstallButton from "../../../components/FixedUninstallButton";
-import ScanProgressCard from "../../../components/ScanProgressCard";
 import ScreenWrapper from "../../../components/ScreenWrapper";
 import UnusedAppListItem from "../../../components/UnusedAppListItem";
 import UnusedAppSectionHeader from "../../../components/UnusedAppSectionHeader";
@@ -84,9 +83,7 @@ const UnusedAppsScreen = () => {
             selectAllDisabled={hasApps ? !apps.length : undefined}
           />
 
-          {loading && (
-            <ScanProgressCard title="Scanning apps..." style={styles.progressCard} />
-          )}
+         
 
           {!loading && hasApps ? (
             <SectionList
