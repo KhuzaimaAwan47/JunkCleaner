@@ -115,6 +115,8 @@ const CircularLoadingIndicator: React.FC<Props> = ({ scanProgress, systemHealth,
                 styles.statusSubtext,
                 { color: healthColor },
               ]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
             >
               {systemHealth?.message ?? 'not calculated yet'}
             </Text>
@@ -126,7 +128,11 @@ const CircularLoadingIndicator: React.FC<Props> = ({ scanProgress, systemHealth,
           <Text style={[styles.scoreText, { color: theme.colors.textMuted }]}>
             --
           </Text>
-          <Text style={[styles.statusSubtext, { color: theme.colors.textMuted }]}>
+          <Text 
+            style={[styles.statusSubtext, { color: theme.colors.textMuted }]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
             Not calculated yet
           </Text>
         </View>
@@ -162,9 +168,10 @@ const createStyles = (theme: DefaultTheme) =>
       marginBottom: 4,
     },
     statusSubtext: {
-      fontSize: 14,
+      fontSize: 11,
       fontWeight: "500",
       textAlign: "center",
+      paddingHorizontal: 8,
     },
   });
 

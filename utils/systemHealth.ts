@@ -98,17 +98,17 @@ export function calculateSystemHealth(
   // Tailor message based on top issues
   const issues: string[] = [];
   if (storageUsage >= 0.85) {
-    issues.push('Low storage');
+    issues.push('Storage low');
   } else if (storageUsage >= 0.7) {
-    issues.push('High storage use');
+    issues.push('Storage high');
   }
   if (memoryUsage >= 0.85) {
-    issues.push('High memory use');
+    issues.push('Memory high');
   }
   if (fileSizeGb >= 10) {
-    issues.push('Large files detected');
+    issues.push('Large files');
   } else if (totalItems >= 500) {
-    issues.push('Many large/old files');
+    issues.push('Many files');
   }
   if (issues.length > 0) {
     message = issues.join(' • ');
