@@ -20,7 +20,7 @@ const HomeFeatureSections = React.memo<Props>(
       () =>
         features.map((feature) => ({
           ...feature,
-          progress: featureProgress[feature.id] ?? 0,
+          progress: featureProgress[feature.id] ?? feature.progress ?? 0,
         })),
       [featureProgress, features]
     );

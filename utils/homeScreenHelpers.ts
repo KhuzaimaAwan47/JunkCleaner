@@ -1,4 +1,28 @@
 import type { ScanDataSnapshot } from "./db";
+import type { ApkFile } from "../app/(Screens)/APKRemoverScreen/APKScanner";
+import type { ScanResult } from "../app/(Screens)/CacheLogsScreen/CacheLogsScanner";
+import type { DuplicateGroup } from "../app/(Screens)/DuplicateImagesScreen/DuplicateImageScanner";
+import type { JunkFileItem } from "../app/(Screens)/JunkFileScannerScreen/JunkFileScanner";
+import type { LargeFileResult } from "../app/(Screens)/LargeFilesScreen/LargeFileScanner";
+import type { OldFileInfo } from "../app/(Screens)/OldFilesScreen/OldFilesScanner";
+import type { WhatsAppScanResult } from "../app/(Screens)/WhatsAppRemoverScreen/WhatsAppScanner";
+
+// Helper function to categorize files (same logic as fileCategoryCalculator)
+const categorizeFile = (path: string, type?: string): string => {
+  const lower = path.toLowerCase();
+  
+  // Check for specific types first
+  if (type === "cache" || type === "log" || type === "temp") return "Cache";
+  if (type === "Images" || lower.match(/\.(jpg|jpeg|png|gif|webp|heic|heif|bmp|svg)$/)) return "Images";
+  if (type === "Video" || lower.match(/\.(mp4|mkv|avi|mov|wmv|flv|webm|3gp)$/)) return "Videos";
+  if (type === "Documents" || lower.match(/\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt|rtf|odt)$/)) return "Documents";
+  if (type === "Audio" || type === "VoiceNotes" || lower.match(/\.(mp3|wav|flac|aac|m4a|ogg|wma)$/)) return "Audio";
+  if (lower.endsWith(".apk")) return "Apps";
+  if (lower.match(/\.(zip|rar|7z|tar|gz|bz2|obb)$/)) return "Archives";
+  if (lower.includes("system") || lower.includes("android/data") || lower.includes("android/obb")) return "System";
+  
+  return "Other";
+};
 
 export const hasDataInSnapshot = (snapshot: ScanDataSnapshot): boolean => {
   return (
@@ -15,47 +39,44 @@ export const hasDataInSnapshot = (snapshot: ScanDataSnapshot): boolean => {
 
 export const calculateProgressFromSnapshot = (snapshot: ScanDataSnapshot): Record<string, number> => {
   const clamp = (value: number) => Math.max(0, Math.min(1, value));
-  const normalize = (value: number, cap: number) => (cap <= 0 ? 0 : clamp(value / cap));
-  const toMb = (bytes: number) => bytes / (1024 * 1024);
 
   const junkCount = snapshot.junkFileResults.length;
-  const junkSize = snapshot.junkFileResults.reduce((sum, item) => sum + (item.size ?? 0), 0);
-
   const cacheCount = snapshot.cacheLogsResults.length;
-  const cacheSize = snapshot.cacheLogsResults.reduce((sum, item) => sum + (item.size ?? 0), 0);
-
   const oldCount = snapshot.oldFileResults.length;
-  const oldSize = snapshot.oldFileResults.reduce((sum, item) => sum + (item.size ?? 0), 0);
-
   const duplicateFileCount = snapshot.duplicateResults.reduce(
     (sum, group) => sum + (group.files?.length ?? 0),
     0,
   );
-  const duplicateSize = snapshot.duplicateResults.reduce(
-    (sum, group) => sum + (group.files?.reduce((fileSum, file) => fileSum + (file.size ?? 0), 0) ?? 0),
-    0,
-  );
-
   const largeFileCount = snapshot.largeFileResults.length;
   const apkCount = snapshot.apkResults.length;
   const unusedCount = snapshot.unusedAppsResults.length;
   const whatsappCount = snapshot.whatsappResults.length;
-  const whatsappSize = snapshot.whatsappResults.reduce((sum, item) => sum + ((item as any)?.size ?? 0), 0);
+
+  // Calculate maximum file count across all features for relative progress
+  const counts = [
+    junkCount,
+    cacheCount,
+    oldCount,
+    duplicateFileCount,
+    largeFileCount,
+    apkCount,
+    unusedCount,
+    whatsappCount,
+  ];
+  const maxCount = Math.max(...counts, 1); // Use 1 as minimum to avoid division by zero
 
   const progress: Record<string, number> = {};
 
-  progress.junk = clamp(0.6 * normalize(junkCount, 200) + 0.4 * normalize(toMb(junkSize), 1500));
-  progress.cache = clamp(0.6 * normalize(cacheCount, 180) + 0.4 * normalize(toMb(cacheSize), 1200));
-  progress.old = clamp(0.7 * normalize(oldCount, 180) + 0.3 * normalize(toMb(oldSize), 3000));
-  progress.duplicate = clamp(
-    0.6 * normalize(duplicateFileCount, 180) + 0.4 * normalize(toMb(duplicateSize), 2500),
-  );
-  progress.large = normalize(largeFileCount, 120);
-  progress.apk = normalize(apkCount, 150);
-  progress.unused = normalize(unusedCount, 120);
-  progress.whatsapp = clamp(
-    0.5 * normalize(whatsappCount, 500) + 0.5 * normalize(toMb(whatsappSize), 4000),
-  );
+  // Calculate progress based on file count relative to the maximum count
+  // This ensures the feature with the most files shows 100% progress, and others scale relative to it
+  progress.junk = maxCount > 0 ? clamp(junkCount / maxCount) : 0;
+  progress.cache = maxCount > 0 ? clamp(cacheCount / maxCount) : 0;
+  progress.old = maxCount > 0 ? clamp(oldCount / maxCount) : 0;
+  progress.duplicate = maxCount > 0 ? clamp(duplicateFileCount / maxCount) : 0;
+  progress.large = maxCount > 0 ? clamp(largeFileCount / maxCount) : 0;
+  progress.apk = maxCount > 0 ? clamp(apkCount / maxCount) : 0;
+  progress.unused = maxCount > 0 ? clamp(unusedCount / maxCount) : 0;
+  progress.whatsapp = maxCount > 0 ? clamp(whatsappCount / maxCount) : 0;
 
   const averaged = (keys: string[]) =>
     clamp(
@@ -74,6 +95,59 @@ export const calculateProgressFromSnapshot = (snapshot: ScanDataSnapshot): Recor
     "whatsapp",
   ]);
   progress.storage = averaged(["large", "duplicate", "junk", "old"]);
+
+  // Calculate category feature progress (Audio, Images, Videos, etc.)
+  const categoryCounts: Record<string, number> = {};
+
+  // Process Junk files
+  snapshot.junkFileResults.forEach((file) => {
+    const category = categorizeFile(file.path, (file as any).type);
+    categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+  });
+
+  // Process Large files
+  snapshot.largeFileResults.forEach((file) => {
+    const category = categorizeFile(file.path, (file as any).category);
+    categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+  });
+
+  // Process Cache/Logs
+  snapshot.cacheLogsResults.forEach((file) => {
+    const category = categorizeFile(file.path, (file as any).type);
+    categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+  });
+
+  // Process Old files
+  snapshot.oldFileResults.forEach((file) => {
+    const category = categorizeFile(file.path);
+    categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+  });
+
+  // Process WhatsApp files
+  snapshot.whatsappResults.forEach((file) => {
+    const category = categorizeFile(file.path, (file as any).type);
+    categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+  });
+
+  // Process Duplicate images
+  snapshot.duplicateResults.forEach((group) => {
+    group.files.forEach((file) => {
+      const category = categorizeFile(file.path, "Images");
+      categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+    });
+  });
+
+  // Calculate progress for target categories
+  const targetCategories = ["Videos", "Images", "Audio", "Other", "Cache", "Documents"];
+  const categoryCountsArray = targetCategories.map((name) => categoryCounts[name] || 0);
+  const maxCategoryCount = Math.max(...categoryCountsArray, 1);
+
+  // Set progress for each category feature
+  targetCategories.forEach((categoryName) => {
+    const categoryId = `category-${categoryName.toLowerCase()}`;
+    const count = categoryCounts[categoryName] || 0;
+    progress[categoryId] = maxCategoryCount > 0 ? clamp(count / maxCategoryCount) : 0;
+  });
 
   return progress;
 };

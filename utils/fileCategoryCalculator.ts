@@ -157,13 +157,14 @@ export function calculateFileCategoryFeatures(
     return data;
   });
 
-  // Calculate max size for progress calculation
-  const maxSize = Math.max(...filteredCategories.map((cat) => cat.size), 1);
+  // Calculate max count for progress calculation (file count-based progress)
+  const maxCount = Math.max(...filteredCategories.map((cat) => cat.count), 1);
 
   // Convert to Feature format
   // Use "category-" prefix to avoid conflicts with existing feature IDs
   return filteredCategories.map((category) => {
-    const progress = maxSize > 0 ? Math.min(1, category.size / maxSize) : 0;
+    // Calculate progress based on file count relative to the maximum count
+    const progress = maxCount > 0 ? Math.min(1, category.count / maxCount) : 0;
     return {
       id: `category-${category.name.toLowerCase()}`,
       title: category.name,

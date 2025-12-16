@@ -38,6 +38,7 @@ import { getStorageInfo } from "../../../utils/storage";
 import { calculateSystemHealth } from "../../../utils/systemHealth";
 import { getMemoryInfo } from "../../../utils/memory";
 import { calculateFileCategoryFeatures } from "../../../utils/fileCategoryCalculator";
+import { calculateFeatureStats, formatFeatureSubtitle } from "../../../utils/featureStatsCalculator";
 import { useSmartScan } from "./useSmartScan";
 
 const HomeScreen = () => {
@@ -56,9 +57,25 @@ const HomeScreen = () => {
   const oldFileResults = useSelector((state: RootState) => state.appState.oldFileResults);
   const whatsappResults = useSelector((state: RootState) => state.appState.whatsappResults);
   const duplicateResults = useSelector((state: RootState) => state.appState.duplicateResults);
+  const apkResults = useSelector((state: RootState) => state.appState.apkResults);
+  const unusedAppsResults = useSelector((state: RootState) => state.appState.unusedAppsResults);
   
   const [showFeatures, setShowFeatures] = React.useState(false);
   const featureVisibility = useSharedValue(0);
+
+  // Calculate feature stats from scan results
+  const featureStats = React.useMemo(() => {
+    return calculateFeatureStats({
+      apkResults,
+      whatsappResults,
+      duplicateResults,
+      largeFileResults,
+      junkFileResults,
+      oldFileResults,
+      cacheLogsResults,
+      unusedAppsResults,
+    });
+  }, [apkResults, whatsappResults, duplicateResults, largeFileResults, junkFileResults, oldFileResults, cacheLogsResults, unusedAppsResults]);
 
   // Calculate file category features
   const fileCategoryFeatures = React.useMemo<Feature[]>(() => {
@@ -75,11 +92,24 @@ const HomeScreen = () => {
     );
   }, [junkFileResults, largeFileResults, cacheLogsResults, oldFileResults, whatsappResults, duplicateResults, theme]);
 
-  // Combine existing features with file category features
+  // Combine existing features with file category features and apply formatted subtitles
   const features = React.useMemo<Feature[]>(() => {
     const existingFeatures = featureCards.filter((f) => f.id !== "smart");
-    return [...existingFeatures, ...fileCategoryFeatures];
-  }, [fileCategoryFeatures]);
+    
+    // Update existing features with calculated stats and formatted subtitles
+    const updatedFeatures = existingFeatures.map((feature) => {
+      const stats = featureStats[feature.id];
+      if (stats) {
+        return {
+          ...feature,
+          subtitle: formatFeatureSubtitle(stats.size, stats.count),
+        };
+      }
+      return feature;
+    });
+    
+    return [...updatedFeatures, ...fileCategoryFeatures];
+  }, [fileCategoryFeatures, featureStats]);
 
   const refreshHomeState = React.useCallback(async () => {
     try {
