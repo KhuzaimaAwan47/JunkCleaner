@@ -77,7 +77,7 @@ const CircularLoadingIndicator: React.FC<Props> = ({ scanProgress, systemHealth,
       {scanProgress ? (
         <LottieView
           ref={lottieRef}
-          source={require("../assets/lottie/loading_circle.json")}
+          source={require("../assets/lottie/Loading Spinner.json")}
           style={{ width: size, height: size }}
           autoPlay
           loop

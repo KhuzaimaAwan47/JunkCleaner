@@ -5,10 +5,21 @@ import {
   clearScanProgress,
   setLoading,
   setScanProgress,
+  setWhatsappResults,
+  setLargeFileResults,
+  setOldFileResults,
+  setDuplicateResults,
+  setFeatureProgress,
+  setSystemHealth,
 } from "../../../redux-code/action";
 import type { RootState } from "../../../redux-code/store";
-import { runSmartScan } from "../../../utils/smartScan";
+import { runSmartScan, type SmartScanResultsUpdate } from "../../../utils/smartScan";
 import { requestAllSmartScanPermissions } from "../../../utils/permissions";
+import { loadAllScanResults } from "../../../utils/db";
+import { calculateProgressFromSnapshot, hasDataInSnapshot } from "../../../utils/homeScreenHelpers";
+import { calculateSystemHealth } from "../../../utils/systemHealth";
+import { getStorageInfo } from "../../../utils/storage";
+import { getMemoryInfo } from "../../../utils/memory";
 
 export const useSmartScan = (onScanComplete: () => Promise<void>) => {
   const dispatch = useDispatch();
@@ -19,6 +30,49 @@ export const useSmartScan = (onScanComplete: () => Promise<void>) => {
   React.useEffect(() => {
     setLocalIsScanning(isScanningRedux);
   }, [isScanningRedux]);
+
+  const updateResultsIncrementally = React.useCallback(async (update: SmartScanResultsUpdate) => {
+    if (scanCancelledRef.current) return;
+
+    try {
+      // Dispatch scanner-specific results immediately
+      if (update.results.whatsappResults !== undefined) {
+        dispatch(setWhatsappResults(update.results.whatsappResults));
+      }
+      if (update.results.duplicateResults !== undefined) {
+        dispatch(setDuplicateResults(update.results.duplicateResults));
+      }
+      if (update.results.largeFileResults !== undefined) {
+        dispatch(setLargeFileResults(update.results.largeFileResults));
+      }
+      if (update.results.oldFileResults !== undefined) {
+        dispatch(setOldFileResults(update.results.oldFileResults));
+      }
+
+      // Load current snapshot from DB to get all results (including previously completed scanners)
+      const snapshot = await loadAllScanResults();
+      
+      // Calculate and dispatch updated feature progress
+      const progress = calculateProgressFromSnapshot(snapshot);
+      dispatch(setFeatureProgress(progress));
+
+      // Calculate and dispatch updated system health if we have data
+      const dataExists = hasDataInSnapshot(snapshot);
+      if (dataExists) {
+        const [storage, memory] = await Promise.all([
+          getStorageInfo(),
+          getMemoryInfo(),
+        ]);
+        const storageUsage = storage.total > 0 ? storage.used / storage.total : undefined;
+        const memoryUsage = memory?.usage;
+        const systemHealth = calculateSystemHealth(snapshot, { storageUsage, memoryUsage });
+        dispatch(setSystemHealth(systemHealth));
+      }
+    } catch (error) {
+      console.error("Failed to update results incrementally:", error);
+      // Don't throw - allow scan to continue even if incremental update fails
+    }
+  }, [dispatch]);
 
   const handleSmartScan = React.useCallback(async () => {
     if (localIsScanning) return;
@@ -39,11 +93,18 @@ export const useSmartScan = (onScanComplete: () => Promise<void>) => {
     scanCancelledRef.current = false;
 
     try {
-      await runSmartScan((progress) => {
-        if (!scanCancelledRef.current) {
-          dispatch(setScanProgress(progress));
+      await runSmartScan(
+        (progress) => {
+          if (!scanCancelledRef.current) {
+            dispatch(setScanProgress(progress));
+          }
+        },
+        (resultsUpdate) => {
+          if (!scanCancelledRef.current) {
+            updateResultsIncrementally(resultsUpdate);
+          }
         }
-      });
+      );
       await onScanComplete();
     } catch (error) {
       if (!scanCancelledRef.current) {
@@ -56,7 +117,7 @@ export const useSmartScan = (onScanComplete: () => Promise<void>) => {
       dispatch(clearScanProgress());
       scanCancelledRef.current = false;
     }
-  }, [localIsScanning, onScanComplete, dispatch]);
+  }, [localIsScanning, onScanComplete, dispatch, updateResultsIncrementally]);
 
   const handleStopScan = React.useCallback(() => {
     setLocalIsScanning(false);

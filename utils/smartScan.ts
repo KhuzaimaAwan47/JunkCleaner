@@ -22,6 +22,21 @@ export interface SmartScanProgress {
 
 export type SmartScanProgressCallback = (progress: SmartScanProgress) => void;
 
+export type ScannerType = 'whatsapp' | 'duplicates' | 'largeFiles' | 'oldFiles';
+
+export type SmartScanResultsUpdate = {
+  scannerType: ScannerType;
+  scannerName: string;
+  results: {
+    whatsappResults?: any[];
+    duplicateResults?: any[];
+    largeFileResults?: any[];
+    oldFileResults?: any[];
+  };
+};
+
+export type SmartScanResultsCallback = (update: SmartScanResultsUpdate) => void;
+
 const SCANNER_NAMES = [
   'WhatsApp Files',
   'Duplicate Images',
@@ -32,10 +47,12 @@ const SCANNER_NAMES = [
 /**
  * Run Smart Scan - executes all scanners sequentially
  * @param onProgress Callback for progress updates
+ * @param onResultsUpdate Optional callback for results updates as each scanner completes
  * @returns Promise that resolves when all scans complete
  */
 export async function runSmartScan(
-  onProgress?: SmartScanProgressCallback
+  onProgress?: SmartScanProgressCallback,
+  onResultsUpdate?: SmartScanResultsCallback
 ): Promise<void> {
   await initDatabase();
 
@@ -86,6 +103,11 @@ export async function runSmartScan(
     status.scannerProgress.whatsapp = true;
     await persistStatus();
     updateProgress(0, SCANNER_NAMES[0], 1, `found ${whatsappResults.length} WhatsApp files`);
+    onResultsUpdate?.({
+      scannerType: 'whatsapp',
+      scannerName: SCANNER_NAMES[0],
+      results: { whatsappResults },
+    });
 
     // 2. Duplicate Images Scanner
     updateProgress(1, SCANNER_NAMES[1], 0, 'scanning for duplicate images...');
@@ -100,6 +122,11 @@ export async function runSmartScan(
     await persistStatus();
     const duplicateCount = duplicateResults.reduce((sum, group) => sum + group.files.length, 0);
     updateProgress(1, SCANNER_NAMES[1], 1, `found ${duplicateCount} duplicate images`);
+    onResultsUpdate?.({
+      scannerType: 'duplicates',
+      scannerName: SCANNER_NAMES[1],
+      results: { duplicateResults: duplicateResults || [] },
+    });
 
     // 3. Large Files Scanner
     updateProgress(2, SCANNER_NAMES[2], 0, 'scanning for large files...');
@@ -113,6 +140,11 @@ export async function runSmartScan(
     status.scannerProgress.largeFiles = true;
     await persistStatus();
     updateProgress(2, SCANNER_NAMES[2], 1, `found ${largeFileResults.length} large files`);
+    onResultsUpdate?.({
+      scannerType: 'largeFiles',
+      scannerName: SCANNER_NAMES[2],
+      results: { largeFileResults },
+    });
 
     // 4. Old Files Scanner
     updateProgress(3, SCANNER_NAMES[3], 0, 'scanning for old files...');
@@ -121,6 +153,11 @@ export async function runSmartScan(
     status.scannerProgress.oldFiles = true;
     await persistStatus();
     updateProgress(3, SCANNER_NAMES[3], 1, `found ${oldFileResults.length} old files`);
+    onResultsUpdate?.({
+      scannerType: 'oldFiles',
+      scannerName: SCANNER_NAMES[3],
+      results: { oldFileResults },
+    });
 
     // Mark as completed
     status.completed = true;
