@@ -1,8 +1,5 @@
 import type { DefaultTheme } from "styled-components/native";
-import type { ApkFile } from "../app/(Screens)/APKRemoverScreen/APKScanner";
-import type { ScanResult } from "../app/(Screens)/CacheLogsScreen/CacheLogsScanner";
 import type { DuplicateGroup } from "../app/(Screens)/DuplicateImagesScreen/DuplicateImageScanner";
-import type { JunkFileItem } from "../app/(Screens)/JunkFileScannerScreen/JunkFileScanner";
 import type { LargeFileResult } from "../app/(Screens)/LargeFilesScreen/LargeFileScanner";
 import type { OldFileInfo } from "../app/(Screens)/OldFilesScreen/OldFilesScanner";
 import type { WhatsAppScanResult } from "../app/(Screens)/WhatsAppRemoverScreen/WhatsAppScanner";
@@ -10,12 +7,9 @@ import type { Feature } from "../dummydata/features";
 import { appRoutes } from "../routes";
 
 type ScanResults = {
-  junkFileResults?: JunkFileItem[];
   largeFileResults?: LargeFileResult[];
-  cacheLogsResults?: ScanResult[];
   oldFileResults?: OldFileInfo[];
   whatsappResults?: WhatsAppScanResult[];
-  apkResults?: ApkFile[];
   duplicateResults?: DuplicateGroup[];
 };
 
@@ -88,29 +82,9 @@ export function calculateFileCategoryFeatures(
 ): Feature[] {
   const categories: Record<string, FileCategoryData> = {};
 
-  // Process Junk files
-  scanResults.junkFileResults?.forEach((file) => {
-    const category = categorizeFile(file.path, file.type);
-    if (!categories[category]) {
-      categories[category] = { name: category, size: 0, count: 0 };
-    }
-    categories[category].size += file.size || 0;
-    categories[category].count += 1;
-  });
-
   // Process Large files
   scanResults.largeFileResults?.forEach((file) => {
     const category = categorizeFile(file.path, file.category);
-    if (!categories[category]) {
-      categories[category] = { name: category, size: 0, count: 0 };
-    }
-    categories[category].size += file.size || 0;
-    categories[category].count += 1;
-  });
-
-  // Process Cache/Logs
-  scanResults.cacheLogsResults?.forEach((file) => {
-    const category = categorizeFile(file.path, file.type);
     if (!categories[category]) {
       categories[category] = { name: category, size: 0, count: 0 };
     }
@@ -150,8 +124,8 @@ export function calculateFileCategoryFeatures(
     });
   });
 
-  // Filter to only the categories we want: Videos, Images, Audio, Other, Cache, Documents
-  const targetCategories = ["Videos", "Images", "Audio", "Other", "Cache", "Documents"];
+  // Filter to only the categories we want: Videos, Images, Audio, Other, Documents
+  const targetCategories = ["Videos", "Images", "Audio", "Other", "Documents"];
   const filteredCategories = targetCategories.map((name) => {
     const data = categories[name] || { name, size: 0, count: 0 };
     return data;

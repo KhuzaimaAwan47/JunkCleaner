@@ -1,10 +1,6 @@
-import type { ApkFile } from '../app/(Screens)/APKRemoverScreen/APKScanner';
-import type { ScanResult } from '../app/(Screens)/CacheLogsScreen/CacheLogsScanner';
 import type { DuplicateGroup } from '../app/(Screens)/DuplicateImagesScreen/DuplicateImageScanner';
-import type { JunkFileItem } from '../app/(Screens)/JunkFileScannerScreen/JunkFileScanner';
 import type { LargeFileResult } from '../app/(Screens)/LargeFilesScreen/LargeFileScanner';
 import type { OldFileInfo } from '../app/(Screens)/OldFilesScreen/OldFilesScanner';
-import type { UnusedAppInfo } from '../app/(Screens)/UnusedAppsScreen/UnusedAppsScanner';
 import type { WhatsAppScanResult } from '../app/(Screens)/WhatsAppRemoverScreen/WhatsAppScanner';
 
 export interface SystemHealthResult {
@@ -12,20 +8,16 @@ export interface SystemHealthResult {
   status: 'excellent' | 'good' | 'fair' | 'poor';
   message: string;
   totalItems: number;
-  totalSize: number; // in bytes (junk + cache/logs)
+  totalSize: number; // in bytes (large files + old files as indicators)
   storageUsage?: number; // 0-1 ratio
   memoryUsage?: number; // 0-1 ratio
 }
 
 export interface ScannerResults {
-  apkResults?: ApkFile[] | null;
   whatsappResults?: WhatsAppScanResult[] | null;
   duplicateResults?: DuplicateGroup[] | null;
   largeFileResults?: LargeFileResult[] | null;
-  junkFileResults?: JunkFileItem[] | null;
   oldFileResults?: OldFileInfo[] | null;
-  cacheLogsResults?: ScanResult[] | null;
-  unusedAppsResults?: UnusedAppInfo[] | null;
 }
 
 export interface SystemResourceInfo {
@@ -36,7 +28,7 @@ export interface SystemResourceInfo {
 const clamp = (value: number, min = 0, max = 1) => Math.min(max, Math.max(min, value));
 
 /**
- * Calculate system health based on junk/cache findings plus resource usage.
+ * Calculate system health based on large/old files as indicators plus resource usage.
  * @param results Scanner results from all scanners
  * @param resources Optional real-time resource usage (storage + memory) as ratios
  * @returns System health score, status, and message
@@ -46,29 +38,22 @@ export function calculateSystemHealth(
   resources: SystemResourceInfo = {}
 ): SystemHealthResult {
   // Handle nullable conditions - default to empty arrays
-  const junkFileResults = results.junkFileResults ?? [];
-  const cacheLogsResults = results.cacheLogsResults ?? [];
-  // Other scanners are excluded from health calculation (APK, duplicates, large files, WhatsApp, old files, unused apps)
-  // because they may contain important or user-intended content.
+  const largeFileResults = results.largeFileResults ?? [];
+  const oldFileResults = results.oldFileResults ?? [];
+  // Use large files and old files as indicators of storage health
+  // Other scanners (duplicates, WhatsApp) are excluded as they may contain important user content
 
-  // Calculate total items and sizes using junk files and cache/logs only
+  // Calculate total items and sizes using large files and old files as indicators
   let totalItems = 0;
   let totalSize = 0;
 
-  // Junk files
-  totalItems += junkFileResults.length;
-  totalSize += junkFileResults.reduce((sum, item) => sum + (item.size ?? 0), 0);
+  // Large files (as indicator of storage bloat)
+  totalItems += largeFileResults.length;
+  totalSize += largeFileResults.reduce((sum, item) => sum + (item.size ?? 0), 0);
 
-  // Cache & logs
-  totalItems += cacheLogsResults.length;
-  totalSize += cacheLogsResults.reduce((sum, item) => sum + (item.size ?? 0), 0);
-
-  // Unused apps - EXCLUDE from health calculation (user might want to keep them)
-  // const unusedAppsResults = results.unusedAppsResults ?? [];
-  // const unusedAppsCount = unusedAppsResults.filter(
-  //   (app) => app.category === 'UNUSED' || app.category === 'LOW_USAGE'
-  // ).length;
-  // totalItems += unusedAppsCount;
+  // Old files (as indicator of unused content)
+  totalItems += oldFileResults.length;
+  totalSize += oldFileResults.reduce((sum, item) => sum + (item.size ?? 0), 0);
 
   // Resource usage ratios (0-1). Defaults assume healthy mid-range usage.
   const storageUsage = clamp(resources.storageUsage ?? 0.5);
@@ -76,21 +61,21 @@ export function calculateSystemHealth(
 
   // Calculate health score (0-100)
   // Weighted components:
-  // - Junk/cache size impact (max 45 points lost at ~10GB)
-  // - Junk/cache item count impact (max 20 points lost at ~2000 items)
-  // - Storage usage impact (max 25 points lost as storage approaches 100% full)
-  // - Memory usage impact (max 10 points lost as memory approaches 100% used)
-  const junkSizeGb = totalSize / (1024 * 1024 * 1024);
-  const junkSizePenalty = clamp(junkSizeGb / 10); // 10GB => full penalty
-  const junkSizeScore = 45 * (1 - junkSizePenalty);
+  // - Large/old file size impact (max 35 points lost at ~20GB)
+  // - Large/old file item count impact (max 15 points lost at ~1000 items)
+  // - Storage usage impact (max 35 points lost as storage approaches 100% full)
+  // - Memory usage impact (max 15 points lost as memory approaches 100% used)
+  const fileSizeGb = totalSize / (1024 * 1024 * 1024);
+  const fileSizePenalty = clamp(fileSizeGb / 20); // 20GB => full penalty
+  const fileSizeScore = 35 * (1 - fileSizePenalty);
 
-  const itemPenalty = clamp(totalItems / 2000); // 2000 items => full penalty
-  const itemScore = 20 * (1 - itemPenalty);
+  const itemPenalty = clamp(totalItems / 1000); // 1000 items => full penalty
+  const itemScore = 15 * (1 - itemPenalty);
 
-  const storageScore = 25 * (1 - storageUsage);
-  const memoryScore = 10 * (1 - memoryUsage);
+  const storageScore = 35 * (1 - storageUsage);
+  const memoryScore = 15 * (1 - memoryUsage);
 
-  const score = Math.round(junkSizeScore + itemScore + storageScore + memoryScore);
+  const score = Math.round(fileSizeScore + itemScore + storageScore + memoryScore);
 
   // Determine status and message with more lenient thresholds
   let status: 'excellent' | 'good' | 'fair' | 'poor';
@@ -120,10 +105,10 @@ export function calculateSystemHealth(
   if (memoryUsage >= 0.85) {
     issues.push('High memory use');
   }
-  if (junkSizeGb >= 5) {
-    issues.push('Large junk/cache');
-  } else if (totalItems >= 1000) {
-    issues.push('Lots of junk items');
+  if (fileSizeGb >= 10) {
+    issues.push('Large files detected');
+  } else if (totalItems >= 500) {
+    issues.push('Many large/old files');
   }
   if (issues.length > 0) {
     message = issues.join(' • ');

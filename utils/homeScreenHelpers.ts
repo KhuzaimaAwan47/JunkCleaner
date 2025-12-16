@@ -1,8 +1,5 @@
 import type { ScanDataSnapshot } from "./db";
-import type { ApkFile } from "../app/(Screens)/APKRemoverScreen/APKScanner";
-import type { ScanResult } from "../app/(Screens)/CacheLogsScreen/CacheLogsScanner";
 import type { DuplicateGroup } from "../app/(Screens)/DuplicateImagesScreen/DuplicateImageScanner";
-import type { JunkFileItem } from "../app/(Screens)/JunkFileScannerScreen/JunkFileScanner";
 import type { LargeFileResult } from "../app/(Screens)/LargeFilesScreen/LargeFileScanner";
 import type { OldFileInfo } from "../app/(Screens)/OldFilesScreen/OldFilesScanner";
 import type { WhatsAppScanResult } from "../app/(Screens)/WhatsAppRemoverScreen/WhatsAppScanner";
@@ -26,41 +23,29 @@ const categorizeFile = (path: string, type?: string): string => {
 
 export const hasDataInSnapshot = (snapshot: ScanDataSnapshot): boolean => {
   return (
-    snapshot.apkResults.length > 0 ||
     snapshot.whatsappResults.length > 0 ||
     snapshot.duplicateResults.length > 0 ||
     snapshot.largeFileResults.length > 0 ||
-    snapshot.junkFileResults.length > 0 ||
-    snapshot.oldFileResults.length > 0 ||
-    snapshot.cacheLogsResults.length > 0 ||
-    snapshot.unusedAppsResults.length > 0
+    snapshot.oldFileResults.length > 0
   );
 };
 
 export const calculateProgressFromSnapshot = (snapshot: ScanDataSnapshot): Record<string, number> => {
   const clamp = (value: number) => Math.max(0, Math.min(1, value));
 
-  const junkCount = snapshot.junkFileResults.length;
-  const cacheCount = snapshot.cacheLogsResults.length;
   const oldCount = snapshot.oldFileResults.length;
   const duplicateFileCount = snapshot.duplicateResults.reduce(
     (sum, group) => sum + (group.files?.length ?? 0),
     0,
   );
   const largeFileCount = snapshot.largeFileResults.length;
-  const apkCount = snapshot.apkResults.length;
-  const unusedCount = snapshot.unusedAppsResults.length;
   const whatsappCount = snapshot.whatsappResults.length;
 
   // Calculate maximum file count across all features for relative progress
   const counts = [
-    junkCount,
-    cacheCount,
     oldCount,
     duplicateFileCount,
     largeFileCount,
-    apkCount,
-    unusedCount,
     whatsappCount,
   ];
   const maxCount = Math.max(...counts, 1); // Use 1 as minimum to avoid division by zero
@@ -69,13 +54,9 @@ export const calculateProgressFromSnapshot = (snapshot: ScanDataSnapshot): Recor
 
   // Calculate progress based on file count relative to the maximum count
   // This ensures the feature with the most files shows 100% progress, and others scale relative to it
-  progress.junk = maxCount > 0 ? clamp(junkCount / maxCount) : 0;
-  progress.cache = maxCount > 0 ? clamp(cacheCount / maxCount) : 0;
   progress.old = maxCount > 0 ? clamp(oldCount / maxCount) : 0;
   progress.duplicate = maxCount > 0 ? clamp(duplicateFileCount / maxCount) : 0;
   progress.large = maxCount > 0 ? clamp(largeFileCount / maxCount) : 0;
-  progress.apk = maxCount > 0 ? clamp(apkCount / maxCount) : 0;
-  progress.unused = maxCount > 0 ? clamp(unusedCount / maxCount) : 0;
   progress.whatsapp = maxCount > 0 ? clamp(whatsappCount / maxCount) : 0;
 
   const averaged = (keys: string[]) =>
@@ -85,35 +66,19 @@ export const calculateProgressFromSnapshot = (snapshot: ScanDataSnapshot): Recor
     );
 
   progress.smart = averaged([
-    "junk",
-    "cache",
     "old",
     "duplicate",
     "large",
-    "apk",
-    "unused",
     "whatsapp",
   ]);
-  progress.storage = averaged(["large", "duplicate", "junk", "old"]);
+  progress.storage = averaged(["large", "duplicate", "old"]);
 
   // Calculate category feature progress (Audio, Images, Videos, etc.)
   const categoryCounts: Record<string, number> = {};
 
-  // Process Junk files
-  snapshot.junkFileResults.forEach((file) => {
-    const category = categorizeFile(file.path, (file as any).type);
-    categoryCounts[category] = (categoryCounts[category] || 0) + 1;
-  });
-
   // Process Large files
   snapshot.largeFileResults.forEach((file) => {
     const category = categorizeFile(file.path, (file as any).category);
-    categoryCounts[category] = (categoryCounts[category] || 0) + 1;
-  });
-
-  // Process Cache/Logs
-  snapshot.cacheLogsResults.forEach((file) => {
-    const category = categorizeFile(file.path, (file as any).type);
     categoryCounts[category] = (categoryCounts[category] || 0) + 1;
   });
 
@@ -138,7 +103,7 @@ export const calculateProgressFromSnapshot = (snapshot: ScanDataSnapshot): Recor
   });
 
   // Calculate progress for target categories
-  const targetCategories = ["Videos", "Images", "Audio", "Other", "Cache", "Documents"];
+  const targetCategories = ["Videos", "Images", "Audio", "Other", "Documents"];
   const categoryCountsArray = targetCategories.map((name) => categoryCounts[name] || 0);
   const maxCategoryCount = Math.max(...categoryCountsArray, 1);
 

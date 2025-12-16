@@ -8,24 +8,16 @@ export const reduxAction = (payload: any, type: ActionTypes) => ({
 
 
 // Scanner results
-export const setApkResults = (payload: any[]) => reduxAction(payload, ActionTypes.SET_APK_RESULTS);
 export const setWhatsappResults = (payload: any[]) => reduxAction(payload, ActionTypes.SET_WHATSAPP_RESULTS);
-export const setJunkFileResults = (payload: any[]) => reduxAction(payload, ActionTypes.SET_JUNK_FILE_RESULTS);
 export const setLargeFileResults = (payload: any[]) => reduxAction(payload, ActionTypes.SET_LARGE_FILE_RESULTS);
 export const setOldFileResults = (payload: any[]) => reduxAction(payload, ActionTypes.SET_OLD_FILE_RESULTS);
-export const setCacheLogsResults = (payload: any[]) => reduxAction(payload, ActionTypes.SET_CACHE_LOGS_RESULTS);
 export const setDuplicateResults = (payload: any[]) => reduxAction(payload, ActionTypes.SET_DUPLICATE_RESULTS);
-export const setUnusedAppsResults = (payload: any[]) => reduxAction(payload, ActionTypes.SET_UNUSED_APPS_RESULTS);
 
 // Clear results
-export const clearApkResults = () => ({ type: ActionTypes.CLEAR_APK_RESULTS });
 export const clearWhatsappResults = () => ({ type: ActionTypes.CLEAR_WHATSAPP_RESULTS });
-export const clearJunkFileResults = () => ({ type: ActionTypes.CLEAR_JUNK_FILE_RESULTS });
 export const clearLargeFileResults = () => ({ type: ActionTypes.CLEAR_LARGE_FILE_RESULTS });
 export const clearOldFileResults = () => ({ type: ActionTypes.CLEAR_OLD_FILE_RESULTS });
-export const clearCacheLogsResults = () => ({ type: ActionTypes.CLEAR_CACHE_LOGS_RESULTS });
 export const clearDuplicateResults = () => ({ type: ActionTypes.CLEAR_DUPLICATE_RESULTS });
-export const clearUnusedAppsResults = () => ({ type: ActionTypes.CLEAR_UNUSED_APPS_RESULTS });
 
 // Selected items
 export const setSelectedItems = (screen: string, items: string[]) => 

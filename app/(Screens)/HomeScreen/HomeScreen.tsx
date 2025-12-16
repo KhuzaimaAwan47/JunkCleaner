@@ -15,16 +15,12 @@ import type { Feature } from "../../../dummydata/features";
 import { featureCards } from "../../../dummydata/features";
 import { appRoutes } from "../../../routes";
 import {
-  setApkResults,
-  setCacheLogsResults,
   setDuplicateResults,
   setFeatureProgress,
-  setJunkFileResults,
   setLargeFileResults,
   setOldFileResults,
   setStorageInfo,
   setSystemHealth,
-  setUnusedAppsResults,
   setWhatsappResults,
 } from "../../../redux-code/action";
 import type { RootState } from "../../../redux-code/store";
@@ -51,14 +47,10 @@ const HomeScreen = () => {
   const featureProgress = useSelector((state: RootState) => state.appState.featureProgress);
   const systemHealth = useSelector((state: RootState) => state.appState.systemHealth);
   const storageInfo = useSelector((state: RootState) => state.appState.storageInfo);
-  const junkFileResults = useSelector((state: RootState) => state.appState.junkFileResults);
   const largeFileResults = useSelector((state: RootState) => state.appState.largeFileResults);
-  const cacheLogsResults = useSelector((state: RootState) => state.appState.cacheLogsResults);
   const oldFileResults = useSelector((state: RootState) => state.appState.oldFileResults);
   const whatsappResults = useSelector((state: RootState) => state.appState.whatsappResults);
   const duplicateResults = useSelector((state: RootState) => state.appState.duplicateResults);
-  const apkResults = useSelector((state: RootState) => state.appState.apkResults);
-  const unusedAppsResults = useSelector((state: RootState) => state.appState.unusedAppsResults);
   
   const [showFeatures, setShowFeatures] = React.useState(false);
   const featureVisibility = useSharedValue(0);
@@ -66,31 +58,25 @@ const HomeScreen = () => {
   // Calculate feature stats from scan results
   const featureStats = React.useMemo(() => {
     return calculateFeatureStats({
-      apkResults,
       whatsappResults,
       duplicateResults,
       largeFileResults,
-      junkFileResults,
       oldFileResults,
-      cacheLogsResults,
-      unusedAppsResults,
     });
-  }, [apkResults, whatsappResults, duplicateResults, largeFileResults, junkFileResults, oldFileResults, cacheLogsResults, unusedAppsResults]);
+  }, [whatsappResults, duplicateResults, largeFileResults, oldFileResults]);
 
   // Calculate file category features
   const fileCategoryFeatures = React.useMemo<Feature[]>(() => {
     return calculateFileCategoryFeatures(
       {
-        junkFileResults,
         largeFileResults,
-        cacheLogsResults,
         oldFileResults,
         whatsappResults,
         duplicateResults,
       },
       theme
     );
-  }, [junkFileResults, largeFileResults, cacheLogsResults, oldFileResults, whatsappResults, duplicateResults, theme]);
+  }, [largeFileResults, oldFileResults, whatsappResults, duplicateResults, theme]);
 
   // Combine existing features with file category features and apply formatted subtitles
   const features = React.useMemo<Feature[]>(() => {
@@ -121,14 +107,10 @@ const HomeScreen = () => {
         getMemoryInfo(),
       ]);
 
-      dispatch(setApkResults(snapshot.apkResults));
       dispatch(setWhatsappResults(snapshot.whatsappResults));
-      dispatch(setJunkFileResults(snapshot.junkFileResults));
       dispatch(setLargeFileResults(snapshot.largeFileResults));
       dispatch(setOldFileResults(snapshot.oldFileResults));
-      dispatch(setCacheLogsResults(snapshot.cacheLogsResults));
       dispatch(setDuplicateResults(snapshot.duplicateResults));
-      dispatch(setUnusedAppsResults(snapshot.unusedAppsResults));
 
       const dataExists = hasDataInSnapshot(snapshot);
       const isComplete = status?.completed === true;

@@ -5,17 +5,10 @@ import {
   clearScanProgress,
   setLoading,
   setScanProgress,
-  setApkResults,
-  setWhatsappResults,
-  setDuplicateResults,
-  setLargeFileResults,
-  setJunkFileResults,
-  setOldFileResults,
-  setCacheLogsResults,
-  setUnusedAppsResults,
 } from "../../../redux-code/action";
 import type { RootState } from "../../../redux-code/store";
 import { runSmartScan } from "../../../utils/smartScan";
+import { requestAllSmartScanPermissions } from "../../../utils/permissions";
 
 export const useSmartScan = (onScanComplete: () => Promise<void>) => {
   const dispatch = useDispatch();
@@ -29,6 +22,16 @@ export const useSmartScan = (onScanComplete: () => Promise<void>) => {
 
   const handleSmartScan = React.useCallback(async () => {
     if (localIsScanning) return;
+
+    // Request all permissions upfront before starting the scan
+    const hasPermissions = await requestAllSmartScanPermissions();
+    if (!hasPermissions) {
+      Alert.alert(
+        "Permissions Required",
+        "All storage permissions are required to perform the smart scan. Please grant the permissions and try again.",
+      );
+      return;
+    }
 
     setLocalIsScanning(true);
     dispatch(setLoading("smartScan", true));

@@ -1,11 +1,7 @@
 import * as SQLite from 'expo-sqlite';
-import type { ApkFile } from '../app/(Screens)/APKRemoverScreen/APKScanner';
-import type { ScanResult } from '../app/(Screens)/CacheLogsScreen/CacheLogsScanner';
 import type { DuplicateGroup } from '../app/(Screens)/DuplicateImagesScreen/DuplicateImageScanner';
-import type { JunkFileItem } from '../app/(Screens)/JunkFileScannerScreen/JunkFileScanner';
 import type { LargeFileResult } from '../app/(Screens)/LargeFilesScreen/LargeFileScanner';
 import type { OldFileInfo } from '../app/(Screens)/OldFilesScreen/OldFilesScanner';
-import type { UnusedAppInfo } from '../app/(Screens)/UnusedAppsScreen/UnusedAppsScanner';
 import type { WhatsAppScanResult } from '../app/(Screens)/WhatsAppRemoverScreen/WhatsAppScanner';
 
 export interface FileCacheEntry {
@@ -42,12 +38,6 @@ export async function initDatabase(): Promise<void> {
       groups_data TEXT NOT NULL
     );
 
-    CREATE TABLE IF NOT EXISTS apk_scan_results (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      saved_at INTEGER NOT NULL,
-      results_data TEXT NOT NULL
-    );
-
     CREATE TABLE IF NOT EXISTS whatsapp_scan_results (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       saved_at INTEGER NOT NULL,
@@ -60,25 +50,7 @@ export async function initDatabase(): Promise<void> {
       results_data TEXT NOT NULL
     );
 
-    CREATE TABLE IF NOT EXISTS junk_file_scan_results (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      saved_at INTEGER NOT NULL,
-      results_data TEXT NOT NULL
-    );
-
     CREATE TABLE IF NOT EXISTS old_file_scan_results (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      saved_at INTEGER NOT NULL,
-      results_data TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS cache_logs_scan_results (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      saved_at INTEGER NOT NULL,
-      results_data TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS unused_apps_scan_results (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       saved_at INTEGER NOT NULL,
       results_data TEXT NOT NULL
@@ -190,46 +162,6 @@ export async function clearDuplicateGroups(): Promise<void> {
   await db!.runAsync('DELETE FROM duplicate_groups');
 }
 
-export async function saveApkScanResults(results: ApkFile[]): Promise<void> {
-  if (!db) await initDatabase();
-
-  try {
-    await db!.runAsync('DELETE FROM apk_scan_results');
-    await db!.runAsync(
-      'INSERT INTO apk_scan_results (saved_at, results_data) VALUES (?, ?)',
-      [Date.now(), JSON.stringify(results)]
-    );
-  } catch (error) {
-    console.error('Failed to persist APK scan results:', error);
-    throw error;
-  }
-}
-
-export async function loadApkScanResults(): Promise<ApkFile[]> {
-  if (!db) await initDatabase();
-
-  const result = await db!.getFirstAsync<{ results_data: string }>(
-    'SELECT results_data FROM apk_scan_results ORDER BY saved_at DESC LIMIT 1'
-  );
-
-  if (!result) {
-    return [];
-  }
-
-  try {
-    return JSON.parse(result.results_data) as ApkFile[];
-  } catch (error) {
-    console.error('Failed to parse cached APK scan results:', error);
-    return [];
-  }
-}
-
-export async function clearApkScanResults(): Promise<void> {
-  if (!db) await initDatabase();
-
-  await db!.runAsync('DELETE FROM apk_scan_results');
-}
-
 // WhatsApp Scanner Results
 export async function saveWhatsAppResults(results: WhatsAppScanResult[]): Promise<void> {
   if (!db) await initDatabase();
@@ -312,47 +244,6 @@ export async function clearLargeFileResults(): Promise<void> {
   await db!.runAsync('DELETE FROM large_file_scan_results');
 }
 
-// Junk Files Scanner Results
-export async function saveJunkFileResults(results: JunkFileItem[]): Promise<void> {
-  if (!db) await initDatabase();
-
-  try {
-    await db!.runAsync('DELETE FROM junk_file_scan_results');
-    await db!.runAsync(
-      'INSERT INTO junk_file_scan_results (saved_at, results_data) VALUES (?, ?)',
-      [Date.now(), JSON.stringify(results)]
-    );
-  } catch (error) {
-    console.error('Failed to persist junk file scan results:', error);
-    throw error;
-  }
-}
-
-export async function loadJunkFileResults(): Promise<JunkFileItem[]> {
-  if (!db) await initDatabase();
-
-  const result = await db!.getFirstAsync<{ results_data: string }>(
-    'SELECT results_data FROM junk_file_scan_results ORDER BY saved_at DESC LIMIT 1'
-  );
-
-  if (!result) {
-    return [];
-  }
-
-  try {
-    return JSON.parse(result.results_data) as JunkFileItem[];
-  } catch (error) {
-    console.error('Failed to parse cached junk file scan results:', error);
-    return [];
-  }
-}
-
-export async function clearJunkFileResults(): Promise<void> {
-  if (!db) await initDatabase();
-
-  await db!.runAsync('DELETE FROM junk_file_scan_results');
-}
-
 // Old Files Scanner Results
 export async function saveOldFileResults(results: OldFileInfo[]): Promise<void> {
   if (!db) await initDatabase();
@@ -394,101 +285,15 @@ export async function clearOldFileResults(): Promise<void> {
   await db!.runAsync('DELETE FROM old_file_scan_results');
 }
 
-// Cache Logs Scanner Results
-export async function saveCacheLogsResults(results: ScanResult[]): Promise<void> {
-  if (!db) await initDatabase();
-
-  try {
-    await db!.runAsync('DELETE FROM cache_logs_scan_results');
-    await db!.runAsync(
-      'INSERT INTO cache_logs_scan_results (saved_at, results_data) VALUES (?, ?)',
-      [Date.now(), JSON.stringify(results)]
-    );
-  } catch (error) {
-    console.error('Failed to persist cache logs scan results:', error);
-    throw error;
-  }
-}
-
-export async function loadCacheLogsResults(): Promise<ScanResult[]> {
-  if (!db) await initDatabase();
-
-  const result = await db!.getFirstAsync<{ results_data: string }>(
-    'SELECT results_data FROM cache_logs_scan_results ORDER BY saved_at DESC LIMIT 1'
-  );
-
-  if (!result) {
-    return [];
-  }
-
-  try {
-    return JSON.parse(result.results_data) as ScanResult[];
-  } catch (error) {
-    console.error('Failed to parse cached cache logs scan results:', error);
-    return [];
-  }
-}
-
-export async function clearCacheLogsResults(): Promise<void> {
-  if (!db) await initDatabase();
-
-  await db!.runAsync('DELETE FROM cache_logs_scan_results');
-}
-
-// Unused Apps Scanner Results
-export async function saveUnusedAppsResults(results: UnusedAppInfo[]): Promise<void> {
-  if (!db) await initDatabase();
-
-  try {
-    await db!.runAsync('DELETE FROM unused_apps_scan_results');
-    await db!.runAsync(
-      'INSERT INTO unused_apps_scan_results (saved_at, results_data) VALUES (?, ?)',
-      [Date.now(), JSON.stringify(results)]
-    );
-  } catch (error) {
-    console.error('Failed to persist unused apps scan results:', error);
-    throw error;
-  }
-}
-
-export async function loadUnusedAppsResults(): Promise<UnusedAppInfo[]> {
-  if (!db) await initDatabase();
-
-  const result = await db!.getFirstAsync<{ results_data: string }>(
-    'SELECT results_data FROM unused_apps_scan_results ORDER BY saved_at DESC LIMIT 1'
-  );
-
-  if (!result) {
-    return [];
-  }
-
-  try {
-    return JSON.parse(result.results_data) as UnusedAppInfo[];
-  } catch (error) {
-    console.error('Failed to parse cached unused apps scan results:', error);
-    return [];
-  }
-}
-
-export async function clearUnusedAppsResults(): Promise<void> {
-  if (!db) await initDatabase();
-
-  await db!.runAsync('DELETE FROM unused_apps_scan_results');
-}
-
 // Smart Scan Status
 export interface SmartScanStatus {
   completed: boolean;
   completedAt: number | null;
   scannerProgress: {
-    apk: boolean;
     whatsapp: boolean;
     duplicates: boolean;
     largeFiles: boolean;
-    junkFiles: boolean;
     oldFiles: boolean;
-    cacheLogs: boolean;
-  unusedApps: boolean;
   };
 }
 
@@ -534,14 +339,10 @@ export async function clearSmartScanStatus(): Promise<void> {
 
 // Empty Folders Scanner Results
 export interface ScanDataSnapshot {
-  apkResults: ApkFile[];
   whatsappResults: WhatsAppScanResult[];
   duplicateResults: DuplicateGroup[];
   largeFileResults: LargeFileResult[];
-  junkFileResults: JunkFileItem[];
   oldFileResults: OldFileInfo[];
-  cacheLogsResults: ScanResult[];
-  unusedAppsResults: UnusedAppInfo[];
 }
 
 /**
@@ -551,34 +352,22 @@ export async function loadAllScanResults(): Promise<ScanDataSnapshot> {
   if (!db) await initDatabase();
 
   const [
-    apkResults,
     whatsappResults,
     duplicateResults,
     largeFileResults,
-    junkFileResults,
     oldFileResults,
-    cacheLogsResults,
-    unusedAppsResults,
   ] = await Promise.all([
-    loadApkScanResults(),
     loadWhatsAppResults(),
     loadDuplicateGroups(),
     loadLargeFileResults(),
-    loadJunkFileResults(),
     loadOldFileResults(),
-    loadCacheLogsResults(),
-    loadUnusedAppsResults(),
   ]);
 
   return {
-    apkResults,
     whatsappResults,
     duplicateResults,
     largeFileResults,
-    junkFileResults,
     oldFileResults,
-    cacheLogsResults,
-    unusedAppsResults,
   };
 }
 
@@ -589,13 +378,9 @@ export async function hasAnyScanData(): Promise<boolean> {
   const snapshot = await loadAllScanResults();
 
   return (
-    snapshot.apkResults.length > 0 ||
     snapshot.whatsappResults.length > 0 ||
     snapshot.duplicateResults.length > 0 ||
     snapshot.largeFileResults.length > 0 ||
-    snapshot.junkFileResults.length > 0 ||
-    snapshot.oldFileResults.length > 0 ||
-    snapshot.cacheLogsResults.length > 0 ||
-    snapshot.unusedAppsResults.length > 0
+    snapshot.oldFileResults.length > 0
   );
 }

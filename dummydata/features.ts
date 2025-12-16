@@ -12,17 +12,8 @@ export type Feature = {
   progress: number;
 };
 
-// Order here mirrors smart scan sequence for consistent UI: APK → WhatsApp → Duplicates → Large → Junk → Old → Cache → Unused → (extras)
+// Order here mirrors smart scan sequence for consistent UI: WhatsApp → Duplicates → Large → Old → (extras)
 export const featureCards: Feature[] = [
-  {
-    id: 'apk',
-    title: 'APKs',
-    subtitle: 'Installers',
-    icon: 'android',
-    route: appRoutes.apks,
-    accent: '#00D1FF',
-    progress: 0.36,
-  },
   {
     id: 'whatsapp',
     title: 'WhatsApp',
@@ -51,15 +42,6 @@ export const featureCards: Feature[] = [
     progress: 0.57,
   },
   {
-    id: 'junk',
-    title: 'Junk Files',
-    subtitle: 'Temporary leftovers',
-    icon: 'delete-empty-outline',
-    route: appRoutes.junkScanner,
-    accent: allColors.accent,
-    progress: 0.62,
-  },
-  {
     id: 'old',
     title: 'Old Files',
     subtitle: 'Beyond 90 days',
@@ -67,24 +49,6 @@ export const featureCards: Feature[] = [
     route: appRoutes.oldFiles,
     accent: '#FFA45B',
     progress: 0.73,
-  },
-  {
-    id: 'cache',
-    title: 'Cache Logs',
-    subtitle: 'Hidden cache',
-    icon: 'file-cabinet',
-    route: appRoutes.cacheLogs,
-    accent: allColors.secondary,
-    progress: 0.44,
-  },
-  {
-    id: 'unused',
-    title: 'Unused Apps',
-    subtitle: 'Dormant 30d',
-    icon: 'apps',
-    route: appRoutes.unusedApps,
-    accent: '#F06292',
-    progress: 0.51,
   },
   {
     id: 'smart',

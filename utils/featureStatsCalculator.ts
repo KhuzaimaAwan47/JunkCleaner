@@ -1,20 +1,13 @@
-import type { ApkFile } from "../app/(Screens)/APKRemoverScreen/APKScanner";
-import type { ScanResult } from "../app/(Screens)/CacheLogsScreen/CacheLogsScanner";
 import type { DuplicateGroup } from "../app/(Screens)/DuplicateImagesScreen/DuplicateImageScanner";
-import type { JunkFileItem } from "../app/(Screens)/JunkFileScannerScreen/JunkFileScanner";
 import type { LargeFileResult } from "../app/(Screens)/LargeFilesScreen/LargeFileScanner";
 import type { OldFileInfo } from "../app/(Screens)/OldFilesScreen/OldFilesScanner";
 import type { WhatsAppScanResult } from "../app/(Screens)/WhatsAppRemoverScreen/WhatsAppScanner";
 
 type ScanResults = {
-  apkResults?: ApkFile[];
   whatsappResults?: WhatsAppScanResult[];
   duplicateResults?: DuplicateGroup[];
   largeFileResults?: LargeFileResult[];
-  junkFileResults?: JunkFileItem[];
   oldFileResults?: OldFileInfo[];
-  cacheLogsResults?: ScanResult[];
-  unusedAppsResults?: { packageName: string; appName: string }[];
 };
 
 export type FeatureStats = {
@@ -29,11 +22,6 @@ export type FeatureStatsMap = Record<string, FeatureStats>;
  */
 export function calculateFeatureStats(scanResults: ScanResults): FeatureStatsMap {
   const stats: FeatureStatsMap = {};
-
-  // APKs
-  const apkCount = scanResults.apkResults?.length ?? 0;
-  const apkSize = scanResults.apkResults?.reduce((sum, item) => sum + (item.size ?? 0), 0) ?? 0;
-  stats.apk = { size: apkSize, count: apkCount };
 
   // WhatsApp
   const whatsappCount = scanResults.whatsappResults?.length ?? 0;
@@ -64,27 +52,11 @@ export function calculateFeatureStats(scanResults: ScanResults): FeatureStatsMap
     scanResults.largeFileResults?.reduce((sum, item) => sum + (item.size ?? 0), 0) ?? 0;
   stats.large = { size: largeFileSize, count: largeFileCount };
 
-  // Junk Files
-  const junkCount = scanResults.junkFileResults?.length ?? 0;
-  const junkSize =
-    scanResults.junkFileResults?.reduce((sum, item) => sum + (item.size ?? 0), 0) ?? 0;
-  stats.junk = { size: junkSize, count: junkCount };
-
   // Old Files
   const oldCount = scanResults.oldFileResults?.length ?? 0;
   const oldSize =
     scanResults.oldFileResults?.reduce((sum, item) => sum + (item.size ?? 0), 0) ?? 0;
   stats.old = { size: oldSize, count: oldCount };
-
-  // Cache Logs
-  const cacheCount = scanResults.cacheLogsResults?.length ?? 0;
-  const cacheSize =
-    scanResults.cacheLogsResults?.reduce((sum, item) => sum + (item.size ?? 0), 0) ?? 0;
-  stats.cache = { size: cacheSize, count: cacheCount };
-
-  // Unused Apps (count only, no size)
-  const unusedCount = scanResults.unusedAppsResults?.length ?? 0;
-  stats.unused = { size: 0, count: unusedCount };
 
   return stats;
 }
