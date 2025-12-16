@@ -19,6 +19,10 @@ export interface AppState {
     large: string[];
     old: string[];
     duplicate: string[];
+    videos: string[];
+    images: string[];
+    audios: string[];
+    documents: string[];
   };
   
   // Loading states per screen
@@ -59,6 +63,10 @@ const initialState: AppState = {
     large: [],
     old: [],
     duplicate: [],
+    videos: [],
+    images: [],
+    audios: [],
+    documents: [],
   },
   loadingStates: {
     whatsapp: false,

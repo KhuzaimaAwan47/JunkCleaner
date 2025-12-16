@@ -9,6 +9,10 @@
   duplicates: "/(Screens)/DuplicateImagesScreen/DuplicateImagesScreen",
   resultAnimation: "/(Screens)/ResultAnimationScreen/ResultAnimationScreen",
   reminder: "/(Screens)/NotificationReminderScreen/NotificationReminderScreen",
+  videos: "/(Screens)/VideosScreen/VideosScreen",
+  images: "/(Screens)/ImagesScreen/ImagesScreen",
+  audios: "/(Screens)/AudiosScreen/AudiosScreen",
+  documents: "/(Screens)/DocumentsScreen/DocumentsScreen",
 } as const;
 
 export type AppRoute = (typeof appRoutes)[keyof typeof appRoutes];

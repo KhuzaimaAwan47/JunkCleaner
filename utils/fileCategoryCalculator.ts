@@ -124,8 +124,8 @@ export function calculateFileCategoryFeatures(
     });
   });
 
-  // Filter to only the categories we want: Videos, Images, Audio, Other, Documents
-  const targetCategories = ["Videos", "Images", "Audio", "Other", "Documents"];
+  // Filter to only the categories we want: Videos, Images, Audio, Documents
+  const targetCategories = ["Videos", "Images", "Audio", "Documents"];
   const filteredCategories = targetCategories.map((name) => {
     const data = categories[name] || { name, size: 0, count: 0 };
     return data;
@@ -139,15 +139,112 @@ export function calculateFileCategoryFeatures(
   return filteredCategories.map((category) => {
     // Calculate progress based on file count relative to the maximum count
     const progress = maxCount > 0 ? Math.min(1, category.count / maxCount) : 0;
+    
+    // Map category to route
+    const routeMap: Record<string, string> = {
+      Videos: appRoutes.videos,
+      Images: appRoutes.images,
+      Audio: appRoutes.audios,
+      Documents: appRoutes.documents,
+    };
+    
     return {
       id: `category-${category.name.toLowerCase()}`,
       title: category.name,
       subtitle: getCategorySubtitle(category.name, category.size, category.count),
       icon: getCategoryIcon(category.name),
-      route: appRoutes.home,
+      route: routeMap[category.name] || appRoutes.home,
       accent: getCategoryColor(category.name, theme),
       progress,
     };
   });
+}
+
+export type CategoryFile = {
+  path: string;
+  size: number;
+  modified?: number | null;
+  category?: string;
+};
+
+/**
+ * Filter files by category from all scan results
+ */
+export function filterFilesByCategory(
+  category: "Videos" | "Images" | "Audio" | "Documents",
+  scanResults: ScanResults
+): CategoryFile[] {
+  const files: CategoryFile[] = [];
+
+  // Process Large files
+  scanResults.largeFileResults?.forEach((file) => {
+    const fileCategory = categorizeFile(file.path, file.category);
+    if (fileCategory === category) {
+      files.push({
+        path: file.path,
+        size: file.size || 0,
+        modified: file.modified,
+        category: file.category,
+      });
+    }
+  });
+
+  // Process Old files
+  scanResults.oldFileResults?.forEach((file) => {
+    const fileCategory = categorizeFile(file.path);
+    if (fileCategory === category) {
+      files.push({
+        path: file.path,
+        size: file.size || 0,
+        modified: file.modifiedDate,
+      });
+    }
+  });
+
+  // Process WhatsApp files
+  scanResults.whatsappResults?.forEach((file) => {
+    const fileCategory = categorizeFile(file.path, file.type);
+    if (fileCategory === category) {
+      files.push({
+        path: file.path,
+        size: file.size || 0,
+        modified: file.modified,
+        category: file.type,
+      });
+    }
+  });
+
+  // Process Duplicate images (only for Images category)
+  if (category === "Images") {
+    scanResults.duplicateResults?.forEach((group) => {
+      group.files.forEach((file) => {
+        const fileCategory = categorizeFile(file.path, "Images");
+        if (fileCategory === category) {
+          files.push({
+            path: file.path,
+            size: file.size || 0,
+            modified: file.modifiedDate,
+            category: "Images",
+          });
+        }
+      });
+    });
+  }
+
+  // Remove duplicates based on path
+  const uniqueFiles = new Map<string, CategoryFile>();
+  files.forEach((file) => {
+    if (!uniqueFiles.has(file.path)) {
+      uniqueFiles.set(file.path, file);
+    } else {
+      // If duplicate, keep the one with larger size
+      const existing = uniqueFiles.get(file.path)!;
+      if (file.size > existing.size) {
+        uniqueFiles.set(file.path, file);
+      }
+    }
+  });
+
+  return Array.from(uniqueFiles.values());
 }
 
