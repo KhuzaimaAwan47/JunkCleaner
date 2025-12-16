@@ -23,10 +23,33 @@ const LARGE_FILE_SIZE = 500 * 1024 * 1024; // 500MB
 const OLD_FILE_DAYS = 45;
 const OLD_FILE_MS = OLD_FILE_DAYS * 24 * 60 * 60 * 1000;
 
-const JUNK_EXTENSIONS = ['.tmp', '.log', '.cache', '.bak', '.old', '.temp', '.download'];
+// Enhanced junk file patterns from both repos
+const JUNK_EXTENSIONS = [
+  '.tmp', '.log', '.cache', '.bak', '.old', '.temp', '.download',
+  '.trace', '.crash', '.error', '.dump', '.lock', '.pid', '.swp',
+  '.part', '.partial', '.crdownload', '.!qB', '.download', '.downloads',
+  '.nomedia', '.thumbdata', '.thumbdata3', '.thumbdata4', '.thumbdata5',
+  '.thumbdata6', '.thumbdata7', '.thumbdata8', '.thumbdata9',
+];
 const MEDIA_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif', '.mp4', '.mkv', '.avi', '.mov', '.mp3', '.wav', '.flac'];
 const DOCUMENT_EXTENSIONS = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt', '.rtf'];
 const PROGRESS_THROTTLE_MS = 120;
+
+// Log rotation patterns (.log.1, .log.2, etc.)
+const LOG_ROTATION_PATTERN = /\.log\.\d+$/i;
+
+// App-specific cache directory patterns
+const APP_CACHE_PATTERNS = [
+  /\/cache$/i,
+  /\/\.cache$/i,
+  /\/tmp$/i,
+  /\/temp$/i,
+  /\/logs$/i,
+  /\/log$/i,
+  /\/\.thumbnails$/i,
+  /\/thumbnails$/i,
+  /\/\.thumb$/i,
+];
 
 const buildJunkRootPaths = (): string[] => {
   const base = RNFS.ExternalStorageDirectoryPath;
@@ -37,14 +60,17 @@ const buildJunkRootPaths = (): string[] => {
     `${base}/Android/media`,
     `${base}/Android/obb`,
     `${base}/Download`,
+    `${base}/Downloads`,
     `${base}/cache`,
     `${base}/tmp`,
+    `${base}/temp`,
     `${base}/WhatsApp/.Statuses`,
     `${base}/WhatsApp/Media/.Statuses`,
     `${base}/Telegram/.cache`,
     `${base}/DCIM/.thumbnails`,
     `${base}/Pictures/.thumbnails`,
-  ].filter(Boolean);
+    RNFS.CachesDirectoryPath || null,
+  ].filter(Boolean) as string[];
 };
 
 const SKIP_PATH_PATTERNS = [
@@ -71,13 +97,18 @@ const isJunkFile = (name: string, path: string): boolean => {
   const lowerName = name.toLowerCase();
   const lowerPath = path.toLowerCase();
   
-  // Files starting with ~
-  if (lowerName.startsWith('~')) {
+  // Files starting with ~ (temp files)
+  if (lowerName.startsWith('~') || lowerName.startsWith('.')) {
     return true;
   }
   
-  // Files ending with .0
-  if (lowerName.endsWith('.0')) {
+  // Files ending with .0, .part, .partial (incomplete downloads)
+  if (lowerName.endsWith('.0') || lowerName.endsWith('.part') || lowerName.endsWith('.partial')) {
+    return true;
+  }
+  
+  // Log rotation files (.log.1, .log.2, etc.)
+  if (LOG_ROTATION_PATTERN.test(lowerName)) {
     return true;
   }
   
@@ -88,11 +119,25 @@ const isJunkFile = (name: string, path: string): boolean => {
     if (JUNK_EXTENSIONS.includes(ext)) {
       return true;
     }
-    // Skip .apk files - they should be handled by APK remover, not junk scanner
   }
   
-  // Check path for cache indicators
-  if (lowerPath.includes('/cache') || lowerPath.includes('/temp') || lowerPath.includes('/tmp')) {
+  // Check path for cache/temp indicators (enhanced patterns)
+  if (APP_CACHE_PATTERNS.some(pattern => pattern.test(lowerPath))) {
+    return true;
+  }
+  
+  // Orphaned .nomedia files (should be in directories, not standalone)
+  if (lowerName === '.nomedia' && !lowerPath.includes('/android/data/')) {
+    return true;
+  }
+  
+  // Temporary download files
+  if (lowerPath.includes('/download') && (
+    lowerName.includes('.tmp') || 
+    lowerName.includes('.temp') ||
+    lowerName.endsWith('.crdownload') ||
+    lowerName.endsWith('.!qB')
+  )) {
     return true;
   }
   
@@ -107,15 +152,25 @@ const detectJunkType = (name: string, path: string, size: number): JunkFileType 
     return 'large';
   }
   
-  if (lowerName.endsWith('.log') || lowerName.endsWith('.trace')) {
+  // Log files (including rotated logs)
+  if (lowerName.endsWith('.log') || lowerName.endsWith('.trace') || 
+      lowerName.endsWith('.crash') || lowerName.endsWith('.error') ||
+      LOG_ROTATION_PATTERN.test(lowerName)) {
     return 'log';
   }
   
-  if (lowerName.endsWith('.tmp') || lowerName.endsWith('.temp') || lowerName.startsWith('~')) {
+  // Temporary files
+  if (lowerName.endsWith('.tmp') || lowerName.endsWith('.temp') || 
+      lowerName.startsWith('~') || lowerName.endsWith('.part') ||
+      lowerName.endsWith('.partial') || lowerName.endsWith('.crdownload') ||
+      lowerName.endsWith('.!qB')) {
     return 'temp';
   }
   
-  if (lowerPath.includes('/cache') || lowerName.endsWith('.cache')) {
+  // Cache files (including app-specific cache directories)
+  if (lowerPath.includes('/cache') || lowerName.endsWith('.cache') ||
+      APP_CACHE_PATTERNS.some(pattern => pattern.test(lowerPath)) ||
+      lowerName.includes('thumbdata') || lowerName.includes('thumbnail')) {
     return 'cache';
   }
   
@@ -267,10 +322,25 @@ export const scanJunkFiles = async (
 
           // Check if it's junk
           if (!isJunkFile(entry.name, entry.path)) {
-            // Also check if it's old or in cache directory
+            // Also check if it's old or in cache/temp directory (merged from Cache & Logs scanner)
             const isOld = Date.now() - modified > OLD_FILE_MS;
-            const isInCache = entry.path.toLowerCase().includes('/cache');
-            if (!isOld && !isInCache) {
+            const lowerPath = entry.path.toLowerCase();
+            const isInCache = APP_CACHE_PATTERNS.some(pattern => pattern.test(lowerPath)) ||
+                             lowerPath.includes('/cache') || 
+                             lowerPath.includes('/temp') ||
+                             lowerPath.includes('/tmp') ||
+                             lowerPath.includes('/logs') ||
+                             lowerPath.includes('/log');
+            
+            // Check for cache/log extensions even if not in cache directory
+            const lowerName = entry.name.toLowerCase();
+            const isCacheExtension = lowerName.endsWith('.log') || 
+                                    lowerName.endsWith('.trace') ||
+                                    lowerName.endsWith('.tmp') ||
+                                    lowerName.endsWith('.bak') ||
+                                    LOG_ROTATION_PATTERN.test(lowerName);
+            
+            if (!isOld && !isInCache && !isCacheExtension) {
               return;
             }
           }

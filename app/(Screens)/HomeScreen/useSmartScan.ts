@@ -5,6 +5,14 @@ import {
   clearScanProgress,
   setLoading,
   setScanProgress,
+  setApkResults,
+  setWhatsappResults,
+  setDuplicateResults,
+  setLargeFileResults,
+  setJunkFileResults,
+  setOldFileResults,
+  setCacheLogsResults,
+  setUnusedAppsResults,
 } from "../../../redux-code/action";
 import type { RootState } from "../../../redux-code/store";
 import { runSmartScan } from "../../../utils/smartScan";

@@ -126,30 +126,75 @@ const calculateConfidenceScore = (
   launchCount: number,
   daysSinceInstall: number,
   hasNotifications: boolean,
+  totalTimeInForeground: number,
 ): number => {
   let daysUnusedWeight = 0;
   let launchCountWeight = 0;
+  let installAgeWeight = 0;
+  let usageTimeWeight = 0;
   let notificationWeight = 0;
 
-  if (lastUsedDays === Infinity || lastUsedDays > 30) {
+  // Days unused weight (primary factor)
+  if (lastUsedDays === Infinity || lastUsedDays >= 90) {
+    daysUnusedWeight = 60; // Very high confidence for 90+ days unused
+  } else if (lastUsedDays >= 60) {
     daysUnusedWeight = 50;
-  } else if (lastUsedDays > 7) {
+  } else if (lastUsedDays >= 30) {
+    daysUnusedWeight = 40;
+  } else if (lastUsedDays >= 14) {
     daysUnusedWeight = 25;
+  } else if (lastUsedDays >= 7) {
+    daysUnusedWeight = 15;
   } else if (lastUsedDays > 0) {
-    daysUnusedWeight = 10;
+    daysUnusedWeight = 5;
   }
 
-  if (daysSinceInstall >= 45 && launchCount < 2) {
-    launchCountWeight = 40;
+  // Launch count weight (considering install age)
+  if (daysSinceInstall >= 60 && launchCount === 0) {
+    launchCountWeight = 35; // Never launched after 60 days
+  } else if (daysSinceInstall >= 45 && launchCount < 2) {
+    launchCountWeight = 30;
   } else if (daysSinceInstall >= 30 && launchCount < 5) {
     launchCountWeight = 20;
+  } else if (daysSinceInstall >= 14 && launchCount < 3) {
+    launchCountWeight = 15;
+  } else if (launchCount === 0 && daysSinceInstall >= 7) {
+    launchCountWeight = 10; // Never launched after a week
   }
 
+  // Install age weight (newly installed apps get lower confidence)
+  if (daysSinceInstall < 7) {
+    installAgeWeight = -30; // Very new, don't recommend removal
+  } else if (daysSinceInstall < 14) {
+    installAgeWeight = -20;
+  } else if (daysSinceInstall < 30) {
+    installAgeWeight = -10;
+  } else if (daysSinceInstall >= 90 && launchCount === 0) {
+    installAgeWeight = 15; // Old and never used
+  }
+
+  // Usage time weight (apps with very low usage time)
+  const hoursInForeground = totalTimeInForeground / (1000 * 60 * 60);
+  if (daysSinceInstall >= 30 && hoursInForeground < 0.5) {
+    usageTimeWeight = 15; // Less than 30 minutes total usage
+  } else if (daysSinceInstall >= 60 && hoursInForeground < 1) {
+    usageTimeWeight = 10;
+  }
+
+  // Notification weight (negative if has notifications - likely important)
   if (hasNotifications) {
-    notificationWeight = -20;
+    notificationWeight = -25; // Apps with notifications are likely important
   }
 
-  const score = Math.min(100, Math.max(0, daysUnusedWeight + launchCountWeight + notificationWeight));
+  // Calculate final score
+  const score = Math.min(100, Math.max(0, 
+    daysUnusedWeight + 
+    launchCountWeight + 
+    installAgeWeight + 
+    usageTimeWeight + 
+    notificationWeight
+  ));
+  
   return Math.round(score);
 };
 
@@ -192,22 +237,32 @@ export const scanUnusedApps = async (): Promise<UnusedAppInfo[]> => {
 
       const lastTimeUsed = stat30?.lastTimeUsed || stat7?.lastTimeUsed || 0;
       const launchCount = stat30?.launchCount || stat7?.launchCount || 0;
+      const totalTimeInForeground = stat30?.totalTimeInForeground || stat7?.totalTimeInForeground || 0;
       const installDate = app.firstInstallTime || app.lastUpdateTime || currentTime;
       const daysSinceInstall = Math.floor((currentTime - installDate) / (1000 * 60 * 60 * 24));
 
-      // If there is usage data but lastTimeUsed is zero or missing, treat as active to avoid misclassification.
+      // Handle apps with zero launches - check if they're newly installed
+      let lastUsedDays: number;
       if (!lastTimeUsed || lastTimeUsed <= 0) {
-        continue;
+        // No usage data - if app is old enough, consider it unused
+        if (daysSinceInstall >= 7) {
+          lastUsedDays = daysSinceInstall; // Treat as unused since install
+        } else {
+          continue; // Too new, skip to avoid false positives
+        }
+      } else {
+        lastUsedDays = Math.floor((currentTime - lastTimeUsed) / (1000 * 60 * 60 * 24));
       }
 
-      const lastUsedDays = Math.floor((currentTime - lastTimeUsed) / (1000 * 60 * 60 * 24));
-
+      // Check for notifications (would need additional permission/API)
       const hasNotifications = false;
+      
       const confidenceScore = calculateConfidenceScore(
         lastUsedDays,
         launchCount,
         daysSinceInstall,
         hasNotifications,
+        totalTimeInForeground,
       );
 
       // Treat apps unused for 30+ days as UNUSED, 7-29 days as LOW_USAGE.

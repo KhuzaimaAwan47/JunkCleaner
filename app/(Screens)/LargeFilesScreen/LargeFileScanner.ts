@@ -163,17 +163,84 @@ const dedupeResults = (items: LargeFileResult[]): LargeFileResult[] => {
   return Array.from(seen.values());
 };
 
+// Enhanced category detection with path-based and extension-based categorization
+const VIDEO_EXTENSIONS = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.3gp', '.ts', '.mpg', '.mpeg'];
+const ARCHIVE_EXTENSIONS = ['.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.xz', '.obb', '.apk', '.apks', '.xapk'];
+const AUDIO_EXTENSIONS = ['.mp3', '.wav', '.flac', '.aac', '.ogg', '.m4a', '.wma', '.opus'];
+const DOCUMENT_EXTENSIONS = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.odt', '.ods', '.odp'];
+const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.raw', '.cr2', '.nef', '.dng'];
+const DATABASE_EXTENSIONS = ['.db', '.sqlite', '.sqlite3', '.db-shm', '.db-wal'];
+
 const inferCategory = (path: string): string => {
   const lower = path.toLowerCase();
-  if (lower.endsWith('.mp4') || lower.endsWith('.mkv')) {
-    return 'video';
+  
+  // Path-based categorization (more reliable)
+  if (lower.includes('/download') || lower.includes('/downloads')) {
+    // Check extension for downloads
+    for (const ext of VIDEO_EXTENSIONS) {
+      if (lower.endsWith(ext)) return 'video';
+    }
+    for (const ext of ARCHIVE_EXTENSIONS) {
+      if (lower.endsWith(ext)) return 'archive';
+    }
+    for (const ext of DOCUMENT_EXTENSIONS) {
+      if (lower.endsWith(ext)) return 'document';
+    }
+    return 'download';
   }
-  if (lower.endsWith('.zip') || lower.endsWith('.rar') || lower.endsWith('.obb') || lower.endsWith('.apk')) {
-    return 'archive';
+  
+  if (lower.includes('/whatsapp') || lower.includes('/whatsapp business')) {
+    if (lower.includes('/video') || lower.includes('/video')) return 'whatsapp-video';
+    if (lower.includes('/image') || lower.includes('/images')) return 'whatsapp-image';
+    if (lower.includes('/audio') || lower.includes('/voice')) return 'whatsapp-audio';
+    if (lower.includes('/document') || lower.includes('/documents')) return 'whatsapp-document';
+    return 'whatsapp';
   }
-  if (lower.endsWith('.pdf')) {
-    return 'document';
+  
+  if (lower.includes('/dcim') || lower.includes('/camera') || lower.includes('/pictures')) {
+    for (const ext of VIDEO_EXTENSIONS) {
+      if (lower.endsWith(ext)) return 'video';
+    }
+    for (const ext of IMAGE_EXTENSIONS) {
+      if (lower.endsWith(ext)) return 'image';
+    }
+    return 'media';
   }
+  
+  if (lower.includes('/android/data') || lower.includes('/android/obb')) {
+    if (lower.endsWith('.obb')) return 'game-data';
+    return 'app-data';
+  }
+  
+  if (lower.includes('/music') || lower.includes('/audio')) {
+    return 'audio';
+  }
+  
+  // Extension-based categorization
+  for (const ext of VIDEO_EXTENSIONS) {
+    if (lower.endsWith(ext)) return 'video';
+  }
+  
+  for (const ext of ARCHIVE_EXTENSIONS) {
+    if (lower.endsWith(ext)) return 'archive';
+  }
+  
+  for (const ext of AUDIO_EXTENSIONS) {
+    if (lower.endsWith(ext)) return 'audio';
+  }
+  
+  for (const ext of DOCUMENT_EXTENSIONS) {
+    if (lower.endsWith(ext)) return 'document';
+  }
+  
+  for (const ext of IMAGE_EXTENSIONS) {
+    if (lower.endsWith(ext)) return 'image';
+  }
+  
+  for (const ext of DATABASE_EXTENSIONS) {
+    if (lower.endsWith(ext)) return 'database';
+  }
+  
   return 'unknown';
 };
 

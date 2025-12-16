@@ -488,7 +488,7 @@ export interface SmartScanStatus {
     junkFiles: boolean;
     oldFiles: boolean;
     cacheLogs: boolean;
-    unusedApps: boolean;
+  unusedApps: boolean;
   };
 }
 
@@ -532,6 +532,7 @@ export async function clearSmartScanStatus(): Promise<void> {
   await db!.runAsync('DELETE FROM smart_scan_status');
 }
 
+// Empty Folders Scanner Results
 export interface ScanDataSnapshot {
   apkResults: ApkFile[];
   whatsappResults: WhatsAppScanResult[];
