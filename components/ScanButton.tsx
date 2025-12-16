@@ -1,6 +1,6 @@
 ﻿import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
-import { StyleProp, Text, ViewStyle } from "react-native";
+import { AccessibilityRole, StyleProp, Text, ViewStyle } from "react-native";
 import { useTheme } from "styled-components/native";
 import DebouncedTouchableOpacity from "./DebouncedTouchableOpacity";
 
@@ -9,7 +9,7 @@ type Props = {
   style?: StyleProp<ViewStyle>;
   onPress?: () => void;
   disabled?: boolean;
-  accessibilityRole?: string;
+  accessibilityRole?: AccessibilityRole;
 };
 
 const staticButtonStyle: ViewStyle = {
