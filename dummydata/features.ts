@@ -95,15 +95,6 @@ export const featureCards: Feature[] = [
     accent: allColors.primary,
     progress: 0.48,
   },
-  {
-    id: 'storage',
-    title: 'Storage Dashboard',
-    subtitle: 'Usage trends',
-    icon: 'chart-bell-curve',
-    route: appRoutes.storageDashboard,
-    accent: '#64B5F6',
-    progress: 0.82,
-  },
 ];
 
 export const storageStats = {

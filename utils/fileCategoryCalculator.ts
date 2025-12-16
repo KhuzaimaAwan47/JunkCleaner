@@ -169,7 +169,7 @@ export function calculateFileCategoryFeatures(
       title: category.name,
       subtitle: getCategorySubtitle(category.name, category.size, category.count),
       icon: getCategoryIcon(category.name),
-      route: appRoutes.storageDashboard,
+      route: appRoutes.home,
       accent: getCategoryColor(category.name, theme),
       progress,
     };

@@ -11,7 +11,6 @@
   unusedApps: "/(Screens)/UnusedAppsScreen/UnusedAppsScreen",
   whatsapp: "/(Screens)/WhatsAppRemoverScreen/WhatsAppRemoverScreen",
   duplicates: "/(Screens)/DuplicateImagesScreen/DuplicateImagesScreen",
-  storageDashboard: "/(Screens)/StorageDashboardScreen/StorageDashboardScreen",
   resultAnimation: "/(Screens)/ResultAnimationScreen/ResultAnimationScreen",
   reminder: "/(Screens)/NotificationReminderScreen/NotificationReminderScreen",
 } as const;
