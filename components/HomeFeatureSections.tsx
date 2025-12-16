@@ -3,8 +3,7 @@ import { StyleSheet, View, type ViewStyle } from "react-native";
 import Animated from "react-native-reanimated";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import type { Feature } from "../dummydata/features";
-import FeatureProgressItem from "./FeatureProgressItem";
-import NeumorphicContainer from "./NeumorphicContainer";
+import FeatureCard from "./FeatureCard";
 
 type Props = {
   features: Feature[];
@@ -28,23 +27,15 @@ const HomeFeatureSections = React.memo<Props>(
 
     return (
       <Animated.View style={[styles.listSection, featureRevealStyle]}>
-        <View style={styles.listStack}>
-          {featuresWithProgress.map((feature, index) => (
-            <NeumorphicContainer
-              key={feature.id}
-              style={[
-                styles.listItemCard,
-                index === 0 && styles.listItemFirst,
-                index === featuresWithProgress.length - 1 && styles.listItemLast,
-              ]}
-              padding={theme.spacing.md}
-            >
-              <FeatureProgressItem
+        <View style={styles.gridContainer}>
+          {featuresWithProgress.map((feature) => (
+            <View key={feature.id} style={styles.gridItem}>
+              <FeatureCard
                 feature={feature}
                 progress={feature.progress}
                 onPress={() => onNavigate(feature.route)}
               />
-            </NeumorphicContainer>
+            </View>
           ))}
         </View>
       </Animated.View>
@@ -61,17 +52,14 @@ const createStyles = (theme: DefaultTheme) =>
     listSection: {
       marginTop: theme.spacing.xl,
     },
-    listStack: {
-      gap: theme.spacing.md,
+    gridContainer: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      justifyContent: "space-between",
     },
-    listItemCard: {
-      paddingVertical: theme.spacing.sm,
-    },
-    listItemFirst: {
-      marginTop: 0,
-    },
-    listItemLast: {
-      marginBottom: 0,
+    gridItem: {
+      width: "48%",
+      marginBottom: theme.spacing.md,
     },
   });
 
