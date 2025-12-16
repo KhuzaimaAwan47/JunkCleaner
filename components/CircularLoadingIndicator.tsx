@@ -74,7 +74,7 @@ const CircularLoadingIndicator: React.FC<Props> = ({ scanProgress, systemHealth,
 
   return (
     <View style={[styles.wrapper, { width: size, height: size }]}>
-      {scanProgress && (
+      {scanProgress ? (
         <LottieView
           ref={lottieRef}
           source={require("../assets/lottie/loading_circle.json")}
@@ -82,8 +82,7 @@ const CircularLoadingIndicator: React.FC<Props> = ({ scanProgress, systemHealth,
           autoPlay
           loop
         />
-      )}
-      {!scanProgress && systemHealth && (
+      ) : systemHealth ? (
         <>
           <Svg width={size} height={size}>
             <Circle
@@ -121,6 +120,16 @@ const CircularLoadingIndicator: React.FC<Props> = ({ scanProgress, systemHealth,
             </Text>
           </View>
         </>
+      ) : (
+        <View style={[styles.inner, { width: size - 80, height: size - 80 }]}>
+          <Text style={styles.statusText}>System Health</Text>
+          <Text style={[styles.scoreText, { color: theme.colors.textMuted }]}>
+            --
+          </Text>
+          <Text style={[styles.statusSubtext, { color: theme.colors.textMuted }]}>
+            Not calculated yet
+          </Text>
+        </View>
       )}
     </View>
   );

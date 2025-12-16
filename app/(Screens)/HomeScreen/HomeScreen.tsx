@@ -5,10 +5,12 @@ import { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reani
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import { DefaultTheme, useTheme } from "styled-components/native";
-import CircularLoadingIndicator from "../../../components/CircularLoadingIndicator";
 import HomeFeatureSections from "../../../components/HomeFeatureSections";
 import ScanButton from "../../../components/ScanButton";
 import ScreenWrapper from "../../../components/ScreenWrapper";
+import StorageIndicatorCard from "../../../components/StorageIndicatorCard";
+import SwipeableCardContainer from "../../../components/SwipeableCardContainer";
+import SystemHealthCard from "../../../components/SystemHealthCard";
 import type { Feature } from "../../../dummydata/features";
 import { featureCards } from "../../../dummydata/features";
 import { appRoutes } from "../../../routes";
@@ -35,6 +37,7 @@ import { calculateProgressFromSnapshot, hasDataInSnapshot } from "../../../utils
 import { getStorageInfo } from "../../../utils/storage";
 import { calculateSystemHealth } from "../../../utils/systemHealth";
 import { getMemoryInfo } from "../../../utils/memory";
+import { calculateFileCategoryFeatures } from "../../../utils/fileCategoryCalculator";
 import { useSmartScan } from "./useSmartScan";
 
 const HomeScreen = () => {
@@ -43,13 +46,40 @@ const HomeScreen = () => {
   const theme = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   
-  const features = React.useMemo<Feature[]>(() => featureCards.filter((f) => f.id !== "smart"), []);
-
   const scanProgress = useSelector((state: RootState) => state.appState.scanProgress);
   const featureProgress = useSelector((state: RootState) => state.appState.featureProgress);
   const systemHealth = useSelector((state: RootState) => state.appState.systemHealth);
+  const storageInfo = useSelector((state: RootState) => state.appState.storageInfo);
+  const junkFileResults = useSelector((state: RootState) => state.appState.junkFileResults);
+  const largeFileResults = useSelector((state: RootState) => state.appState.largeFileResults);
+  const cacheLogsResults = useSelector((state: RootState) => state.appState.cacheLogsResults);
+  const oldFileResults = useSelector((state: RootState) => state.appState.oldFileResults);
+  const whatsappResults = useSelector((state: RootState) => state.appState.whatsappResults);
+  const duplicateResults = useSelector((state: RootState) => state.appState.duplicateResults);
+  
   const [showFeatures, setShowFeatures] = React.useState(false);
   const featureVisibility = useSharedValue(0);
+
+  // Calculate file category features
+  const fileCategoryFeatures = React.useMemo<Feature[]>(() => {
+    return calculateFileCategoryFeatures(
+      {
+        junkFileResults,
+        largeFileResults,
+        cacheLogsResults,
+        oldFileResults,
+        whatsappResults,
+        duplicateResults,
+      },
+      theme
+    );
+  }, [junkFileResults, largeFileResults, cacheLogsResults, oldFileResults, whatsappResults, duplicateResults, theme]);
+
+  // Combine existing features with file category features
+  const features = React.useMemo<Feature[]>(() => {
+    const existingFeatures = featureCards.filter((f) => f.id !== "smart");
+    return [...existingFeatures, ...fileCategoryFeatures];
+  }, [fileCategoryFeatures]);
 
   const refreshHomeState = React.useCallback(async () => {
     try {
@@ -124,20 +154,17 @@ const HomeScreen = () => {
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.indicatorCard}>
-            <CircularLoadingIndicator
-              scanProgress={localIsScanning ? scanProgress : null}
-              systemHealth={!localIsScanning ? systemHealth : null}
-            />
+            <SwipeableCardContainer>
+              <SystemHealthCard
+                systemHealth={!localIsScanning ? systemHealth : null}
+                scanProgress={localIsScanning ? scanProgress : null}
+              />
+              <StorageIndicatorCard storageInfo={storageInfo} />
+            </SwipeableCardContainer>
             <ScanButton
               onPress={localIsScanning ? handleStopScan : handleSmartScan}
               label={localIsScanning ? "Stop Scan" : "Smart Scan"}
               style={[styles.scanButton, localIsScanning && { backgroundColor: "#EF4444" }]}
-              disabled={false}
-            />
-            <ScanButton
-              onPress={() => router.push(appRoutes.smartClean)}
-              label="Smart Clean"
-              style={[styles.scanButton, styles.smartCleanButton]}
               disabled={false}
             />
           </View>
@@ -181,9 +208,5 @@ const createStyles = (theme: DefaultTheme) =>
     scanButton: {
       marginTop: theme.spacing.lg,
       width: "100%",
-    },
-    smartCleanButton: {
-      backgroundColor: theme.colors.secondary,
-      marginTop: theme.spacing.sm,
     },
   });
