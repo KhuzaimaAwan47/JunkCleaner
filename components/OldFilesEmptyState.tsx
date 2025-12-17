@@ -8,14 +8,12 @@ type OldFilesEmptyStateProps = {
   loading: boolean;
   hasFiles: boolean;
   hasSavedResults: boolean;
-  onScan: () => void;
 };
 
 const OldFilesEmptyState: React.FC<OldFilesEmptyStateProps> = ({
   loading,
   hasFiles,
   hasSavedResults,
-  onScan,
 }) => {
   const theme = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
@@ -32,11 +30,8 @@ const OldFilesEmptyState: React.FC<OldFilesEmptyStateProps> = ({
           <Text style={styles.emptySubtitle}>
             {hasFiles
               ? "try switching to another category."
-              : "tap scan to find items you might want to remove."}
+              : "pull down to refresh and scan for old files."}
           </Text>
-          {!hasSavedResults && (
-            <ScanActionButton label="Scan Old Files" onPress={onScan} fullWidth />
-          )}
         </>
       )}
     </View>

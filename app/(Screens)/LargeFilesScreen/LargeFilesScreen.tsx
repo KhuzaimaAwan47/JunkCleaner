@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import { DefaultTheme, useTheme } from "styled-components/native";
@@ -172,6 +172,13 @@ const LargeFilesScreen: React.FC = () => {
             selectedStats.items > 0 && resultsAvailable ? { paddingBottom: theme.spacing.xl * 3 } : {}
           ]} 
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={loading}
+              onRefresh={handleScan}
+              tintColor={theme.colors.primary}
+            />
+          }
         >
           {!loading && !resultsAvailable && (
             <View style={styles.sectionSpacing}>
@@ -201,11 +208,6 @@ const LargeFilesScreen: React.FC = () => {
                 ))}
               </View>
 
-              {!hasDatabaseResults && (
-                <View style={styles.sectionSpacing}>
-                  <ScanActionButton variant="outline" label="rescan" onPress={handleScan} />
-                </View>
-              )}
             </>
           )}
 
@@ -223,9 +225,7 @@ const LargeFilesScreen: React.FC = () => {
               <EmptyState
                 icon="file-search-outline"
                 title="no large files detected"
-                description="Run a scan to find large files consuming storage space"
-                actionLabel="Rescan"
-                onAction={handleScan}
+                description="Pull down to refresh and scan for large files"
               />
             </View>
           )}

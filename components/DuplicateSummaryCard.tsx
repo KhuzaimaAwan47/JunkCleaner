@@ -7,7 +7,7 @@ interface DuplicateSummaryCardProps {
   isCancelled: boolean;
   scannedCount: number;
   totalScanned: number;
-  onRescan: () => void;
+  onRescan?: () => void;
 }
 
 export default function DuplicateSummaryCard({
@@ -32,7 +32,9 @@ export default function DuplicateSummaryCard({
           <Text style={styles.text}>scanned {totalScanned} files. all files are unique.</Text>
         </>
       )}
-      <ScanActionButton label="rescan" onPress={onRescan} variant="outline" style={styles.rescanButton} />
+      {onRescan && (
+        <ScanActionButton label="rescan" onPress={onRescan} variant="outline" style={styles.rescanButton} />
+      )}
     </View>
   );
 }

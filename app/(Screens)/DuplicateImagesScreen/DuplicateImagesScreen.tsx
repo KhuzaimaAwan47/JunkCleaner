@@ -1,5 +1,5 @@
 ﻿import React, { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DefaultTheme, useTheme } from 'styled-components/native';
@@ -88,6 +88,13 @@ export default function DuplicateImagesScreen() {
             !isScanning && duplicateFiles.length > 0 && styles.contentWithFixedButton,
           ]}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isScanning}
+              onRefresh={startScan}
+              tintColor={theme.colors.primary}
+            />
+          }
         >
           {showStartButton && (
             <Animated.View style={[buttonAnimatedStyle, styles.sectionSpacing]}>
@@ -150,7 +157,6 @@ export default function DuplicateImagesScreen() {
                 isCancelled={progress.currentFile === 'Cancelled'}
                 scannedCount={progress.scannedFiles || progress.current || 0}
                 totalScanned={progress.total}
-                onRescan={startScan}
               />
             </View>
           )}
@@ -160,9 +166,7 @@ export default function DuplicateImagesScreen() {
               <EmptyState
                 icon="image-outline"
                 title="no duplicate images yet"
-                description="Start a scan to find identical photos and free up storage space."
-                actionLabel="Rescan"
-                onAction={startScan}
+                description="Pull down to refresh and scan for duplicate images"
               />
             </View>
           )}

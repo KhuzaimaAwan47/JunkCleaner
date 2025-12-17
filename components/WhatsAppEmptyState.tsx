@@ -8,14 +8,12 @@ type WhatsAppEmptyStateProps = {
   loading: boolean;
   hasFiles: boolean;
   hasSavedResults: boolean;
-  onScan?: () => void;
 };
 
 const WhatsAppEmptyState: React.FC<WhatsAppEmptyStateProps> = ({
   loading,
   hasFiles,
   hasSavedResults,
-  onScan,
 }) => {
   const theme = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
@@ -35,11 +33,8 @@ const WhatsAppEmptyState: React.FC<WhatsAppEmptyStateProps> = ({
           <Text style={styles.emptySubtitle}>
             {hasFiles
               ? 'try switching to another media type.'
-              : 'tap rescan to fetch images, audio, and docs instantly.'}
+              : 'pull down to refresh and scan for files.'}
           </Text>
-          {!hasFiles && onScan && (
-            <ScanActionButton label={hasSavedResults ? 'Rescan' : 'Start scan'} onPress={onScan} fullWidth />
-          )}
         </>
       )}
     </View>

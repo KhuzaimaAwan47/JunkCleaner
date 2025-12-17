@@ -2,7 +2,6 @@ import React from "react";
 import { StyleSheet, View } from "react-native";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import CategoryFilterBar from "./CategoryFilterBar";
-import ScanActionSection from "./ScanActionSection";
 
 type FilterContainerProps = {
   categories: string[];
@@ -34,14 +33,6 @@ const FilterContainer: React.FC<FilterContainerProps> = ({
 
   return (
     <View style={styles.stickyFilterContainer}>
-      <ScanActionSection
-        loading={loading}
-        hasSavedResults={hasSavedResults}
-        label={scanLabel}
-        onScan={onScan}
-        loadingTitle={loadingTitle}
-        loadingSubtitle={loadingSubtitle}
-      />
       <CategoryFilterBar
         categories={categories}
         activeCategory={activeCategory}

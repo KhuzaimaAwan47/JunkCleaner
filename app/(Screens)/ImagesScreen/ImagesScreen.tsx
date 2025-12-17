@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { FlatList, StyleSheet, View } from "react-native";
+import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import { DefaultTheme, useTheme } from "styled-components/native";
@@ -20,7 +20,7 @@ import {
 } from "../../../redux-code/action";
 import type { RootState } from "../../../redux-code/store";
 import type { CategoryFile } from "../../../utils/fileCategoryCalculator";
-import { saveImagesResults } from "../../../utils/db";
+import { initDatabase, loadImagesResults, saveImagesResults } from "../../../utils/db";
 
 const ImagesScreen: React.FC = () => {
   const dispatch = useDispatch();
@@ -36,6 +36,7 @@ const ImagesScreen: React.FC = () => {
   const selectedFilePaths = useMemo(() => new Set(selectedFilePathsArray), [selectedFilePathsArray]);
   
   const [clearing, setClearing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Use images results directly from Redux and sort once
   const sortedFiles = useMemo(() => {
@@ -139,6 +140,19 @@ const ImagesScreen: React.FC = () => {
     }
   }, [sortedFiles, selectedFilePathsArray, dispatch]);
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await initDatabase();
+      const savedResults = await loadImagesResults();
+      dispatch(setImagesResults(savedResults));
+    } catch (error) {
+      console.error("Failed to refresh images results:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [dispatch]);
+
   return (
     <ScreenWrapper style={styles.screen}>
       <SafeAreaView style={{ flex: 1 }} edges={['bottom', 'left', 'right']}>
@@ -168,6 +182,13 @@ const ImagesScreen: React.FC = () => {
             updateCellsBatchingPeriod={50}
             initialNumToRender={15}
             windowSize={10}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={theme.colors.primary}
+              />
+            }
           />
         ) : (
           <View style={styles.sectionSpacing}>

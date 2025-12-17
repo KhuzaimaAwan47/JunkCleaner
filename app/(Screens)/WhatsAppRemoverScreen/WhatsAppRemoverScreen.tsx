@@ -1,5 +1,5 @@
 ﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, ListRenderItem, StyleSheet, View } from 'react-native';
+import { FlatList, ListRenderItem, RefreshControl, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
 import { DefaultTheme, useTheme } from 'styled-components/native';
@@ -203,12 +203,18 @@ const WhatsAppRemoverScreen = () => {
           renderItem={renderItem}
           contentContainerStyle={listContentInset}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isScanning}
+              onRefresh={onRescan}
+              tintColor={theme.colors.primary}
+            />
+          }
           ListEmptyComponent={
             <WhatsAppEmptyState
               loading={isScanning}
               hasFiles={files.length > 0}
               hasSavedResults={hasSavedResults}
-              onScan={onRescan}
             />
           }
           ListFooterComponent={<View style={styles.footerSpacer} />}
