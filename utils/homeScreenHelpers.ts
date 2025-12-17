@@ -26,7 +26,11 @@ export const hasDataInSnapshot = (snapshot: ScanDataSnapshot): boolean => {
     snapshot.whatsappResults.length > 0 ||
     snapshot.duplicateResults.length > 0 ||
     snapshot.largeFileResults.length > 0 ||
-    snapshot.oldFileResults.length > 0
+    snapshot.oldFileResults.length > 0 ||
+    snapshot.videosResults.length > 0 ||
+    snapshot.imagesResults.length > 0 ||
+    snapshot.audiosResults.length > 0 ||
+    snapshot.documentsResults.length > 0
   );
 };
 

@@ -4,6 +4,7 @@ import type { OldFileInfo } from "../app/(Screens)/OldFilesScreen/OldFilesScanne
 import type { WhatsAppScanResult } from "../app/(Screens)/WhatsAppRemoverScreen/WhatsAppScanner";
 import type { SmartScanProgress } from "../utils/smartScan";
 import type { SystemHealthResult } from "../utils/systemHealth";
+import type { CategoryFile } from "../utils/fileCategoryCalculator";
 import { ActionTypes } from "./action-types";
 
 export interface AppState {
@@ -12,6 +13,10 @@ export interface AppState {
   largeFileResults: LargeFileResult[];
   oldFileResults: OldFileInfo[];
   duplicateResults: DuplicateGroup[];
+  videosResults: CategoryFile[];
+  imagesResults: CategoryFile[];
+  audiosResults: CategoryFile[];
+  documentsResults: CategoryFile[];
   
   // Selected items per screen (keyed by screen name) - stored as arrays for persistence
   selectedItems: {
@@ -58,6 +63,10 @@ const initialState: AppState = {
   largeFileResults: [],
   oldFileResults: [],
   duplicateResults: [],
+  videosResults: [],
+  imagesResults: [],
+  audiosResults: [],
+  documentsResults: [],
   selectedItems: {
     whatsapp: [],
     large: [],
@@ -99,6 +108,14 @@ const appReducer = (state: AppState | undefined = initialState, action: any): Ap
       return { ...state, oldFileResults: action.payload };
     case ActionTypes.SET_DUPLICATE_RESULTS:
       return { ...state, duplicateResults: action.payload };
+    case ActionTypes.SET_VIDEOS_RESULTS:
+      return { ...state, videosResults: action.payload };
+    case ActionTypes.SET_IMAGES_RESULTS:
+      return { ...state, imagesResults: action.payload };
+    case ActionTypes.SET_AUDIOS_RESULTS:
+      return { ...state, audiosResults: action.payload };
+    case ActionTypes.SET_DOCUMENTS_RESULTS:
+      return { ...state, documentsResults: action.payload };
     
     // Clear results
     case ActionTypes.CLEAR_WHATSAPP_RESULTS:
@@ -109,6 +126,14 @@ const appReducer = (state: AppState | undefined = initialState, action: any): Ap
       return { ...state, oldFileResults: [] };
     case ActionTypes.CLEAR_DUPLICATE_RESULTS:
       return { ...state, duplicateResults: [] };
+    case ActionTypes.CLEAR_VIDEOS_RESULTS:
+      return { ...state, videosResults: [] };
+    case ActionTypes.CLEAR_IMAGES_RESULTS:
+      return { ...state, imagesResults: [] };
+    case ActionTypes.CLEAR_AUDIOS_RESULTS:
+      return { ...state, audiosResults: [] };
+    case ActionTypes.CLEAR_DOCUMENTS_RESULTS:
+      return { ...state, documentsResults: [] };
     
     // Selected items
     case ActionTypes.SET_SELECTED_ITEMS: {

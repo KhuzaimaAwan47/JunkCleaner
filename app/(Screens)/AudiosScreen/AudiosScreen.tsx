@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { FlatList, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import { DefaultTheme, useTheme } from "styled-components/native";
@@ -14,37 +14,32 @@ import {
   setOldFileResults,
   setSelectedItems,
   setWhatsappResults,
+  setAudiosResults,
   toggleItemSelection,
 } from "../../../redux-code/action";
 import type { RootState } from "../../../redux-code/store";
-import { filterFilesByCategory, type CategoryFile } from "../../../utils/fileCategoryCalculator";
+import type { CategoryFile } from "../../../utils/fileCategoryCalculator";
+import { saveAudiosResults } from "../../../utils/db";
 
 const AudiosScreen: React.FC = () => {
   const dispatch = useDispatch();
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   
+  const audiosResults = useSelector((state: RootState) => state.appState.audiosResults);
   const largeFileResults = useSelector((state: RootState) => state.appState.largeFileResults);
   const oldFileResults = useSelector((state: RootState) => state.appState.oldFileResults);
   const whatsappResults = useSelector((state: RootState) => state.appState.whatsappResults);
-  const duplicateResults = useSelector((state: RootState) => state.appState.duplicateResults);
   const selectedFilePathsArray = useSelector((state: RootState) => state.appState.selectedItems.audios);
   const selectedFilePaths = useMemo(() => new Set(selectedFilePathsArray), [selectedFilePathsArray]);
   
   const [clearing, setClearing] = useState(false);
 
-  // Filter audio files from all scan results
-  const files = useMemo<CategoryFile[]>(() => {
-    return filterFilesByCategory("Audio", {
-      largeFileResults,
-      oldFileResults,
-      whatsappResults,
-      duplicateResults,
-    });
-  }, [largeFileResults, oldFileResults, whatsappResults, duplicateResults]);
-
-  const sortedFiles = useMemo(() => [...files].sort((a, b) => b.size - a.size), [files]);
-  const totalBytes = useMemo(() => files.reduce((sum, file) => sum + file.size, 0), [files]);
+  // Use audios results directly from Redux and sort once
+  const sortedFiles = useMemo(() => {
+    return [...audiosResults].sort((a, b) => b.size - a.size);
+  }, [audiosResults]);
+  const totalBytes = useMemo(() => sortedFiles.reduce((sum, file) => sum + file.size, 0), [sortedFiles]);
   const resultsAvailable = sortedFiles.length > 0;
 
   const selectedStats = useMemo(() => {
@@ -66,6 +61,16 @@ const AudiosScreen: React.FC = () => {
   const toggleFileSelection = useCallback((path: string) => {
     dispatch(toggleItemSelection("audios", path));
   }, [dispatch]);
+
+  const renderItem = useCallback(({ item }: { item: CategoryFile }) => (
+    <CategoryFileListItem
+      item={item}
+      selected={selectedFilePaths.has(item.path)}
+      onPress={() => toggleFileSelection(item.path)}
+    />
+  ), [selectedFilePaths, toggleFileSelection]);
+
+  const keyExtractor = useCallback((item: CategoryFile) => item.path, []);
 
   const toggleSelectAll = useCallback(() => {
     if (isAllSelected) {
@@ -94,16 +99,30 @@ const AudiosScreen: React.FC = () => {
         (f) => !selectedFilePaths.has(f.path)
       );
 
+      // Update category results by removing deleted files
+      const remainingAudios = audiosResults.filter(
+        (f) => !selectedFilePaths.has(f.path)
+      );
+
       dispatch(setLargeFileResults(remainingLargeFiles));
       dispatch(setOldFileResults(remainingOldFiles));
       dispatch(setWhatsappResults(remainingWhatsappFiles));
+      dispatch(setAudiosResults(remainingAudios));
       dispatch(clearSelections("audios"));
+      
+      // Update database
+      try {
+        await saveAudiosResults(remainingAudios);
+      } catch (error) {
+        console.error("Failed to save audios results to database:", error);
+      }
     } finally {
       setClearing(false);
     }
-  }, [selectedFilePaths, selectedStats.items, clearing, largeFileResults, oldFileResults, whatsappResults, dispatch]);
+  }, [selectedFilePaths, selectedStats.items, clearing, largeFileResults, oldFileResults, whatsappResults, audiosResults, dispatch]);
 
   useEffect(() => {
+    if (selectedFilePathsArray.length === 0) return;
     const availablePaths = new Set(sortedFiles.map((f) => f.path));
     const validSelections = selectedFilePathsArray.filter((p) => availablePaths.has(p));
     if (validSelections.length !== selectedFilePathsArray.length) {
@@ -125,34 +144,31 @@ const AudiosScreen: React.FC = () => {
             selectAllDisabled={resultsAvailable ? !sortedFiles.length : undefined}
           />
         </View>
-        <ScrollView 
-          contentContainerStyle={[
-            styles.content,
-            selectedStats.items > 0 && resultsAvailable ? { paddingBottom: theme.spacing.xl * 3 } : {}
-          ]} 
-          showsVerticalScrollIndicator={false}
-        >
-          {resultsAvailable ? (
-            <View style={[styles.resultsContainer, styles.sectionSpacing]}>
-              {sortedFiles.map((f) => (
-                <CategoryFileListItem
-                  key={f.path}
-                  item={f}
-                  selected={selectedFilePaths.has(f.path)}
-                  onPress={() => toggleFileSelection(f.path)}
-                />
-              ))}
-            </View>
-          ) : (
-            <View style={styles.sectionSpacing}>
-              <EmptyState
-                icon="music-outline"
-                title="No audio files found"
-                description="Run a smart scan to find audio files on your device"
-              />
-            </View>
-          )}
-        </ScrollView>
+        {resultsAvailable ? (
+          <FlatList
+            data={sortedFiles}
+            renderItem={renderItem}
+            keyExtractor={keyExtractor}
+            contentContainerStyle={[
+              styles.content,
+              selectedStats.items > 0 ? { paddingBottom: theme.spacing.xl * 3 } : {}
+            ]}
+            showsVerticalScrollIndicator={false}
+            removeClippedSubviews={true}
+            maxToRenderPerBatch={10}
+            updateCellsBatchingPeriod={50}
+            initialNumToRender={15}
+            windowSize={10}
+          />
+        ) : (
+          <View style={styles.sectionSpacing}>
+            <EmptyState
+              icon="music-outline"
+              title="No audio files found"
+              description="Run a smart scan to find audio files on your device"
+            />
+          </View>
+        )}
         {selectedStats.items > 0 && resultsAvailable && (
           <View style={styles.fixedDeleteButtonContainer}>
             <DeleteButton

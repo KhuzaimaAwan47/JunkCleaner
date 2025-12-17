@@ -9,6 +9,10 @@ import {
   setLargeFileResults,
   setOldFileResults,
   setDuplicateResults,
+  setVideosResults,
+  setImagesResults,
+  setAudiosResults,
+  setDocumentsResults,
   setFeatureProgress,
   setSystemHealth,
 } from "../../../redux-code/action";
@@ -51,6 +55,12 @@ export const useSmartScan = (onScanComplete: () => Promise<void>) => {
 
       // Load current snapshot from DB to get all results (including previously completed scanners)
       const snapshot = await loadAllScanResults();
+      
+      // Dispatch category results
+      dispatch(setVideosResults(snapshot.videosResults));
+      dispatch(setImagesResults(snapshot.imagesResults));
+      dispatch(setAudiosResults(snapshot.audiosResults));
+      dispatch(setDocumentsResults(snapshot.documentsResults));
       
       // Calculate and dispatch updated feature progress
       const progress = calculateProgressFromSnapshot(snapshot);

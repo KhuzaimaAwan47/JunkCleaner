@@ -9,8 +9,13 @@ import {
   saveOldFileResults,
   saveSmartScanStatus,
   saveWhatsAppResults,
+  saveVideosResults,
+  saveImagesResults,
+  saveAudiosResults,
+  saveDocumentsResults,
   type SmartScanStatus,
 } from './db';
+import { filterFilesByCategory } from './fileCategoryCalculator';
 
 export interface SmartScanProgress {
   current: number; // Current scanner index (0-3)
@@ -159,12 +164,35 @@ export async function runSmartScan(
       results: { oldFileResults },
     });
 
+    // 5. Calculate and save category results
+    updateProgress(4, 'Categorizing files', 0, 'categorizing files by type...');
+    const scanResults = {
+      whatsappResults,
+      duplicateResults: duplicateResults || [],
+      largeFileResults,
+      oldFileResults,
+    };
+    
+    const videosResults = filterFilesByCategory('Videos', scanResults);
+    const imagesResults = filterFilesByCategory('Images', scanResults);
+    const audiosResults = filterFilesByCategory('Audio', scanResults);
+    const documentsResults = filterFilesByCategory('Documents', scanResults);
+    
+    await Promise.all([
+      saveVideosResults(videosResults),
+      saveImagesResults(imagesResults),
+      saveAudiosResults(audiosResults),
+      saveDocumentsResults(documentsResults),
+    ]);
+    
+    updateProgress(4, 'Categorizing files', 1, 'categorized files by type');
+
     // Mark as completed
     status.completed = true;
     status.completedAt = Date.now();
     await saveSmartScanStatus(status);
 
-    updateProgress(4, 'Complete', 1, 'smart scan completed');
+    updateProgress(5, 'Complete', 1, 'smart scan completed');
   } catch (error) {
     console.error('Smart scan error:', error);
     // Save partial status

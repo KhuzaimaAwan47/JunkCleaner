@@ -22,6 +22,10 @@ import {
   setStorageInfo,
   setSystemHealth,
   setWhatsappResults,
+  setVideosResults,
+  setImagesResults,
+  setAudiosResults,
+  setDocumentsResults,
 } from "../../../redux-code/action";
 import type { RootState } from "../../../redux-code/store";
 import {
@@ -111,6 +115,10 @@ const HomeScreen = () => {
       dispatch(setLargeFileResults(snapshot.largeFileResults));
       dispatch(setOldFileResults(snapshot.oldFileResults));
       dispatch(setDuplicateResults(snapshot.duplicateResults));
+      dispatch(setVideosResults(snapshot.videosResults));
+      dispatch(setImagesResults(snapshot.imagesResults));
+      dispatch(setAudiosResults(snapshot.audiosResults));
+      dispatch(setDocumentsResults(snapshot.documentsResults));
 
       const dataExists = hasDataInSnapshot(snapshot);
       const isComplete = status?.completed === true;

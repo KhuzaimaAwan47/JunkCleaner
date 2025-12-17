@@ -3,6 +3,7 @@ import type { DuplicateGroup } from '../app/(Screens)/DuplicateImagesScreen/Dupl
 import type { LargeFileResult } from '../app/(Screens)/LargeFilesScreen/LargeFileScanner';
 import type { OldFileInfo } from '../app/(Screens)/OldFilesScreen/OldFilesScanner';
 import type { WhatsAppScanResult } from '../app/(Screens)/WhatsAppRemoverScreen/WhatsAppScanner';
+import type { CategoryFile } from './fileCategoryCalculator';
 
 export interface FileCacheEntry {
   path: string;
@@ -60,6 +61,30 @@ export async function initDatabase(): Promise<void> {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       completed_at INTEGER NOT NULL,
       status_data TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS videos_scan_results (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      saved_at INTEGER NOT NULL,
+      results_data TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS images_scan_results (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      saved_at INTEGER NOT NULL,
+      results_data TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS audios_scan_results (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      saved_at INTEGER NOT NULL,
+      results_data TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS documents_scan_results (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      saved_at INTEGER NOT NULL,
+      results_data TEXT NOT NULL
     );
   `);
 }
@@ -337,12 +362,177 @@ export async function clearSmartScanStatus(): Promise<void> {
   await db!.runAsync('DELETE FROM smart_scan_status');
 }
 
+// Category Results
+export async function saveVideosResults(results: CategoryFile[]): Promise<void> {
+  if (!db) await initDatabase();
+
+  try {
+    await db!.runAsync('DELETE FROM videos_scan_results');
+    await db!.runAsync(
+      'INSERT INTO videos_scan_results (saved_at, results_data) VALUES (?, ?)',
+      [Date.now(), JSON.stringify(results)]
+    );
+  } catch (error) {
+    console.error('Failed to persist videos scan results:', error);
+    throw error;
+  }
+}
+
+export async function loadVideosResults(): Promise<CategoryFile[]> {
+  if (!db) await initDatabase();
+
+  const result = await db!.getFirstAsync<{ results_data: string }>(
+    'SELECT results_data FROM videos_scan_results ORDER BY saved_at DESC LIMIT 1'
+  );
+
+  if (!result) {
+    return [];
+  }
+
+  try {
+    return JSON.parse(result.results_data) as CategoryFile[];
+  } catch (error) {
+    console.error('Failed to parse cached videos scan results:', error);
+    return [];
+  }
+}
+
+export async function clearVideosResults(): Promise<void> {
+  if (!db) await initDatabase();
+
+  await db!.runAsync('DELETE FROM videos_scan_results');
+}
+
+export async function saveImagesResults(results: CategoryFile[]): Promise<void> {
+  if (!db) await initDatabase();
+
+  try {
+    await db!.runAsync('DELETE FROM images_scan_results');
+    await db!.runAsync(
+      'INSERT INTO images_scan_results (saved_at, results_data) VALUES (?, ?)',
+      [Date.now(), JSON.stringify(results)]
+    );
+  } catch (error) {
+    console.error('Failed to persist images scan results:', error);
+    throw error;
+  }
+}
+
+export async function loadImagesResults(): Promise<CategoryFile[]> {
+  if (!db) await initDatabase();
+
+  const result = await db!.getFirstAsync<{ results_data: string }>(
+    'SELECT results_data FROM images_scan_results ORDER BY saved_at DESC LIMIT 1'
+  );
+
+  if (!result) {
+    return [];
+  }
+
+  try {
+    return JSON.parse(result.results_data) as CategoryFile[];
+  } catch (error) {
+    console.error('Failed to parse cached images scan results:', error);
+    return [];
+  }
+}
+
+export async function clearImagesResults(): Promise<void> {
+  if (!db) await initDatabase();
+
+  await db!.runAsync('DELETE FROM images_scan_results');
+}
+
+export async function saveAudiosResults(results: CategoryFile[]): Promise<void> {
+  if (!db) await initDatabase();
+
+  try {
+    await db!.runAsync('DELETE FROM audios_scan_results');
+    await db!.runAsync(
+      'INSERT INTO audios_scan_results (saved_at, results_data) VALUES (?, ?)',
+      [Date.now(), JSON.stringify(results)]
+    );
+  } catch (error) {
+    console.error('Failed to persist audios scan results:', error);
+    throw error;
+  }
+}
+
+export async function loadAudiosResults(): Promise<CategoryFile[]> {
+  if (!db) await initDatabase();
+
+  const result = await db!.getFirstAsync<{ results_data: string }>(
+    'SELECT results_data FROM audios_scan_results ORDER BY saved_at DESC LIMIT 1'
+  );
+
+  if (!result) {
+    return [];
+  }
+
+  try {
+    return JSON.parse(result.results_data) as CategoryFile[];
+  } catch (error) {
+    console.error('Failed to parse cached audios scan results:', error);
+    return [];
+  }
+}
+
+export async function clearAudiosResults(): Promise<void> {
+  if (!db) await initDatabase();
+
+  await db!.runAsync('DELETE FROM audios_scan_results');
+}
+
+export async function saveDocumentsResults(results: CategoryFile[]): Promise<void> {
+  if (!db) await initDatabase();
+
+  try {
+    await db!.runAsync('DELETE FROM documents_scan_results');
+    await db!.runAsync(
+      'INSERT INTO documents_scan_results (saved_at, results_data) VALUES (?, ?)',
+      [Date.now(), JSON.stringify(results)]
+    );
+  } catch (error) {
+    console.error('Failed to persist documents scan results:', error);
+    throw error;
+  }
+}
+
+export async function loadDocumentsResults(): Promise<CategoryFile[]> {
+  if (!db) await initDatabase();
+
+  const result = await db!.getFirstAsync<{ results_data: string }>(
+    'SELECT results_data FROM documents_scan_results ORDER BY saved_at DESC LIMIT 1'
+  );
+
+  if (!result) {
+    return [];
+  }
+
+  try {
+    return JSON.parse(result.results_data) as CategoryFile[];
+  } catch (error) {
+    console.error('Failed to parse cached documents scan results:', error);
+    return [];
+  }
+}
+
+export async function clearDocumentsResults(): Promise<void> {
+  if (!db) await initDatabase();
+
+  await db!.runAsync('DELETE FROM documents_scan_results');
+}
+
 // Empty Folders Scanner Results
 export interface ScanDataSnapshot {
   whatsappResults: WhatsAppScanResult[];
   duplicateResults: DuplicateGroup[];
   largeFileResults: LargeFileResult[];
   oldFileResults: OldFileInfo[];
+  videosResults: CategoryFile[];
+  imagesResults: CategoryFile[];
+  audiosResults: CategoryFile[];
+  documentsResults: CategoryFile[];
 }
 
 /**
@@ -356,11 +546,19 @@ export async function loadAllScanResults(): Promise<ScanDataSnapshot> {
     duplicateResults,
     largeFileResults,
     oldFileResults,
+    videosResults,
+    imagesResults,
+    audiosResults,
+    documentsResults,
   ] = await Promise.all([
     loadWhatsAppResults(),
     loadDuplicateGroups(),
     loadLargeFileResults(),
     loadOldFileResults(),
+    loadVideosResults(),
+    loadImagesResults(),
+    loadAudiosResults(),
+    loadDocumentsResults(),
   ]);
 
   return {
@@ -368,6 +566,10 @@ export async function loadAllScanResults(): Promise<ScanDataSnapshot> {
     duplicateResults,
     largeFileResults,
     oldFileResults,
+    videosResults,
+    imagesResults,
+    audiosResults,
+    documentsResults,
   };
 }
 
@@ -381,6 +583,10 @@ export async function hasAnyScanData(): Promise<boolean> {
     snapshot.whatsappResults.length > 0 ||
     snapshot.duplicateResults.length > 0 ||
     snapshot.largeFileResults.length > 0 ||
-    snapshot.oldFileResults.length > 0
+    snapshot.oldFileResults.length > 0 ||
+    snapshot.videosResults.length > 0 ||
+    snapshot.imagesResults.length > 0 ||
+    snapshot.audiosResults.length > 0 ||
+    snapshot.documentsResults.length > 0
   );
 }

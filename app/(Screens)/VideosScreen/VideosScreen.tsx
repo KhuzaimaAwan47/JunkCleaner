@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { FlatList, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import { DefaultTheme, useTheme } from "styled-components/native";
@@ -14,37 +14,32 @@ import {
   setOldFileResults,
   setSelectedItems,
   setWhatsappResults,
+  setVideosResults,
   toggleItemSelection,
 } from "../../../redux-code/action";
 import type { RootState } from "../../../redux-code/store";
-import { filterFilesByCategory, type CategoryFile } from "../../../utils/fileCategoryCalculator";
+import type { CategoryFile } from "../../../utils/fileCategoryCalculator";
+import { saveVideosResults } from "../../../utils/db";
 
 const VideosScreen: React.FC = () => {
   const dispatch = useDispatch();
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   
+  const videosResults = useSelector((state: RootState) => state.appState.videosResults);
   const largeFileResults = useSelector((state: RootState) => state.appState.largeFileResults);
   const oldFileResults = useSelector((state: RootState) => state.appState.oldFileResults);
   const whatsappResults = useSelector((state: RootState) => state.appState.whatsappResults);
-  const duplicateResults = useSelector((state: RootState) => state.appState.duplicateResults);
   const selectedFilePathsArray = useSelector((state: RootState) => state.appState.selectedItems.videos);
   const selectedFilePaths = useMemo(() => new Set(selectedFilePathsArray), [selectedFilePathsArray]);
   
   const [clearing, setClearing] = useState(false);
 
-  // Filter videos from all scan results
-  const files = useMemo<CategoryFile[]>(() => {
-    return filterFilesByCategory("Videos", {
-      largeFileResults,
-      oldFileResults,
-      whatsappResults,
-      duplicateResults,
-    });
-  }, [largeFileResults, oldFileResults, whatsappResults, duplicateResults]);
-
-  const sortedFiles = useMemo(() => [...files].sort((a, b) => b.size - a.size), [files]);
-  const totalBytes = useMemo(() => files.reduce((sum, file) => sum + file.size, 0), [files]);
+  // Use videos results directly from Redux and sort once
+  const sortedFiles = useMemo(() => {
+    return [...videosResults].sort((a, b) => b.size - a.size);
+  }, [videosResults]);
+  const totalBytes = useMemo(() => sortedFiles.reduce((sum, file) => sum + file.size, 0), [sortedFiles]);
   const resultsAvailable = sortedFiles.length > 0;
 
   const selectedStats = useMemo(() => {
@@ -66,6 +61,16 @@ const VideosScreen: React.FC = () => {
   const toggleFileSelection = useCallback((path: string) => {
     dispatch(toggleItemSelection("videos", path));
   }, [dispatch]);
+
+  const renderItem = useCallback(({ item }: { item: CategoryFile }) => (
+    <CategoryFileListItem
+      item={item}
+      selected={selectedFilePaths.has(item.path)}
+      onPress={() => toggleFileSelection(item.path)}
+    />
+  ), [selectedFilePaths, toggleFileSelection]);
+
+  const keyExtractor = useCallback((item: CategoryFile) => item.path, []);
 
   const toggleSelectAll = useCallback(() => {
     if (isAllSelected) {
@@ -94,16 +99,30 @@ const VideosScreen: React.FC = () => {
         (f) => !selectedFilePaths.has(f.path)
       );
 
+      // Update category results by removing deleted files
+      const remainingVideos = videosResults.filter(
+        (f) => !selectedFilePaths.has(f.path)
+      );
+
       dispatch(setLargeFileResults(remainingLargeFiles));
       dispatch(setOldFileResults(remainingOldFiles));
       dispatch(setWhatsappResults(remainingWhatsappFiles));
+      dispatch(setVideosResults(remainingVideos));
       dispatch(clearSelections("videos"));
+      
+      // Update database
+      try {
+        await saveVideosResults(remainingVideos);
+      } catch (error) {
+        console.error("Failed to save videos results to database:", error);
+      }
     } finally {
       setClearing(false);
     }
-  }, [selectedFilePaths, selectedStats.items, clearing, largeFileResults, oldFileResults, whatsappResults, dispatch]);
+  }, [selectedFilePaths, selectedStats.items, clearing, largeFileResults, oldFileResults, whatsappResults, videosResults, dispatch]);
 
   useEffect(() => {
+    if (selectedFilePathsArray.length === 0) return;
     const availablePaths = new Set(sortedFiles.map((f) => f.path));
     const validSelections = selectedFilePathsArray.filter((p) => availablePaths.has(p));
     if (validSelections.length !== selectedFilePathsArray.length) {
@@ -125,34 +144,31 @@ const VideosScreen: React.FC = () => {
             selectAllDisabled={resultsAvailable ? !sortedFiles.length : undefined}
           />
         </View>
-        <ScrollView 
-          contentContainerStyle={[
-            styles.content,
-            selectedStats.items > 0 && resultsAvailable ? { paddingBottom: theme.spacing.xl * 3 } : {}
-          ]} 
-          showsVerticalScrollIndicator={false}
-        >
-          {resultsAvailable ? (
-            <View style={[styles.resultsContainer, styles.sectionSpacing]}>
-              {sortedFiles.map((f) => (
-                <CategoryFileListItem
-                  key={f.path}
-                  item={f}
-                  selected={selectedFilePaths.has(f.path)}
-                  onPress={() => toggleFileSelection(f.path)}
-                />
-              ))}
-            </View>
-          ) : (
-            <View style={styles.sectionSpacing}>
-              <EmptyState
-                icon="video-outline"
-                title="No videos found"
-                description="Run a smart scan to find video files on your device"
-              />
-            </View>
-          )}
-        </ScrollView>
+        {resultsAvailable ? (
+          <FlatList
+            data={sortedFiles}
+            renderItem={renderItem}
+            keyExtractor={keyExtractor}
+            contentContainerStyle={[
+              styles.content,
+              selectedStats.items > 0 ? { paddingBottom: theme.spacing.xl * 3 } : {}
+            ]}
+            showsVerticalScrollIndicator={false}
+            removeClippedSubviews={true}
+            maxToRenderPerBatch={10}
+            updateCellsBatchingPeriod={50}
+            initialNumToRender={15}
+            windowSize={10}
+          />
+        ) : (
+          <View style={styles.sectionSpacing}>
+            <EmptyState
+              icon="video-outline"
+              title="No videos found"
+              description="Run a smart scan to find video files on your device"
+            />
+          </View>
+        )}
         {selectedStats.items > 0 && resultsAvailable && (
           <View style={styles.fixedDeleteButtonContainer}>
             <DeleteButton

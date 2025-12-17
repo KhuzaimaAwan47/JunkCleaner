@@ -12,12 +12,20 @@ export const setWhatsappResults = (payload: any[]) => reduxAction(payload, Actio
 export const setLargeFileResults = (payload: any[]) => reduxAction(payload, ActionTypes.SET_LARGE_FILE_RESULTS);
 export const setOldFileResults = (payload: any[]) => reduxAction(payload, ActionTypes.SET_OLD_FILE_RESULTS);
 export const setDuplicateResults = (payload: any[]) => reduxAction(payload, ActionTypes.SET_DUPLICATE_RESULTS);
+export const setVideosResults = (payload: any[]) => reduxAction(payload, ActionTypes.SET_VIDEOS_RESULTS);
+export const setImagesResults = (payload: any[]) => reduxAction(payload, ActionTypes.SET_IMAGES_RESULTS);
+export const setAudiosResults = (payload: any[]) => reduxAction(payload, ActionTypes.SET_AUDIOS_RESULTS);
+export const setDocumentsResults = (payload: any[]) => reduxAction(payload, ActionTypes.SET_DOCUMENTS_RESULTS);
 
 // Clear results
 export const clearWhatsappResults = () => ({ type: ActionTypes.CLEAR_WHATSAPP_RESULTS });
 export const clearLargeFileResults = () => ({ type: ActionTypes.CLEAR_LARGE_FILE_RESULTS });
 export const clearOldFileResults = () => ({ type: ActionTypes.CLEAR_OLD_FILE_RESULTS });
 export const clearDuplicateResults = () => ({ type: ActionTypes.CLEAR_DUPLICATE_RESULTS });
+export const clearVideosResults = () => ({ type: ActionTypes.CLEAR_VIDEOS_RESULTS });
+export const clearImagesResults = () => ({ type: ActionTypes.CLEAR_IMAGES_RESULTS });
+export const clearAudiosResults = () => ({ type: ActionTypes.CLEAR_AUDIOS_RESULTS });
+export const clearDocumentsResults = () => ({ type: ActionTypes.CLEAR_DOCUMENTS_RESULTS });
 
 // Selected items
 export const setSelectedItems = (screen: string, items: string[]) => 

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { FlatList, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import { DefaultTheme, useTheme } from "styled-components/native";
@@ -15,16 +15,19 @@ import {
   setOldFileResults,
   setSelectedItems,
   setWhatsappResults,
+  setImagesResults,
   toggleItemSelection,
 } from "../../../redux-code/action";
 import type { RootState } from "../../../redux-code/store";
-import { filterFilesByCategory, type CategoryFile } from "../../../utils/fileCategoryCalculator";
+import type { CategoryFile } from "../../../utils/fileCategoryCalculator";
+import { saveImagesResults } from "../../../utils/db";
 
 const ImagesScreen: React.FC = () => {
   const dispatch = useDispatch();
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   
+  const imagesResults = useSelector((state: RootState) => state.appState.imagesResults);
   const largeFileResults = useSelector((state: RootState) => state.appState.largeFileResults);
   const oldFileResults = useSelector((state: RootState) => state.appState.oldFileResults);
   const whatsappResults = useSelector((state: RootState) => state.appState.whatsappResults);
@@ -34,18 +37,11 @@ const ImagesScreen: React.FC = () => {
   
   const [clearing, setClearing] = useState(false);
 
-  // Filter images from all scan results
-  const files = useMemo<CategoryFile[]>(() => {
-    return filterFilesByCategory("Images", {
-      largeFileResults,
-      oldFileResults,
-      whatsappResults,
-      duplicateResults,
-    });
-  }, [largeFileResults, oldFileResults, whatsappResults, duplicateResults]);
-
-  const sortedFiles = useMemo(() => [...files].sort((a, b) => b.size - a.size), [files]);
-  const totalBytes = useMemo(() => files.reduce((sum, file) => sum + file.size, 0), [files]);
+  // Use images results directly from Redux and sort once
+  const sortedFiles = useMemo(() => {
+    return [...imagesResults].sort((a, b) => b.size - a.size);
+  }, [imagesResults]);
+  const totalBytes = useMemo(() => sortedFiles.reduce((sum, file) => sum + file.size, 0), [sortedFiles]);
   const resultsAvailable = sortedFiles.length > 0;
 
   const selectedStats = useMemo(() => {
@@ -67,6 +63,16 @@ const ImagesScreen: React.FC = () => {
   const toggleFileSelection = useCallback((path: string) => {
     dispatch(toggleItemSelection("images", path));
   }, [dispatch]);
+
+  const renderItem = useCallback(({ item }: { item: CategoryFile }) => (
+    <CategoryFileListItem
+      item={item}
+      selected={selectedFilePaths.has(item.path)}
+      onPress={() => toggleFileSelection(item.path)}
+    />
+  ), [selectedFilePaths, toggleFileSelection]);
+
+  const keyExtractor = useCallback((item: CategoryFile) => item.path, []);
 
   const toggleSelectAll = useCallback(() => {
     if (isAllSelected) {
@@ -101,17 +107,31 @@ const ImagesScreen: React.FC = () => {
         files: group.files.filter((f) => !selectedFilePaths.has(f.path)),
       })).filter((group) => group.files.length > 0);
 
+      // Update category results by removing deleted files
+      const remainingImages = imagesResults.filter(
+        (f) => !selectedFilePaths.has(f.path)
+      );
+
       dispatch(setLargeFileResults(remainingLargeFiles));
       dispatch(setOldFileResults(remainingOldFiles));
       dispatch(setWhatsappResults(remainingWhatsappFiles));
       dispatch(setDuplicateResults(remainingDuplicateResults));
+      dispatch(setImagesResults(remainingImages));
       dispatch(clearSelections("images"));
+      
+      // Update database
+      try {
+        await saveImagesResults(remainingImages);
+      } catch (error) {
+        console.error("Failed to save images results to database:", error);
+      }
     } finally {
       setClearing(false);
     }
-  }, [selectedFilePaths, selectedStats.items, clearing, largeFileResults, oldFileResults, whatsappResults, duplicateResults, dispatch]);
+  }, [selectedFilePaths, selectedStats.items, clearing, largeFileResults, oldFileResults, whatsappResults, duplicateResults, imagesResults, dispatch]);
 
   useEffect(() => {
+    if (selectedFilePathsArray.length === 0) return;
     const availablePaths = new Set(sortedFiles.map((f) => f.path));
     const validSelections = selectedFilePathsArray.filter((p) => availablePaths.has(p));
     if (validSelections.length !== selectedFilePathsArray.length) {
@@ -133,34 +153,31 @@ const ImagesScreen: React.FC = () => {
             selectAllDisabled={resultsAvailable ? !sortedFiles.length : undefined}
           />
         </View>
-        <ScrollView 
-          contentContainerStyle={[
-            styles.content,
-            selectedStats.items > 0 && resultsAvailable ? { paddingBottom: theme.spacing.xl * 3 } : {}
-          ]} 
-          showsVerticalScrollIndicator={false}
-        >
-          {resultsAvailable ? (
-            <View style={[styles.resultsContainer, styles.sectionSpacing]}>
-              {sortedFiles.map((f) => (
-                <CategoryFileListItem
-                  key={f.path}
-                  item={f}
-                  selected={selectedFilePaths.has(f.path)}
-                  onPress={() => toggleFileSelection(f.path)}
-                />
-              ))}
-            </View>
-          ) : (
-            <View style={styles.sectionSpacing}>
-              <EmptyState
-                icon="image-outline"
-                title="No images found"
-                description="Run a smart scan to find image files on your device"
-              />
-            </View>
-          )}
-        </ScrollView>
+        {resultsAvailable ? (
+          <FlatList
+            data={sortedFiles}
+            renderItem={renderItem}
+            keyExtractor={keyExtractor}
+            contentContainerStyle={[
+              styles.content,
+              selectedStats.items > 0 ? { paddingBottom: theme.spacing.xl * 3 } : {}
+            ]}
+            showsVerticalScrollIndicator={false}
+            removeClippedSubviews={true}
+            maxToRenderPerBatch={10}
+            updateCellsBatchingPeriod={50}
+            initialNumToRender={15}
+            windowSize={10}
+          />
+        ) : (
+          <View style={styles.sectionSpacing}>
+            <EmptyState
+              icon="image-outline"
+              title="No images found"
+              description="Run a smart scan to find image files on your device"
+            />
+          </View>
+        )}
         {selectedStats.items > 0 && resultsAvailable && (
           <View style={styles.fixedDeleteButtonContainer}>
             <DeleteButton

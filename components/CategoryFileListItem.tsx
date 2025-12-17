@@ -20,7 +20,7 @@ type CategoryFileListItemProps = {
   onPress: () => void;
 };
 
-const CategoryFileListItem: React.FC<CategoryFileListItemProps> = ({
+const CategoryFileListItem: React.FC<CategoryFileListItemProps> = React.memo(({
   item,
   selected,
   onPress,
@@ -108,7 +108,17 @@ const CategoryFileListItem: React.FC<CategoryFileListItemProps> = ({
       </NeumorphicContainer>
     </TouchableOpacity>
   );
-};
+}, (prevProps, nextProps) => {
+  // Only re-render if item, selected, or onPress changes
+  return (
+    prevProps.item.path === nextProps.item.path &&
+    prevProps.item.size === nextProps.item.size &&
+    prevProps.selected === nextProps.selected &&
+    prevProps.onPress === nextProps.onPress
+  );
+});
+
+CategoryFileListItem.displayName = 'CategoryFileListItem';
 
 const createStyles = (theme: DefaultTheme) =>
   StyleSheet.create({
