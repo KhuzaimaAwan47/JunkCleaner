@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import React from "react";
-import { RefreshControl, ScrollView, StyleSheet, View, type ViewStyle } from "react-native";
+import { ScrollView, StyleSheet, View, type ViewStyle } from "react-native";
 import { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
@@ -155,7 +155,6 @@ const HomeScreen = () => {
 
   const isScanning = useSelector((state: RootState) => state.appState.loadingStates.smartScan);
   const { isScanning: localIsScanning, handleSmartScan, handleStopScan } = useSmartScan(refreshHomeState);
-  const refreshing = localIsScanning || isScanning;
 
   React.useEffect(() => {
     refreshHomeState();
@@ -176,13 +175,6 @@ const HomeScreen = () => {
         <ScrollView 
           contentContainerStyle={styles.scrollContent} 
           showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={refreshHomeState}
-              tintColor={theme.colors.primary}
-            />
-          }
         >
           <View style={styles.indicatorCard}>
             <SwipeableCardContainer>
