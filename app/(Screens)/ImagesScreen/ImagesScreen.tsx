@@ -75,6 +75,8 @@ const ImagesScreen: React.FC = () => {
 
   const keyExtractor = useCallback((item: CategoryFile) => item.path, []);
 
+  const ItemSeparator = useCallback(() => <View style={{ height: theme.spacing.xs }} />, [theme]);
+
   const toggleSelectAll = useCallback(() => {
     if (isAllSelected) {
       dispatch(clearSelections("images"));
@@ -172,6 +174,7 @@ const ImagesScreen: React.FC = () => {
             data={sortedFiles}
             renderItem={renderItem}
             keyExtractor={keyExtractor}
+            ItemSeparatorComponent={ItemSeparator}
             contentContainerStyle={[
               styles.content,
               selectedStats.items > 0 ? { paddingBottom: theme.spacing.xl * 3 } : {}
