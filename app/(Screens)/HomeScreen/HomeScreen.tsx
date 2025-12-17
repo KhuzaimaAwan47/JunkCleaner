@@ -13,19 +13,18 @@ import SwipeableCardContainer from "../../../components/SwipeableCardContainer";
 import SystemHealthCard from "../../../components/SystemHealthCard";
 import type { Feature } from "../../../dummydata/features";
 import { featureCards } from "../../../dummydata/features";
-import { appRoutes } from "../../../routes";
 import {
+  setAudiosResults,
+  setDocumentsResults,
   setDuplicateResults,
   setFeatureProgress,
+  setImagesResults,
   setLargeFileResults,
   setOldFileResults,
   setStorageInfo,
   setSystemHealth,
-  setWhatsappResults,
   setVideosResults,
-  setImagesResults,
-  setAudiosResults,
-  setDocumentsResults,
+  setWhatsappResults,
 } from "../../../redux-code/action";
 import type { RootState } from "../../../redux-code/store";
 import {
@@ -33,12 +32,12 @@ import {
   loadAllScanResults,
   loadSmartScanStatus,
 } from "../../../utils/db";
+import { calculateFeatureStats, formatFeatureSubtitle } from "../../../utils/featureStatsCalculator";
+import { calculateFileCategoryFeatures } from "../../../utils/fileCategoryCalculator";
 import { calculateProgressFromSnapshot, hasDataInSnapshot } from "../../../utils/homeScreenHelpers";
+import { getMemoryInfo } from "../../../utils/memory";
 import { getStorageInfo } from "../../../utils/storage";
 import { calculateSystemHealth } from "../../../utils/systemHealth";
-import { getMemoryInfo } from "../../../utils/memory";
-import { calculateFileCategoryFeatures } from "../../../utils/fileCategoryCalculator";
-import { calculateFeatureStats, formatFeatureSubtitle } from "../../../utils/featureStatsCalculator";
 import { useSmartScan } from "./useSmartScan";
 
 const HomeScreen = () => {
@@ -171,7 +170,7 @@ const HomeScreen = () => {
 
   return (
     <ScreenWrapper style={styles.screen}>
-      <SafeAreaView style={{ flex: 1 }}>
+      <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
         <ScrollView 
           contentContainerStyle={styles.scrollContent} 
           showsVerticalScrollIndicator={false}
