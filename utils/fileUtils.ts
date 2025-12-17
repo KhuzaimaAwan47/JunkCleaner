@@ -45,9 +45,14 @@ export function ensurePreviewUri(path: string): string | null {
   return `file://${path}`;
 }
 
-export function formatTimestamp(seconds: number): string {
-  const date = new Date(seconds * 1000);
-  return date.toLocaleDateString();
+export function formatTimestamp(timestamp: number): string {
+  // Handle both seconds and milliseconds timestamps
+  const date = new Date(timestamp > 1e12 ? timestamp : timestamp * 1000);
+  if (isNaN(date.getTime())) return 'unknown date';
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  const year = date.getFullYear();
+  return `${month}/${day}/${year}`;
 }
 
 const PREVIEW_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"];
