@@ -2,12 +2,14 @@ import type { DuplicateGroup } from "../app/(Screens)/DuplicateImagesScreen/Dupl
 import type { LargeFileResult } from "../app/(Screens)/LargeFilesScreen/LargeFileScanner";
 import type { OldFileInfo } from "../app/(Screens)/OldFilesScreen/OldFilesScanner";
 import type { WhatsAppScanResult } from "../app/(Screens)/WhatsAppRemoverScreen/WhatsAppScanner";
+import type { APKFileInfo } from "../app/(Screens)/APKCleanerScreen/APKCleanerScanner";
 
 type ScanResults = {
   whatsappResults?: WhatsAppScanResult[];
   duplicateResults?: DuplicateGroup[];
   largeFileResults?: LargeFileResult[];
   oldFileResults?: OldFileInfo[];
+  apkResults?: APKFileInfo[];
 };
 
 export type FeatureStats = {
@@ -57,6 +59,12 @@ export function calculateFeatureStats(scanResults: ScanResults): FeatureStatsMap
   const oldSize =
     scanResults.oldFileResults?.reduce((sum, item) => sum + (item.size ?? 0), 0) ?? 0;
   stats.old = { size: oldSize, count: oldCount };
+
+  // APK Files
+  const apkCount = scanResults.apkResults?.length ?? 0;
+  const apkSize =
+    scanResults.apkResults?.reduce((sum, item) => sum + (item.size ?? 0), 0) ?? 0;
+  stats.apk = { size: apkSize, count: apkCount };
 
   return stats;
 }

@@ -13,6 +13,7 @@
   images: "/(Screens)/ImagesScreen/ImagesScreen",
   audios: "/(Screens)/AudiosScreen/AudiosScreen",
   documents: "/(Screens)/DocumentsScreen/DocumentsScreen",
+  apkCleaner: "/(Screens)/APKCleanerScreen/APKCleanerScreen",
 } as const;
 
 export type AppRoute = (typeof appRoutes)[keyof typeof appRoutes];

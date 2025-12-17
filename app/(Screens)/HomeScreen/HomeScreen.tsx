@@ -14,6 +14,7 @@ import SystemHealthCard from "../../../components/SystemHealthCard";
 import type { Feature } from "../../../dummydata/features";
 import { featureCards } from "../../../dummydata/features";
 import {
+  setAPKResults,
   setAudiosResults,
   setDocumentsResults,
   setDuplicateResults,
@@ -54,6 +55,7 @@ const HomeScreen = () => {
   const oldFileResults = useSelector((state: RootState) => state.appState.oldFileResults);
   const whatsappResults = useSelector((state: RootState) => state.appState.whatsappResults);
   const duplicateResults = useSelector((state: RootState) => state.appState.duplicateResults);
+  const apkResults = useSelector((state: RootState) => state.appState.apkResults);
   
   const [showFeatures, setShowFeatures] = React.useState(false);
   const featureVisibility = useSharedValue(0);
@@ -76,10 +78,11 @@ const HomeScreen = () => {
         oldFileResults,
         whatsappResults,
         duplicateResults,
+        apkResults,
       },
       theme
     );
-  }, [largeFileResults, oldFileResults, whatsappResults, duplicateResults, theme]);
+  }, [largeFileResults, oldFileResults, whatsappResults, duplicateResults, apkResults, theme]);
 
   // Combine existing features with file category features and apply formatted subtitles
   const features = React.useMemo<Feature[]>(() => {
@@ -118,6 +121,8 @@ const HomeScreen = () => {
       dispatch(setImagesResults(snapshot.imagesResults));
       dispatch(setAudiosResults(snapshot.audiosResults));
       dispatch(setDocumentsResults(snapshot.documentsResults));
+      dispatch(setAPKResults(snapshot.apkResults));
+      dispatch(setAPKResults(snapshot.apkResults));
 
       const dataExists = hasDataInSnapshot(snapshot);
       const isComplete = status?.completed === true;

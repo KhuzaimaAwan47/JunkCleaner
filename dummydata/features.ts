@@ -59,6 +59,15 @@ export const featureCards: Feature[] = [
     accent: allColors.primary,
     progress: 0.48,
   },
+  {
+    id: 'apk',
+    title: 'APK Cleaner',
+    subtitle: 'Remove installers',
+    icon: 'android',
+    route: appRoutes.apkCleaner,
+    accent: '#00D1FF',
+    progress: 0.0,
+  },
 ];
 
 export const storageStats = {

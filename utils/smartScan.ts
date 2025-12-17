@@ -2,6 +2,7 @@ import { scanForDuplicates } from '../app/(Screens)/DuplicateImagesScreen/Duplic
 import { scanLargeFiles } from '../app/(Screens)/LargeFilesScreen/LargeFileScanner';
 import { scanOldFiles } from '../app/(Screens)/OldFilesScreen/OldFilesScanner';
 import { scanWhatsApp } from '../app/(Screens)/WhatsAppRemoverScreen/WhatsAppScanner';
+import { scanAPKFiles } from '../app/(Screens)/APKCleanerScreen/APKCleanerScanner';
 import {
   initDatabase,
   saveDuplicateGroups,
@@ -13,6 +14,7 @@ import {
   saveImagesResults,
   saveAudiosResults,
   saveDocumentsResults,
+  saveAPKResults,
   type SmartScanStatus,
 } from './db';
 import { filterFilesByCategory } from './fileCategoryCalculator';
@@ -27,7 +29,7 @@ export interface SmartScanProgress {
 
 export type SmartScanProgressCallback = (progress: SmartScanProgress) => void;
 
-export type ScannerType = 'whatsapp' | 'duplicates' | 'largeFiles' | 'oldFiles';
+export type ScannerType = 'whatsapp' | 'duplicates' | 'largeFiles' | 'oldFiles' | 'apk';
 
 export type SmartScanResultsUpdate = {
   scannerType: ScannerType;
@@ -37,6 +39,7 @@ export type SmartScanResultsUpdate = {
     duplicateResults?: any[];
     largeFileResults?: any[];
     oldFileResults?: any[];
+    apkResults?: any[];
   };
 };
 
@@ -47,6 +50,7 @@ const SCANNER_NAMES = [
   'Duplicate Images',
   'Large Files',
   'Old Files',
+  'APK Files',
 ] as const;
 
 /**
@@ -69,6 +73,7 @@ export async function runSmartScan(
       duplicates: false,
       largeFiles: false,
       oldFiles: false,
+      apk: false,
     },
   };
 
@@ -164,13 +169,27 @@ export async function runSmartScan(
       results: { oldFileResults },
     });
 
-    // 5. Calculate and save category results
-    updateProgress(4, 'Categorizing files', 0, 'categorizing files by type...');
+    // 5. APK Files Scanner
+    updateProgress(4, SCANNER_NAMES[4], 0, 'scanning for APK files...');
+    const apkResults = await scanAPKFiles();
+    await saveAPKResults(apkResults);
+    status.scannerProgress.apk = true;
+    await persistStatus();
+    updateProgress(4, SCANNER_NAMES[4], 1, `found ${apkResults.length} APK files`);
+    onResultsUpdate?.({
+      scannerType: 'apk',
+      scannerName: SCANNER_NAMES[4],
+      results: { apkResults },
+    });
+
+    // 6. Calculate and save category results
+    updateProgress(5, 'Categorizing files', 0, 'categorizing files by type...');
     const scanResults = {
       whatsappResults,
       duplicateResults: duplicateResults || [],
       largeFileResults,
       oldFileResults,
+      apkResults,
     };
     
     const videosResults = filterFilesByCategory('Videos', scanResults);
@@ -185,14 +204,14 @@ export async function runSmartScan(
       saveDocumentsResults(documentsResults),
     ]);
     
-    updateProgress(4, 'Categorizing files', 1, 'categorized files by type');
+    updateProgress(5, 'Categorizing files', 1, 'categorized files by type');
 
     // Mark as completed
     status.completed = true;
     status.completedAt = Date.now();
     await saveSmartScanStatus(status);
 
-    updateProgress(5, 'Complete', 1, 'smart scan completed');
+    updateProgress(6, 'Complete', 1, 'smart scan completed');
   } catch (error) {
     console.error('Smart scan error:', error);
     // Save partial status

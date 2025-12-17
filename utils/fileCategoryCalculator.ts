@@ -3,6 +3,7 @@ import type { DuplicateGroup } from "../app/(Screens)/DuplicateImagesScreen/Dupl
 import type { LargeFileResult } from "../app/(Screens)/LargeFilesScreen/LargeFileScanner";
 import type { OldFileInfo } from "../app/(Screens)/OldFilesScreen/OldFilesScanner";
 import type { WhatsAppScanResult } from "../app/(Screens)/WhatsAppRemoverScreen/WhatsAppScanner";
+import type { APKFileInfo } from "../app/(Screens)/APKCleanerScreen/APKCleanerScanner";
 import type { Feature } from "../dummydata/features";
 import { appRoutes } from "../routes";
 
@@ -11,6 +12,7 @@ type ScanResults = {
   oldFileResults?: OldFileInfo[];
   whatsappResults?: WhatsAppScanResult[];
   duplicateResults?: DuplicateGroup[];
+  apkResults?: APKFileInfo[];
 };
 
 type FileCategoryData = {
@@ -122,6 +124,16 @@ export function calculateFileCategoryFeatures(
       categories[category].size += file.size || 0;
       categories[category].count += 1;
     });
+  });
+
+  // Process APK files
+  scanResults.apkResults?.forEach((file) => {
+    const category = categorizeFile(file.path);
+    if (!categories[category]) {
+      categories[category] = { name: category, size: 0, count: 0 };
+    }
+    categories[category].size += file.size || 0;
+    categories[category].count += 1;
   });
 
   // Filter to only the categories we want: Videos, Images, Audio, Documents

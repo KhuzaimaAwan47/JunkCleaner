@@ -2,6 +2,7 @@ import type { DuplicateGroup } from "../app/(Screens)/DuplicateImagesScreen/Dupl
 import type { LargeFileResult } from "../app/(Screens)/LargeFilesScreen/LargeFileScanner";
 import type { OldFileInfo } from "../app/(Screens)/OldFilesScreen/OldFilesScanner";
 import type { WhatsAppScanResult } from "../app/(Screens)/WhatsAppRemoverScreen/WhatsAppScanner";
+import type { APKFileInfo } from "../app/(Screens)/APKCleanerScreen/APKCleanerScanner";
 import type { SmartScanProgress } from "../utils/smartScan";
 import type { SystemHealthResult } from "../utils/systemHealth";
 import type { CategoryFile } from "../utils/fileCategoryCalculator";
@@ -17,6 +18,7 @@ export interface AppState {
   imagesResults: CategoryFile[];
   audiosResults: CategoryFile[];
   documentsResults: CategoryFile[];
+  apkResults: APKFileInfo[];
   
   // Selected items per screen (keyed by screen name) - stored as arrays for persistence
   selectedItems: {
@@ -28,6 +30,7 @@ export interface AppState {
     images: string[];
     audios: string[];
     documents: string[];
+    apk: string[];
   };
   
   // Loading states per screen
@@ -36,6 +39,7 @@ export interface AppState {
     large: boolean;
     old: boolean;
     duplicate: boolean;
+    apk: boolean;
     smartScan: boolean;
   };
   
@@ -67,6 +71,7 @@ const initialState: AppState = {
   imagesResults: [],
   audiosResults: [],
   documentsResults: [],
+  apkResults: [],
   selectedItems: {
     whatsapp: [],
     large: [],
@@ -76,12 +81,14 @@ const initialState: AppState = {
     images: [],
     audios: [],
     documents: [],
+    apk: [],
   },
   loadingStates: {
     whatsapp: false,
     large: false,
     old: false,
     duplicate: false,
+    apk: false,
     smartScan: false,
   },
   scanProgress: null,
@@ -116,6 +123,8 @@ const appReducer = (state: AppState | undefined = initialState, action: any): Ap
       return { ...state, audiosResults: action.payload };
     case ActionTypes.SET_DOCUMENTS_RESULTS:
       return { ...state, documentsResults: action.payload };
+    case ActionTypes.SET_APK_RESULTS:
+      return { ...state, apkResults: action.payload };
     
     // Clear results
     case ActionTypes.CLEAR_WHATSAPP_RESULTS:
@@ -134,6 +143,8 @@ const appReducer = (state: AppState | undefined = initialState, action: any): Ap
       return { ...state, audiosResults: [] };
     case ActionTypes.CLEAR_DOCUMENTS_RESULTS:
       return { ...state, documentsResults: [] };
+    case ActionTypes.CLEAR_APK_RESULTS:
+      return { ...state, apkResults: [] };
     
     // Selected items
     case ActionTypes.SET_SELECTED_ITEMS: {
