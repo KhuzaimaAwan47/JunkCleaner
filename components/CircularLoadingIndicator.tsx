@@ -28,11 +28,11 @@ const CircularLoadingIndicator: React.FC<Props> = ({ scanProgress, size = 200 })
   }
 
   return (
-    <View style={[styles.wrapper, { width: size, height: size }]}>
+    <View style={[styles.wrapper, { height: size }]}>
       <LottieView
         ref={lottieRef}
         source={require("../assets/lottie/Scanning_Files.json")}
-        style={{ width: size, height: size }}
+        style={styles.lottie}
         autoPlay
         loop
       />
@@ -47,6 +47,12 @@ const createStyles = (theme: DefaultTheme) =>
     wrapper: {
       alignItems: "center",
       justifyContent: "center",
+      alignSelf: "stretch",
+      marginHorizontal: -theme.spacing.lg,
+    },
+    lottie: {
+      width: "100%",
+      height: "100%",
     },
   });
 
