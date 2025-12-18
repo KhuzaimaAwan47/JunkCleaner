@@ -27,13 +27,15 @@ type FileCategoryData = {
 const categorizeFile = (path: string, type?: string): string => {
   const lower = path.toLowerCase();
   
+  // Check for APK files FIRST (before Documents) to prevent APK files from being categorized as Documents
+  if (lower.endsWith(".apk") || lower.endsWith(".apks") || lower.endsWith(".xapk")) return "Apps";
+  
   // Check for specific types first
   if (type === "cache" || type === "log" || type === "temp") return "Cache";
   if (type === "Images" || lower.match(/\.(jpg|jpeg|png|gif|webp|heic|heif|bmp|svg)$/)) return "Images";
   if (type === "Video" || lower.match(/\.(mp4|mkv|avi|mov|wmv|flv|webm|3gp)$/)) return "Videos";
   if (type === "Documents" || lower.match(/\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt|rtf|odt)$/)) return "Documents";
   if (type === "Audio" || type === "VoiceNotes" || lower.match(/\.(mp3|wav|flac|aac|m4a|ogg|wma)$/)) return "Audio";
-  if (lower.endsWith(".apk")) return "Apps";
   if (lower.match(/\.(zip|rar|7z|tar|gz|bz2|obb)$/)) return "Archives";
   if (lower.includes("system") || lower.includes("android/data") || lower.includes("android/obb")) return "System";
   

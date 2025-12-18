@@ -37,8 +37,13 @@ const DocumentsScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
 
   // Use documents results directly from Redux and sort once
+  // Filter out APK files (they should not be in documents)
   const sortedFiles = useMemo(() => {
-    return [...documentsResults].sort((a, b) => b.size - a.size);
+    const filtered = documentsResults.filter((file) => {
+      const lower = file.path.toLowerCase();
+      return !lower.endsWith(".apk") && !lower.endsWith(".apks") && !lower.endsWith(".xapk");
+    });
+    return filtered.sort((a, b) => b.size - a.size);
   }, [documentsResults]);
   const totalBytes = useMemo(() => sortedFiles.reduce((sum, file) => sum + file.size, 0), [sortedFiles]);
   const resultsAvailable = sortedFiles.length > 0;
