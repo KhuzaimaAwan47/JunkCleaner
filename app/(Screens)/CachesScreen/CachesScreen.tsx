@@ -7,8 +7,6 @@ import AppHeader from "../../../components/AppHeader";
 import CachesFileListItem from "../../../components/CachesFileListItem";
 import DeleteButton from "../../../components/DeleteButton";
 import EmptyState from "../../../components/EmptyState";
-import ScanActionButton from "../../../components/ScanActionButton";
-import ScanProgressCard from "../../../components/ScanProgressCard";
 import ScreenWrapper from "../../../components/ScreenWrapper";
 import {
   clearSelections,
@@ -34,9 +32,6 @@ const CachesScreen: React.FC = () => {
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasDatabaseResults, setHasDatabaseResults] = useState<boolean>(false);
-  const [scanProgress, setScanProgress] = useState<{ percent: number; detail?: string }>({
-    percent: 0,
-  });
 
   const sortedItems = useMemo(() => [...items].sort((a, b) => b.size - a.size), [items]);
   const totalBytes = useMemo(() => items.reduce((sum, item) => sum + item.size, 0), [items]);
@@ -114,7 +109,6 @@ const CachesScreen: React.FC = () => {
     }
     dispatch(setLoading("caches", true));
     setError(null);
-    setScanProgress({ percent: 0, detail: "scanning for cache files..." });
     try {
       console.log('[CachesScreen] Starting manual scan...');
       const results = await scanCaches();
@@ -123,7 +117,6 @@ const CachesScreen: React.FC = () => {
       dispatch(clearSelections("caches"));
       await saveCachesResults(results);
       setHasDatabaseResults(results.length > 0);
-      setScanProgress({ percent: 100, detail: `found ${results.length} cache items` });
       if (results.length === 0) {
         setError("no cache files detected. android 11+ (api 30+) restricts access to /android/data and /android/obb directories due to scoped storage, even with all permissions. this is a platform security restriction. the feature may work on android 10 and below.");
       }
@@ -172,21 +165,6 @@ const CachesScreen: React.FC = () => {
             />
           }
         >
-          {!loading && !resultsAvailable && (
-            <View style={styles.sectionSpacing}>
-              <ScanActionButton label="start cache scan" onPress={handleScan} fullWidth />
-            </View>
-          )}
-
-          {loading && (
-            <ScanProgressCard
-              progress={scanProgress.percent}
-              title="scanning for cache files"
-              subtitle={scanProgress.detail || "searching device storage..."}
-              style={styles.sectionSpacing}
-            />
-          )}
-
           {!loading && resultsAvailable && (
             <>
               <View style={[styles.resultsContainer, styles.sectionSpacing]}>

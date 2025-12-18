@@ -10,10 +10,6 @@ type FilterContainerProps = {
   onCategoryChange: (category: string) => void;
   loading: boolean;
   hasSavedResults: boolean;
-  scanLabel: string;
-  onScan: () => void;
-  loadingTitle?: string;
-  loadingSubtitle?: string;
 };
 
 const FilterContainer: React.FC<FilterContainerProps> = ({
@@ -23,10 +19,6 @@ const FilterContainer: React.FC<FilterContainerProps> = ({
   onCategoryChange,
   loading,
   hasSavedResults,
-  scanLabel,
-  onScan,
-  loadingTitle,
-  loadingSubtitle,
 }) => {
   const theme = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);

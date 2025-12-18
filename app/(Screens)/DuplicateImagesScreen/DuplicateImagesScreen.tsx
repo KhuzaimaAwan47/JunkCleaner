@@ -1,6 +1,5 @@
 ﻿import React, { useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DefaultTheme, useTheme } from 'styled-components/native';
 import AppHeader from '../../../components/AppHeader';
@@ -9,21 +8,17 @@ import { DuplicateFileItem } from '../../../components/DuplicateCard';
 import DuplicateFileItemComponent from '../../../components/DuplicateFileItem';
 import DuplicateFilterBar from '../../../components/DuplicateFilterBar';
 import DuplicateGroupHeader from '../../../components/DuplicateGroupHeader';
-import DuplicateProgressCard from '../../../components/DuplicateProgressCard';
 import DuplicateSummaryCard from '../../../components/DuplicateSummaryCard';
 import EmptyState from '../../../components/EmptyState';
 import ImagePreviewModal from '../../../components/ImagePreviewModal';
-import ScanActionButton from '../../../components/ScanActionButton';
 import ScreenWrapper from '../../../components/ScreenWrapper';
 import { useScanner } from './DuplicateImageScanner';
 import { useDuplicateSelection } from './useDuplicateSelection';
-import { useScanTimer } from './useScanTimer';
 
 export default function DuplicateImagesScreen() {
-  const { isScanning, isRestoring, progress, duplicates, error, startScan, stopScan } = useScanner();
+  const { isScanning, isRestoring, progress, duplicates, error, startScan } = useScanner();
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const { elapsedTime, pulseScale } = useScanTimer(isScanning);
   const [previewFile, setPreviewFile] = useState<DuplicateFileItem | null>(null);
   const [imageLoadErrors, setImageLoadErrors] = useState<Set<string>>(() => new Set());
 
@@ -53,17 +48,8 @@ export default function DuplicateImagesScreen() {
     handleGroupSelectAll,
   } = useDuplicateSelection(duplicates, duplicateFiles);
 
-  const buttonAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: pulseScale.value }],
-  }));
-
-  const progressPercent = progress.total > 0 ? Math.min(100, (progress.current / progress.total) * 100) : 0;
-  const scannedFiles = progress.scannedFiles ?? progress.current;
-  const totalFiles = progress.totalFiles ?? progress.total;
-
   const deleteDisabled = selectedStats.items === 0;
   const showResults = !isScanning && duplicateFiles.length > 0;
-  const showStartButton = !isScanning && !isRestoring && duplicateFiles.length === 0;
   const showNoResultsSummary = !isScanning && !isRestoring && duplicateFiles.length === 0 && !error && progress.total > 0;
   const showEmptyState = !isScanning && !isRestoring && duplicateFiles.length === 0 && !error && progress.total === 0;
 
@@ -96,26 +82,6 @@ export default function DuplicateImagesScreen() {
             />
           }
         >
-          {showStartButton && (
-            <Animated.View style={[buttonAnimatedStyle, styles.sectionSpacing]}>
-              <ScanActionButton label="start scan" onPress={startScan} fullWidth />
-            </Animated.View>
-          )}
-
-          {isScanning && (
-            <View style={styles.sectionSpacing}>
-              <DuplicateProgressCard
-                elapsedTime={elapsedTime}
-                scannedFiles={scannedFiles}
-                totalFiles={totalFiles}
-                progress={progressPercent}
-                currentFile={progress.currentFile}
-                stage={progress.stage}
-                onStop={stopScan}
-              />
-            </View>
-          )}
-
           {error && (
             <View style={[styles.errorCard, styles.sectionSpacing]}>
               <Text style={styles.errorText}>{error}</Text>

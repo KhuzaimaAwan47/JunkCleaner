@@ -6,7 +6,6 @@ import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
 import FilterContainer from "../../../components/FilterContainer";
 import FixedDeleteButton from "../../../components/FixedDeleteButton";
-import LoadingOverlay from "../../../components/LoadingOverlay";
 import OldFileListItem from "../../../components/OldFileListItem";
 import OldFilesEmptyState from "../../../components/OldFilesEmptyState";
 import ScreenWrapper from "../../../components/ScreenWrapper";
@@ -101,10 +100,6 @@ const OldFilesScreen = () => {
           onCategoryChange={(category) => setFilterType(category as FileCategory)}
           loading={loading}
           hasSavedResults={hasSavedResults}
-          scanLabel="Scan Old Files"
-          onScan={handleScan}
-          loadingTitle="Scanning for old files..."
-          loadingSubtitle="Looking for items you can safely delete."
         />
         <FlatList
           data={filteredFiles}
@@ -135,7 +130,6 @@ const OldFilesScreen = () => {
           onPress={onDelete}
           visible={!deleteDisabled && hasFilteredFiles}
         />
-        <LoadingOverlay visible={loading} label="Scanning for old files..." />
       </SafeAreaView>
     </ScreenWrapper>
   );

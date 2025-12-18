@@ -6,8 +6,6 @@ import { DefaultTheme, useTheme } from "styled-components/native";
 import AppHeader from "../../../components/AppHeader";
 import DeleteButton from "../../../components/DeleteButton";
 import EmptyState from "../../../components/EmptyState";
-import ScanActionButton from "../../../components/ScanActionButton";
-import ScanProgressCard from "../../../components/ScanProgressCard";
 import ScreenWrapper from "../../../components/ScreenWrapper";
 import {
   clearSelections,
@@ -34,9 +32,6 @@ const APKCleanerScreen: React.FC = () => {
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasDatabaseResults, setHasDatabaseResults] = useState<boolean>(false);
-  const [scanProgress, setScanProgress] = useState<{ percent: number; detail?: string }>({
-    percent: 0,
-  });
 
   const sortedFiles = useMemo(() => [...files].sort((a, b) => b.size - a.size), [files]);
   const totalBytes = useMemo(() => files.reduce((sum, file) => sum + file.size, 0), [files]);
@@ -114,14 +109,12 @@ const APKCleanerScreen: React.FC = () => {
     }
     dispatch(setLoading("apk", true));
     setError(null);
-    setScanProgress({ percent: 0, detail: "scanning for APK files..." });
     try {
       const results = await scanAPKFiles();
       dispatch(setAPKResults(results));
       dispatch(clearSelections("apk"));
       await saveAPKResults(results);
       setHasDatabaseResults(results.length > 0);
-      setScanProgress({ percent: 100, detail: `found ${results.length} APK files` });
       if (results.length === 0) {
         setError("no APK files detected. grant storage permission in settings for more coverage.");
       }
@@ -168,21 +161,6 @@ const APKCleanerScreen: React.FC = () => {
             />
           }
         >
-          {!loading && !resultsAvailable && (
-            <View style={styles.sectionSpacing}>
-              <ScanActionButton label="start APK scan" onPress={handleScan} fullWidth />
-            </View>
-          )}
-
-          {loading && (
-            <ScanProgressCard
-              progress={scanProgress.percent}
-              title="scanning for APK files"
-              subtitle={scanProgress.detail || "searching device storage..."}
-              style={styles.sectionSpacing}
-            />
-          )}
-
           {!loading && resultsAvailable && (
             <>
               <View style={[styles.resultsContainer, styles.sectionSpacing]}>

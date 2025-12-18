@@ -7,8 +7,6 @@ import AppHeader from "../../../components/AppHeader";
 import DeleteButton from "../../../components/DeleteButton";
 import EmptyState from "../../../components/EmptyState";
 import LargeFileListItem from "../../../components/LargeFileListItem";
-import ScanActionButton from "../../../components/ScanActionButton";
-import ScanProgressCard from "../../../components/ScanProgressCard";
 import ScreenWrapper from "../../../components/ScreenWrapper";
 import {
   clearSelections,
@@ -19,9 +17,7 @@ import {
 } from "../../../redux-code/action";
 import type { RootState } from "../../../redux-code/store";
 import { initDatabase, loadLargeFileResults, saveLargeFileResults } from "../../../utils/db";
-import { ScanPhase, scanLargeFiles } from "./LargeFileScanner";
-
-type ProgressPhase = ScanPhase | "idle";
+import { scanLargeFiles } from "./LargeFileScanner";
 
 const LargeFilesScreen: React.FC = () => {
   const dispatch = useDispatch();
@@ -36,10 +32,6 @@ const LargeFilesScreen: React.FC = () => {
   const [clearing, setClearing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasDatabaseResults, setHasDatabaseResults] = useState<boolean>(false);
-  const [scanProgress, setScanProgress] = useState<{ percent: number; phase: ProgressPhase; detail?: string }>({
-    percent: 0,
-    phase: "idle",
-  });
 
   const sortedFiles = useMemo(() => [...files].sort((a, b) => b.size - a.size), [files]);
   const totalBytes = useMemo(() => files.reduce((sum, file) => sum + file.size, 0), [files]);
@@ -89,16 +81,6 @@ const LargeFilesScreen: React.FC = () => {
     }
   }, [selectedFilePaths, selectedStats.items, clearing, files, dispatch]);
 
-  const progressLabels: Record<string, string> = {
-    permissions: "checking storage permissions",
-    media: "indexing media library",
-    directories: "sweeping folders",
-    extensions: "flagging heavy extensions",
-    finalizing: "wrapping up results",
-  };
-  const progressLabel = progressLabels[scanProgress.phase] || "scanning high-impact folders…";
-  const progressDetail = scanProgress.detail ?? "downloads · dcim · movies · whatsapp media";
-
   useEffect(() => {
     (async () => {
       try {
@@ -121,15 +103,8 @@ const LargeFilesScreen: React.FC = () => {
     }
     dispatch(setLoading("large", true));
     setError(null);
-    setScanProgress({ percent: 0, phase: "permissions", detail: "requesting access" });
     try {
-      const results = await scanLargeFiles(512 * 1024 * 1024, (snapshot) => {
-        setScanProgress({
-          percent: Math.round(snapshot.ratio * 100),
-          phase: snapshot.phase,
-          detail: snapshot.detail,
-        });
-      });
+      const results = await scanLargeFiles(512 * 1024 * 1024, () => {});
       dispatch(setLargeFileResults(results));
       dispatch(clearSelections("large"));
       await saveLargeFileResults(results);
@@ -180,21 +155,6 @@ const LargeFilesScreen: React.FC = () => {
             />
           }
         >
-          {!loading && !resultsAvailable && (
-            <View style={styles.sectionSpacing}>
-              <ScanActionButton label="start storage scan" onPress={handleScan} fullWidth />
-            </View>
-          )}
-
-          {loading && (
-            <ScanProgressCard
-              progress={scanProgress.percent}
-              title={progressLabel}
-              subtitle={progressDetail}
-              style={styles.sectionSpacing}
-            />
-          )}
-
           {!loading && resultsAvailable && (
             <>
               <View style={[styles.resultsContainer, styles.sectionSpacing]}>

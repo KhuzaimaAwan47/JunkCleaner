@@ -191,10 +191,6 @@ const WhatsAppRemoverScreen = () => {
           onCategoryChange={(category) => setFilterType(category as FilterType)}
           loading={isScanning}
           hasSavedResults={hasSavedResults}
-          scanLabel="rescan"
-          onScan={onRescan}
-          loadingTitle="scanning whatsapp folders"
-          loadingSubtitle="indexing images, videos, docs, and voice notes"
         />
         {error && <View style={styles.errorContainer}><ErrorBanner error={error} /></View>}
         <FlatList
