@@ -10,15 +10,32 @@ export interface APKFileInfo {
 
 const APK_EXTENSIONS = ['.apk', '.apks', '.xapk'];
 const BATCH_SIZE = 24;
-const ROOT_DIRECTORIES = [
-  RNFS.ExternalStorageDirectoryPath,
-  RNFS.DownloadDirectoryPath,
-  RNFS.ExternalDirectoryPath,
-  RNFS.DocumentDirectoryPath,
-].filter(Boolean) as string[];
+
+const buildRootDirectories = (): string[] => {
+  const base = RNFS.ExternalStorageDirectoryPath;
+  const directories = [
+    RNFS.ExternalStorageDirectoryPath,
+    RNFS.DownloadDirectoryPath,
+    RNFS.ExternalDirectoryPath,
+    RNFS.DocumentDirectoryPath,
+  ];
+
+  // Add WhatsApp Documents directories if base path is available
+  if (base) {
+    // Android 11+ (scoped storage) paths
+    directories.push(`${base}/Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Documents`);
+    directories.push(`${base}/Android/media/com.whatsapp.w4b/WhatsApp Business/Media/WhatsApp Documents`);
+    // Legacy path (Android 10 and below or devices with broad storage access)
+    directories.push(`${base}/WhatsApp/Media/WhatsApp Documents`);
+  }
+
+  return directories.filter(Boolean) as string[];
+};
+
+const ROOT_DIRECTORIES = buildRootDirectories();
 
 const SKIP_PATH_PATTERNS = [
-  /\/Android(\/|$)/i,
+  /\/Android\/(data|obb)(\/|$)/i,
   /\/DCIM\/\.thumbnails(\/|$)/i,
   /\/WhatsApp\/\.Shared(\/|$)/i,
   /\/\.Trash(\/|$)/i,
@@ -44,6 +61,7 @@ export const scanAPKFiles = async (): Promise<APKFileInfo[]> => {
   const now = Date.now();
   const MS_PER_DAY = 24 * 60 * 60 * 1000;
   const results: APKFileInfo[] = [];
+  const seenPaths = new Set<string>();
   const queue: string[] = [...new Set(ROOT_DIRECTORIES)];
 
   while (queue.length) {
@@ -64,6 +82,12 @@ export const scanAPKFiles = async (): Promise<APKFileInfo[]> => {
           if (shouldSkipPath(entry.path)) return;
 
           if (entry.isFile() && isAPKFile(entry.path)) {
+            // Deduplicate by path to avoid duplicate entries
+            if (seenPaths.has(entry.path)) {
+              return;
+            }
+            seenPaths.add(entry.path);
+            
             const modifiedMs = entry.mtime ? entry.mtime.getTime() : now;
             const ageMs = now - modifiedMs;
             results.push({
