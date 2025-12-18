@@ -3,6 +3,7 @@ import type { LargeFileResult } from "../app/(Screens)/LargeFilesScreen/LargeFil
 import type { OldFileInfo } from "../app/(Screens)/OldFilesScreen/OldFilesScanner";
 import type { WhatsAppScanResult } from "../app/(Screens)/WhatsAppRemoverScreen/WhatsAppScanner";
 import type { APKFileInfo } from "../app/(Screens)/APKCleanerScreen/APKCleanerScanner";
+import formatBytes from "../constants/formatBytes";
 
 type ScanResults = {
   whatsappResults?: WhatsAppScanResult[];
@@ -70,13 +71,13 @@ export function calculateFeatureStats(scanResults: ScanResults): FeatureStatsMap
 }
 
 /**
- * Format feature subtitle as "X.X GB • Y files" (matching Audio card format)
+ * Format feature subtitle with appropriate size unit (B, KB, MB, GB, TB) and file count
  */
 export function formatFeatureSubtitle(size: number, count: number): string {
-  const sizeGB = (size / (1024 * 1024 * 1024)).toFixed(1);
+  const formattedSize = formatBytes(size);
   if (count > 0) {
-    return `${sizeGB} GB • ${count} files`;
+    return `${formattedSize} • ${count} files`;
   }
-  return `${sizeGB} GB`;
+  return formattedSize;
 }
 

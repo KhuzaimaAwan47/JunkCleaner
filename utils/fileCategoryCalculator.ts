@@ -6,6 +6,7 @@ import type { WhatsAppScanResult } from "../app/(Screens)/WhatsAppRemoverScreen/
 import type { APKFileInfo } from "../app/(Screens)/APKCleanerScreen/APKCleanerScanner";
 import type { Feature } from "../dummydata/features";
 import { appRoutes } from "../routes";
+import formatBytes from "../constants/formatBytes";
 
 type ScanResults = {
   largeFileResults?: LargeFileResult[];
@@ -68,11 +69,11 @@ const getCategoryColor = (category: string, theme: DefaultTheme): string => {
 };
 
 const getCategorySubtitle = (category: string, size: number, count: number): string => {
-  const sizeGB = (size / (1024 * 1024 * 1024)).toFixed(1);
+  const formattedSize = formatBytes(size);
   if (count > 0) {
-    return `${sizeGB} GB • ${count} files`;
+    return `${formattedSize} • ${count} files`;
   }
-  return `${sizeGB} GB`;
+  return formattedSize;
 };
 
 /**
