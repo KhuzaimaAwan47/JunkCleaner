@@ -50,7 +50,6 @@ export const clearScanProgress = () => ({ type: ActionTypes.CLEAR_SCAN_PROGRESS 
 // Storage and system info
 export const setStorageInfo = (payload: { total: number; used: number; free: number }) => 
   reduxAction(payload, ActionTypes.SET_STORAGE_INFO);
-export const setSystemHealth = (payload: any) => reduxAction(payload, ActionTypes.SET_SYSTEM_HEALTH);
 export const setFeatureProgress = (payload: Record<string, number>) => 
   reduxAction(payload, ActionTypes.SET_FEATURE_PROGRESS);
 

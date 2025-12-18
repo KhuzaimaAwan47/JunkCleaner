@@ -5,7 +5,6 @@ import type { WhatsAppScanResult } from "../app/(Screens)/WhatsAppRemoverScreen/
 import type { APKFileInfo } from "../app/(Screens)/APKCleanerScreen/APKCleanerScanner";
 import type { CacheItem } from "../app/(Screens)/CachesScreen/CachesScanner";
 import type { SmartScanProgress } from "../utils/smartScan";
-import type { SystemHealthResult } from "../utils/systemHealth";
 import type { CategoryFile } from "../utils/fileCategoryCalculator";
 import { ActionTypes } from "./action-types";
 
@@ -57,8 +56,6 @@ export interface AppState {
     free: number;
   } | null;
   
-  systemHealth: SystemHealthResult | null;
-  
   // Feature progress (for home screen)
   featureProgress: Record<string, number>;
   
@@ -100,7 +97,6 @@ const initialState: AppState = {
   },
   scanProgress: null,
   storageInfo: null,
-  systemHealth: null,
   featureProgress: {},
   user: null,
 };
@@ -215,8 +211,6 @@ const appReducer = (state: AppState | undefined = initialState, action: any): Ap
     // Storage and system info
     case ActionTypes.SET_STORAGE_INFO:
       return { ...state, storageInfo: action.payload };
-    case ActionTypes.SET_SYSTEM_HEALTH:
-      return { ...state, systemHealth: action.payload };
     case ActionTypes.SET_FEATURE_PROGRESS:
       return { ...state, featureProgress: action.payload };
     

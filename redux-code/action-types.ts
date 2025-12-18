@@ -39,7 +39,6 @@ export enum ActionTypes {
     
     // Storage and system info
     SET_STORAGE_INFO = "SET_STORAGE_INFO",
-    SET_SYSTEM_HEALTH = "SET_SYSTEM_HEALTH",
     SET_FEATURE_PROGRESS = "SET_FEATURE_PROGRESS",
 }
 

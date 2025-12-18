@@ -14,16 +14,12 @@ import {
   setAudiosResults,
   setDocumentsResults,
   setFeatureProgress,
-  setSystemHealth,
 } from "../../../redux-code/action";
 import type { RootState } from "../../../redux-code/store";
 import { runSmartScan, type SmartScanResultsUpdate } from "../../../utils/smartScan";
 import { requestAllSmartScanPermissions } from "../../../utils/permissions";
 import { loadAllScanResults } from "../../../utils/db";
-import { calculateProgressFromSnapshot, hasDataInSnapshot } from "../../../utils/homeScreenHelpers";
-import { calculateSystemHealth } from "../../../utils/systemHealth";
-import { getStorageInfo } from "../../../utils/storage";
-import { getMemoryInfo } from "../../../utils/memory";
+import { calculateProgressFromSnapshot } from "../../../utils/homeScreenHelpers";
 
 export const useSmartScan = (onScanComplete: () => Promise<void>) => {
   const dispatch = useDispatch();
@@ -65,19 +61,6 @@ export const useSmartScan = (onScanComplete: () => Promise<void>) => {
       // Calculate and dispatch updated feature progress
       const progress = calculateProgressFromSnapshot(snapshot);
       dispatch(setFeatureProgress(progress));
-
-      // Calculate and dispatch updated system health if we have data
-      const dataExists = hasDataInSnapshot(snapshot);
-      if (dataExists) {
-        const [storage, memory] = await Promise.all([
-          getStorageInfo(),
-          getMemoryInfo(),
-        ]);
-        const storageUsage = storage.total > 0 ? storage.used / storage.total : undefined;
-        const memoryUsage = memory?.usage;
-        const systemHealth = calculateSystemHealth(snapshot, { storageUsage, memoryUsage });
-        dispatch(setSystemHealth(systemHealth));
-      }
     } catch (error) {
       console.error("Failed to update results incrementally:", error);
       // Don't throw - allow scan to continue even if incremental update fails

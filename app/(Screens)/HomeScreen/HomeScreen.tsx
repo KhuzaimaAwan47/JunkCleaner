@@ -5,12 +5,11 @@ import { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reani
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import { DefaultTheme, useTheme } from "styled-components/native";
+import CircularLoadingIndicator from "../../../components/CircularLoadingIndicator";
 import HomeFeatureSections from "../../../components/HomeFeatureSections";
 import ScanButton from "../../../components/ScanButton";
 import ScreenWrapper from "../../../components/ScreenWrapper";
 import StorageIndicatorCard from "../../../components/StorageIndicatorCard";
-import SwipeableCardContainer from "../../../components/SwipeableCardContainer";
-import SystemHealthCard from "../../../components/SystemHealthCard";
 import type { Feature } from "../../../dummydata/features";
 import { featureCards } from "../../../dummydata/features";
 import {
@@ -24,7 +23,6 @@ import {
   setLargeFileResults,
   setOldFileResults,
   setStorageInfo,
-  setSystemHealth,
   setVideosResults,
   setWhatsappResults,
 } from "../../../redux-code/action";
@@ -37,9 +35,7 @@ import {
 import { calculateFeatureStats, formatFeatureSubtitle } from "../../../utils/featureStatsCalculator";
 import { calculateFileCategoryFeatures } from "../../../utils/fileCategoryCalculator";
 import { calculateProgressFromSnapshot, hasDataInSnapshot } from "../../../utils/homeScreenHelpers";
-import { getMemoryInfo } from "../../../utils/memory";
 import { getStorageInfo } from "../../../utils/storage";
-import { calculateSystemHealth } from "../../../utils/systemHealth";
 import { useSmartScan } from "./useSmartScan";
 
 const HomeScreen = () => {
@@ -50,7 +46,6 @@ const HomeScreen = () => {
   
   const scanProgress = useSelector((state: RootState) => state.appState.scanProgress);
   const featureProgress = useSelector((state: RootState) => state.appState.featureProgress);
-  const systemHealth = useSelector((state: RootState) => state.appState.systemHealth);
   const storageInfo = useSelector((state: RootState) => state.appState.storageInfo);
   const largeFileResults = useSelector((state: RootState) => state.appState.largeFileResults);
   const oldFileResults = useSelector((state: RootState) => state.appState.oldFileResults);
@@ -111,11 +106,10 @@ const HomeScreen = () => {
   const refreshHomeState = React.useCallback(async () => {
     try {
       await initDatabase();
-      const [status, snapshot, storage, memory] = await Promise.all([
+      const [status, snapshot, storage] = await Promise.all([
         loadSmartScanStatus(),
         loadAllScanResults(),
         getStorageInfo(),
-        getMemoryInfo(),
       ]);
 
       dispatch(setWhatsappResults(snapshot.whatsappResults));
@@ -140,23 +134,6 @@ const HomeScreen = () => {
         )
       );
       dispatch(setStorageInfo(storage));
-
-      const storageUsage = storage.total > 0 ? storage.used / storage.total : undefined;
-      const memoryUsage = memory?.usage;
-
-      dispatch(setSystemHealth(
-        dataExists || isComplete
-          ? calculateSystemHealth(snapshot, { storageUsage, memoryUsage })
-          : {
-              score: 0,
-              status: "fair" as const,
-              message: "not calculated yet",
-              totalItems: 0,
-              totalSize: 0,
-              storageUsage,
-              memoryUsage,
-            }
-      ));
     } catch (error) {
       console.error("Failed to check scan status:", error);
     }
@@ -186,13 +163,11 @@ const HomeScreen = () => {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.indicatorCard}>
-            <SwipeableCardContainer>
-              <SystemHealthCard
-                systemHealth={!localIsScanning ? systemHealth : null}
-                scanProgress={localIsScanning ? scanProgress : null}
-              />
+            {localIsScanning ? (
+              <CircularLoadingIndicator scanProgress={scanProgress} />
+            ) : (
               <StorageIndicatorCard storageInfo={storageInfo} />
-            </SwipeableCardContainer>
+            )}
             <ScanButton
               onPress={localIsScanning ? handleStopScan : handleSmartScan}
               label={localIsScanning ? "Stop Scan" : "Smart Scan"}
