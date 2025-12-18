@@ -17,6 +17,7 @@ export const setImagesResults = (payload: any[]) => reduxAction(payload, ActionT
 export const setAudiosResults = (payload: any[]) => reduxAction(payload, ActionTypes.SET_AUDIOS_RESULTS);
 export const setDocumentsResults = (payload: any[]) => reduxAction(payload, ActionTypes.SET_DOCUMENTS_RESULTS);
 export const setAPKResults = (payload: any[]) => reduxAction(payload, ActionTypes.SET_APK_RESULTS);
+export const setCachesResults = (payload: CacheItem[]) => reduxAction(payload, ActionTypes.SET_CACHES_RESULTS);
 
 // Clear results
 export const clearWhatsappResults = () => ({ type: ActionTypes.CLEAR_WHATSAPP_RESULTS });
@@ -28,6 +29,7 @@ export const clearImagesResults = () => ({ type: ActionTypes.CLEAR_IMAGES_RESULT
 export const clearAudiosResults = () => ({ type: ActionTypes.CLEAR_AUDIOS_RESULTS });
 export const clearDocumentsResults = () => ({ type: ActionTypes.CLEAR_DOCUMENTS_RESULTS });
 export const clearAPKResults = () => ({ type: ActionTypes.CLEAR_APK_RESULTS });
+export const clearCachesResults = () => ({ type: ActionTypes.CLEAR_CACHES_RESULTS });
 
 // Selected items
 export const setSelectedItems = (screen: string, items: string[]) => 

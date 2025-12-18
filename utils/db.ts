@@ -4,6 +4,7 @@ import type { LargeFileResult } from '../app/(Screens)/LargeFilesScreen/LargeFil
 import type { OldFileInfo } from '../app/(Screens)/OldFilesScreen/OldFilesScanner';
 import type { WhatsAppScanResult } from '../app/(Screens)/WhatsAppRemoverScreen/WhatsAppScanner';
 import type { APKFileInfo } from '../app/(Screens)/APKCleanerScreen/APKCleanerScanner';
+import type { CacheItem } from '../app/(Screens)/CachesScreen/CachesScanner';
 import type { CategoryFile } from './fileCategoryCalculator';
 
 export interface FileCacheEntry {
@@ -89,6 +90,12 @@ export async function initDatabase(): Promise<void> {
     );
 
     CREATE TABLE IF NOT EXISTS apk_scan_results (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      saved_at INTEGER NOT NULL,
+      results_data TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS caches_scan_results (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       saved_at INTEGER NOT NULL,
       results_data TEXT NOT NULL
@@ -327,6 +334,7 @@ export interface SmartScanStatus {
     largeFiles: boolean;
     oldFiles: boolean;
     apk: boolean;
+    caches: boolean;
   };
 }
 
@@ -572,6 +580,47 @@ export async function clearAPKResults(): Promise<void> {
   await db!.runAsync('DELETE FROM apk_scan_results');
 }
 
+// Caches Scanner Results
+export async function saveCachesResults(results: CacheItem[]): Promise<void> {
+  if (!db) await initDatabase();
+
+  try {
+    await db!.runAsync('DELETE FROM caches_scan_results');
+    await db!.runAsync(
+      'INSERT INTO caches_scan_results (saved_at, results_data) VALUES (?, ?)',
+      [Date.now(), JSON.stringify(results)]
+    );
+  } catch (error) {
+    console.error('Failed to persist caches scan results:', error);
+    throw error;
+  }
+}
+
+export async function loadCachesResults(): Promise<CacheItem[]> {
+  if (!db) await initDatabase();
+
+  const result = await db!.getFirstAsync<{ results_data: string }>(
+    'SELECT results_data FROM caches_scan_results ORDER BY saved_at DESC LIMIT 1'
+  );
+
+  if (!result) {
+    return [];
+  }
+
+  try {
+    return JSON.parse(result.results_data) as CacheItem[];
+  } catch (error) {
+    console.error('Failed to parse cached caches scan results:', error);
+    return [];
+  }
+}
+
+export async function clearCachesResults(): Promise<void> {
+  if (!db) await initDatabase();
+
+  await db!.runAsync('DELETE FROM caches_scan_results');
+}
+
 // Empty Folders Scanner Results
 export interface ScanDataSnapshot {
   whatsappResults: WhatsAppScanResult[];
@@ -583,6 +632,7 @@ export interface ScanDataSnapshot {
   audiosResults: CategoryFile[];
   documentsResults: CategoryFile[];
   apkResults: APKFileInfo[];
+  cachesResults: CacheItem[];
 }
 
 /**
@@ -601,6 +651,7 @@ export async function loadAllScanResults(): Promise<ScanDataSnapshot> {
     audiosResults,
     documentsResults,
     apkResults,
+    cachesResults,
   ] = await Promise.all([
     loadWhatsAppResults(),
     loadDuplicateGroups(),
@@ -611,6 +662,7 @@ export async function loadAllScanResults(): Promise<ScanDataSnapshot> {
     loadAudiosResults(),
     loadDocumentsResults(),
     loadAPKResults(),
+    loadCachesResults(),
   ]);
 
   return {
@@ -623,6 +675,7 @@ export async function loadAllScanResults(): Promise<ScanDataSnapshot> {
     audiosResults,
     documentsResults,
     apkResults,
+    cachesResults,
   };
 }
 
@@ -641,6 +694,7 @@ export async function hasAnyScanData(): Promise<boolean> {
     snapshot.imagesResults.length > 0 ||
     snapshot.audiosResults.length > 0 ||
     snapshot.documentsResults.length > 0 ||
-    snapshot.apkResults.length > 0
+    snapshot.apkResults.length > 0 ||
+    snapshot.cachesResults.length > 0
   );
 }

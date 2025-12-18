@@ -3,6 +3,7 @@ import type { LargeFileResult } from "../app/(Screens)/LargeFilesScreen/LargeFil
 import type { OldFileInfo } from "../app/(Screens)/OldFilesScreen/OldFilesScanner";
 import type { WhatsAppScanResult } from "../app/(Screens)/WhatsAppRemoverScreen/WhatsAppScanner";
 import type { APKFileInfo } from "../app/(Screens)/APKCleanerScreen/APKCleanerScanner";
+import type { CacheItem } from "../app/(Screens)/CachesScreen/CachesScanner";
 import formatBytes from "../constants/formatBytes";
 
 type ScanResults = {
@@ -11,6 +12,7 @@ type ScanResults = {
   largeFileResults?: LargeFileResult[];
   oldFileResults?: OldFileInfo[];
   apkResults?: APKFileInfo[];
+  cachesResults?: CacheItem[];
 };
 
 export type FeatureStats = {
@@ -66,6 +68,12 @@ export function calculateFeatureStats(scanResults: ScanResults): FeatureStatsMap
   const apkSize =
     scanResults.apkResults?.reduce((sum, item) => sum + (item.size ?? 0), 0) ?? 0;
   stats.apk = { size: apkSize, count: apkCount };
+
+  // Caches
+  const cachesCount = scanResults.cachesResults?.length ?? 0;
+  const cachesSize =
+    scanResults.cachesResults?.reduce((sum, item) => sum + (item.size ?? 0), 0) ?? 0;
+  stats.caches = { size: cachesSize, count: cachesCount };
 
   return stats;
 }

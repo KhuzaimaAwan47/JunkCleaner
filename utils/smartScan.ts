@@ -3,6 +3,7 @@ import { scanLargeFiles } from '../app/(Screens)/LargeFilesScreen/LargeFileScann
 import { scanOldFiles } from '../app/(Screens)/OldFilesScreen/OldFilesScanner';
 import { scanWhatsApp } from '../app/(Screens)/WhatsAppRemoverScreen/WhatsAppScanner';
 import { scanAPKFiles } from '../app/(Screens)/APKCleanerScreen/APKCleanerScanner';
+import { scanCaches } from '../app/(Screens)/CachesScreen/CachesScanner';
 import {
   initDatabase,
   saveDuplicateGroups,
@@ -15,6 +16,7 @@ import {
   saveAudiosResults,
   saveDocumentsResults,
   saveAPKResults,
+  saveCachesResults,
   type SmartScanStatus,
 } from './db';
 import { filterFilesByCategory } from './fileCategoryCalculator';
@@ -29,7 +31,7 @@ export interface SmartScanProgress {
 
 export type SmartScanProgressCallback = (progress: SmartScanProgress) => void;
 
-export type ScannerType = 'whatsapp' | 'duplicates' | 'largeFiles' | 'oldFiles' | 'apk';
+export type ScannerType = 'whatsapp' | 'duplicates' | 'largeFiles' | 'oldFiles' | 'apk' | 'caches';
 
 export type SmartScanResultsUpdate = {
   scannerType: ScannerType;
@@ -40,6 +42,7 @@ export type SmartScanResultsUpdate = {
     largeFileResults?: any[];
     oldFileResults?: any[];
     apkResults?: any[];
+    cachesResults?: any[];
   };
 };
 
@@ -51,6 +54,7 @@ const SCANNER_NAMES = [
   'Large Files',
   'Old Files',
   'APK Files',
+  'Caches',
 ] as const;
 
 /**
@@ -74,6 +78,7 @@ export async function runSmartScan(
       largeFiles: false,
       oldFiles: false,
       apk: false,
+      caches: false,
     },
   };
 
@@ -182,14 +187,28 @@ export async function runSmartScan(
       results: { apkResults },
     });
 
-    // 6. Calculate and save category results
-    updateProgress(5, 'Categorizing files', 0, 'categorizing files by type...');
+    // 6. Caches Scanner
+    updateProgress(5, SCANNER_NAMES[5], 0, 'scanning for cache files...');
+    const cachesResults = await scanCaches();
+    await saveCachesResults(cachesResults);
+    status.scannerProgress.caches = true;
+    await persistStatus();
+    updateProgress(5, SCANNER_NAMES[5], 1, `found ${cachesResults.length} cache items`);
+    onResultsUpdate?.({
+      scannerType: 'caches',
+      scannerName: SCANNER_NAMES[5],
+      results: { cachesResults },
+    });
+
+    // 7. Calculate and save category results
+    updateProgress(6, 'Categorizing files', 0, 'categorizing files by type...');
     const scanResults = {
       whatsappResults,
       duplicateResults: duplicateResults || [],
       largeFileResults,
       oldFileResults,
       apkResults,
+      cachesResults,
     };
     
     const videosResults = filterFilesByCategory('Videos', scanResults);
@@ -204,14 +223,14 @@ export async function runSmartScan(
       saveDocumentsResults(documentsResults),
     ]);
     
-    updateProgress(5, 'Categorizing files', 1, 'categorized files by type');
+    updateProgress(6, 'Categorizing files', 1, 'categorized files by type');
 
     // Mark as completed
     status.completed = true;
     status.completedAt = Date.now();
     await saveSmartScanStatus(status);
 
-    updateProgress(6, 'Complete', 1, 'smart scan completed');
+    updateProgress(7, 'Complete', 1, 'smart scan completed');
   } catch (error) {
     console.error('Smart scan error:', error);
     // Save partial status

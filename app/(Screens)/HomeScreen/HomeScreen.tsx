@@ -16,6 +16,7 @@ import { featureCards } from "../../../dummydata/features";
 import {
   setAPKResults,
   setAudiosResults,
+  setCachesResults,
   setDocumentsResults,
   setDuplicateResults,
   setFeatureProgress,
@@ -56,6 +57,7 @@ const HomeScreen = () => {
   const whatsappResults = useSelector((state: RootState) => state.appState.whatsappResults);
   const duplicateResults = useSelector((state: RootState) => state.appState.duplicateResults);
   const apkResults = useSelector((state: RootState) => state.appState.apkResults);
+  const cachesResults = useSelector((state: RootState) => state.appState.cachesResults);
   
   const [showFeatures, setShowFeatures] = React.useState(false);
   const featureVisibility = useSharedValue(0);
@@ -68,8 +70,9 @@ const HomeScreen = () => {
       largeFileResults,
       oldFileResults,
       apkResults,
+      cachesResults,
     });
-  }, [whatsappResults, duplicateResults, largeFileResults, oldFileResults, apkResults]);
+  }, [whatsappResults, duplicateResults, largeFileResults, oldFileResults, apkResults, cachesResults]);
 
   // Calculate file category features
   const fileCategoryFeatures = React.useMemo<Feature[]>(() => {
@@ -80,10 +83,11 @@ const HomeScreen = () => {
         whatsappResults,
         duplicateResults,
         apkResults,
+        cachesResults,
       },
       theme
     );
-  }, [largeFileResults, oldFileResults, whatsappResults, duplicateResults, apkResults, theme]);
+  }, [largeFileResults, oldFileResults, whatsappResults, duplicateResults, apkResults, cachesResults, theme]);
 
   // Combine existing features with file category features and apply formatted subtitles
   const features = React.useMemo<Feature[]>(() => {
@@ -123,7 +127,7 @@ const HomeScreen = () => {
       dispatch(setAudiosResults(snapshot.audiosResults));
       dispatch(setDocumentsResults(snapshot.documentsResults));
       dispatch(setAPKResults(snapshot.apkResults));
-      dispatch(setAPKResults(snapshot.apkResults));
+      dispatch(setCachesResults(snapshot.cachesResults));
 
       const dataExists = hasDataInSnapshot(snapshot);
       const isComplete = status?.completed === true;

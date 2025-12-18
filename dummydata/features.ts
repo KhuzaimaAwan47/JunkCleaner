@@ -68,6 +68,15 @@ export const featureCards: Feature[] = [
     accent: '#00D1FF',
     progress: 0.0,
   },
+  {
+    id: 'caches',
+    title: 'Caches',
+    subtitle: 'App caches & orphaned data',
+    icon: 'cached',
+    route: appRoutes.caches,
+    accent: '#F59E0B',
+    progress: 0.0,
+  },
 ];
 
 export const storageStats = {

@@ -14,6 +14,7 @@
   audios: "/(Screens)/AudiosScreen/AudiosScreen",
   documents: "/(Screens)/DocumentsScreen/DocumentsScreen",
   apkCleaner: "/(Screens)/APKCleanerScreen/APKCleanerScreen",
+  caches: "/(Screens)/CachesScreen/CachesScreen",
 } as const;
 
 export type AppRoute = (typeof appRoutes)[keyof typeof appRoutes];
