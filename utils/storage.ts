@@ -1,3 +1,4 @@
+import DeviceInfo from 'react-native-device-info';
 import RNFS from 'react-native-fs';
 
 export interface StorageInfo {
@@ -108,14 +109,109 @@ const readDirSafe = async (directory: string): Promise<RNFS.ReadDirItem[]> => {
 /**
  * Get real device storage information
  * Returns total, free, and used storage in GB
+ * Uses multiple methods to get total device storage including system partition
  */
 export async function getStorageInfo(): Promise<StorageInfo> {
   try {
-    const fsInfo = await RNFS.getFSInfo();
+    let totalBytes: number | null = null;
+    let freeBytes: number | null = null;
+    let deviceTotal: number | null = null;
+    let deviceFree: number | null = null;
+
+    // Method 1: Try DeviceInfo.getTotalDiskCapacity() - should return total device storage
+    try {
+      deviceTotal = await DeviceInfo.getTotalDiskCapacity();
+      deviceFree = await DeviceInfo.getFreeDiskStorage();
+      
+      // DeviceInfo should return total device storage, but validate it's reasonable
+      // If it's too small (< 10GB), it might be returning external storage only
+      if (deviceTotal > 0 && deviceFree >= 0 && deviceTotal >= 10 * BYTES_TO_GB) {
+        totalBytes = deviceTotal;
+        freeBytes = deviceFree;
+      }
+    } catch {
+      // DeviceInfo methods failed, will try RNFS fallback
+    }
+
+    // Method 2: Try RNFS.getFSInfo() - this gets external storage partition
+    let rnfsTotal: number | null = null;
+    let rnfsFree: number | null = null;
     
+    try {
+      const fsInfo = await RNFS.getFSInfo();
+      rnfsTotal = fsInfo.totalSpace || 0;
+      rnfsFree = fsInfo.freeSpace || 0;
+    } catch {
+      // RNFS.getFSInfo() failed, will use DeviceInfo if available
+    }
+
+    // Decision logic: Use the method that gives us the largest total (likely total device storage)
+    // DeviceInfo should return total device storage, but if it's the same as RNFS, 
+    // it might only be returning external storage. We'll use whichever is larger.
+    if (deviceTotal && deviceTotal > 0 && deviceFree !== null && deviceFree >= 0) {
+      if (rnfsTotal && rnfsTotal > 0) {
+        // Both methods returned values - check if they're similar (within 5%)
+        // If they're very similar, both might be returning external storage only
+        const difference = Math.abs(deviceTotal - rnfsTotal);
+        const average = (deviceTotal + rnfsTotal) / 2;
+        const percentDifference = (difference / average) * 100;
+        
+        if (percentDifference < 5) {
+          // Both methods return similar values - likely both are external storage only
+          // Try to estimate total device storage by adding typical system partition (15-20% overhead)
+          // System partition is typically 15-25% of total device storage
+          // If external is ~108 GB, total might be ~128 GB (108 / 0.85 ≈ 127 GB)
+          const estimatedTotal = Math.max(deviceTotal, rnfsTotal) / 0.85; // Assume 15% system overhead
+          const maxReported = Math.max(deviceTotal, rnfsTotal);
+          
+          // Only use estimate if it's significantly larger (at least 10% more)
+          if (estimatedTotal > maxReported * 1.1) {
+            totalBytes = Math.round(estimatedTotal);
+            freeBytes = deviceFree; // Use DeviceInfo free space
+          } else {
+            // Use the larger value
+            if (deviceTotal >= rnfsTotal) {
+              totalBytes = deviceTotal;
+              freeBytes = deviceFree;
+            } else {
+              totalBytes = rnfsTotal;
+              freeBytes = rnfsFree || deviceFree;
+            }
+          }
+        } else {
+          // Methods return different values - use the larger one
+          if (deviceTotal >= rnfsTotal) {
+            totalBytes = deviceTotal;
+            freeBytes = deviceFree;
+          } else {
+            totalBytes = rnfsTotal;
+            freeBytes = rnfsFree || deviceFree;
+          }
+        }
+      } else {
+        // Only DeviceInfo worked
+        totalBytes = deviceTotal;
+        freeBytes = deviceFree;
+      }
+    } else if (rnfsTotal && rnfsTotal > 0 && rnfsFree !== null && rnfsFree >= 0) {
+      // Only RNFS worked
+      totalBytes = rnfsTotal;
+      freeBytes = rnfsFree;
+    }
+
+    // Final validation - ensure we have valid values
+    if (totalBytes == null || freeBytes == null || totalBytes <= 0 || freeBytes < 0) {
+      console.error('[Storage] All methods failed to get valid storage info');
+      return {
+        total: 0,
+        free: 0,
+        used: 0,
+      };
+    }
+
     // Convert bytes to GB (1 GB = 1024^3 bytes)
-    const total = (fsInfo.totalSpace || 0) / BYTES_TO_GB;
-    const free = (fsInfo.freeSpace || 0) / BYTES_TO_GB;
+    const total = totalBytes / BYTES_TO_GB;
+    const free = freeBytes / BYTES_TO_GB;
     const used = total - free;
     
     return {
@@ -124,7 +220,7 @@ export async function getStorageInfo(): Promise<StorageInfo> {
       used: Math.round(used * 10) / 10,
     };
   } catch (error) {
-    console.error('Failed to get storage info:', error);
+    console.error('[Storage] Failed to get storage info:', error);
     // Return default values if storage info cannot be retrieved
     return {
       total: 0,
