@@ -30,11 +30,10 @@ import type { RootState } from "../../../redux-code/store";
 import {
   initDatabase,
   loadAllScanResults,
-  loadSmartScanStatus,
 } from "../../../utils/db";
 import { calculateFeatureStats, formatFeatureSubtitle } from "../../../utils/featureStatsCalculator";
 import { calculateFileCategoryFeatures } from "../../../utils/fileCategoryCalculator";
-import { calculateProgressFromSnapshot, hasDataInSnapshot } from "../../../utils/homeScreenHelpers";
+import { calculateProgressFromSnapshot } from "../../../utils/homeScreenHelpers";
 import { getStorageInfo } from "../../../utils/storage";
 import { useSmartScan } from "./useSmartScan";
 
@@ -106,8 +105,7 @@ const HomeScreen = () => {
   const refreshHomeState = React.useCallback(async () => {
     try {
       await initDatabase();
-      const [status, snapshot, storage] = await Promise.all([
-        loadSmartScanStatus(),
+      const [snapshot, storage] = await Promise.all([
         loadAllScanResults(),
         getStorageInfo(),
       ]);
@@ -122,9 +120,6 @@ const HomeScreen = () => {
       dispatch(setDocumentsResults(snapshot.documentsResults));
       dispatch(setAPKResults(snapshot.apkResults));
       dispatch(setCachesResults(snapshot.cachesResults));
-
-      const dataExists = hasDataInSnapshot(snapshot);
-      const isComplete = status?.completed === true;
 
       // Always render feature cards; fall back to zeroed progress when no data yet.
       setShowFeatures(true);

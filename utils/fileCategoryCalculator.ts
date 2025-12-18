@@ -1,12 +1,13 @@
 import type { DefaultTheme } from "styled-components/native";
+import type { APKFileInfo } from "../app/(Screens)/APKCleanerScreen/APKCleanerScanner";
+import type { CacheItem } from "../app/(Screens)/CachesScreen/CachesScanner";
 import type { DuplicateGroup } from "../app/(Screens)/DuplicateImagesScreen/DuplicateImageScanner";
 import type { LargeFileResult } from "../app/(Screens)/LargeFilesScreen/LargeFileScanner";
 import type { OldFileInfo } from "../app/(Screens)/OldFilesScreen/OldFilesScanner";
 import type { WhatsAppScanResult } from "../app/(Screens)/WhatsAppRemoverScreen/WhatsAppScanner";
-import type { APKFileInfo } from "../app/(Screens)/APKCleanerScreen/APKCleanerScanner";
-import type { Feature } from "../dummydata/features";
-import { appRoutes } from "../routes";
 import formatBytes from "../constants/formatBytes";
+import type { Feature } from "../dummydata/features";
+import { appRoutes, type AppRoute } from "../routes";
 
 type ScanResults = {
   largeFileResults?: LargeFileResult[];
@@ -14,6 +15,7 @@ type ScanResults = {
   whatsappResults?: WhatsAppScanResult[];
   duplicateResults?: DuplicateGroup[];
   apkResults?: APKFileInfo[];
+  cachesResults?: CacheItem[];
 };
 
 type FileCategoryData = {
@@ -154,7 +156,7 @@ export function calculateFileCategoryFeatures(
     const progress = maxCount > 0 ? Math.min(1, category.count / maxCount) : 0;
     
     // Map category to route
-    const routeMap: Record<string, string> = {
+    const routeMap: Record<string, AppRoute> = {
       Videos: appRoutes.videos,
       Images: appRoutes.images,
       Audio: appRoutes.audios,
