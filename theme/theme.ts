@@ -32,9 +32,9 @@ export const allColors = {
   warning: "#F59E0B",
   error: "#EF4444",
   info: "#3B82F6",
-  background: "#FFFFFF",
-  surface: "#F8F9FA",
-  surfaceAlt: "#F0F0F0",
+  background: "#F5F7FA",
+  surface: "#FFFFFF",
+  surfaceAlt: "#E8EAED",
   border: "#E0E0E0",
 };
 
