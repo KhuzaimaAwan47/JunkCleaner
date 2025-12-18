@@ -10,16 +10,16 @@ import EmptyState from "../../../components/EmptyState";
 import ScreenWrapper from "../../../components/ScreenWrapper";
 import {
   clearSelections,
+  setDocumentsResults,
   setLargeFileResults,
   setOldFileResults,
   setSelectedItems,
   setWhatsappResults,
-  setDocumentsResults,
   toggleItemSelection,
 } from "../../../redux-code/action";
 import type { RootState } from "../../../redux-code/store";
-import type { CategoryFile } from "../../../utils/fileCategoryCalculator";
 import { initDatabase, loadDocumentsResults, saveDocumentsResults } from "../../../utils/db";
+import type { CategoryFile } from "../../../utils/fileCategoryCalculator";
 
 const DocumentsScreen: React.FC = () => {
   const dispatch = useDispatch();
