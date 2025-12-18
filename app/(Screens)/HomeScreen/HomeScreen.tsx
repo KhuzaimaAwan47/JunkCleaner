@@ -67,8 +67,9 @@ const HomeScreen = () => {
       duplicateResults,
       largeFileResults,
       oldFileResults,
+      apkResults,
     });
-  }, [whatsappResults, duplicateResults, largeFileResults, oldFileResults]);
+  }, [whatsappResults, duplicateResults, largeFileResults, oldFileResults, apkResults]);
 
   // Calculate file category features
   const fileCategoryFeatures = React.useMemo<Feature[]>(() => {

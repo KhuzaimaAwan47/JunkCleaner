@@ -1,8 +1,4 @@
 import type { ScanDataSnapshot } from "./db";
-import type { DuplicateGroup } from "../app/(Screens)/DuplicateImagesScreen/DuplicateImageScanner";
-import type { LargeFileResult } from "../app/(Screens)/LargeFilesScreen/LargeFileScanner";
-import type { OldFileInfo } from "../app/(Screens)/OldFilesScreen/OldFilesScanner";
-import type { WhatsAppScanResult } from "../app/(Screens)/WhatsAppRemoverScreen/WhatsAppScanner";
 
 // Helper function to categorize files (same logic as fileCategoryCalculator)
 const categorizeFile = (path: string, type?: string): string => {
@@ -37,31 +33,36 @@ export const hasDataInSnapshot = (snapshot: ScanDataSnapshot): boolean => {
 export const calculateProgressFromSnapshot = (snapshot: ScanDataSnapshot): Record<string, number> => {
   const clamp = (value: number) => Math.max(0, Math.min(1, value));
 
-  const oldCount = snapshot.oldFileResults.length;
-  const duplicateFileCount = snapshot.duplicateResults.reduce(
-    (sum, group) => sum + (group.files?.length ?? 0),
+  // Calculate sizes for each feature (more meaningful than count for storage impact)
+  const oldSize = snapshot.oldFileResults.reduce((sum, item) => sum + (item.size ?? 0), 0);
+  const duplicateSize = snapshot.duplicateResults.reduce(
+    (sum, group) =>
+      sum + (group.files?.reduce((fileSum, file) => fileSum + (file.size ?? 0), 0) ?? 0),
     0,
   );
-  const largeFileCount = snapshot.largeFileResults.length;
-  const whatsappCount = snapshot.whatsappResults.length;
+  const largeFileSize = snapshot.largeFileResults.reduce((sum, item) => sum + (item.size ?? 0), 0);
+  const whatsappSize = snapshot.whatsappResults.reduce((sum, item) => sum + (item.size ?? 0), 0);
+  const apkSize = snapshot.apkResults.reduce((sum, item) => sum + (item.size ?? 0), 0);
 
-  // Calculate maximum file count across all features for relative progress
-  const counts = [
-    oldCount,
-    duplicateFileCount,
-    largeFileCount,
-    whatsappCount,
+  // Calculate maximum size across all features for relative progress
+  const sizes = [
+    oldSize,
+    duplicateSize,
+    largeFileSize,
+    whatsappSize,
+    apkSize,
   ];
-  const maxCount = Math.max(...counts, 1); // Use 1 as minimum to avoid division by zero
+  const maxSize = Math.max(...sizes, 1); // Use 1 as minimum to avoid division by zero
 
   const progress: Record<string, number> = {};
 
-  // Calculate progress based on file count relative to the maximum count
-  // This ensures the feature with the most files shows 100% progress, and others scale relative to it
-  progress.old = maxCount > 0 ? clamp(oldCount / maxCount) : 0;
-  progress.duplicate = maxCount > 0 ? clamp(duplicateFileCount / maxCount) : 0;
-  progress.large = maxCount > 0 ? clamp(largeFileCount / maxCount) : 0;
-  progress.whatsapp = maxCount > 0 ? clamp(whatsappCount / maxCount) : 0;
+  // Calculate progress based on size relative to the maximum size
+  // This ensures the feature with the most storage impact shows 100% progress, and others scale relative to it
+  progress.old = maxSize > 0 ? clamp(oldSize / maxSize) : 0;
+  progress.duplicate = maxSize > 0 ? clamp(duplicateSize / maxSize) : 0;
+  progress.large = maxSize > 0 ? clamp(largeFileSize / maxSize) : 0;
+  progress.whatsapp = maxSize > 0 ? clamp(whatsappSize / maxSize) : 0;
+  progress.apk = maxSize > 0 ? clamp(apkSize / maxSize) : 0;
 
   const averaged = (keys: string[]) =>
     clamp(
@@ -74,50 +75,63 @@ export const calculateProgressFromSnapshot = (snapshot: ScanDataSnapshot): Recor
     "duplicate",
     "large",
     "whatsapp",
+    "apk",
   ]);
-  progress.storage = averaged(["large", "duplicate", "old"]);
+  progress.storage = averaged(["large", "duplicate", "old", "apk"]);
 
-  // Calculate category feature progress (Audio, Images, Videos, etc.)
-  const categoryCounts: Record<string, number> = {};
+  // Calculate category feature progress (Audio, Images, Videos, etc.) based on size
+  const targetCategories = ["Videos", "Images", "Audio", "Other", "Documents"];
+  const categorySizes: Record<string, number> = {};
 
-  // Process Large files
+  // Calculate sizes for each category
   snapshot.largeFileResults.forEach((file) => {
     const category = categorizeFile(file.path, (file as any).category);
-    categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+    if (targetCategories.includes(category)) {
+      categorySizes[category] = (categorySizes[category] || 0) + (file.size ?? 0);
+    }
   });
 
-  // Process Old files
   snapshot.oldFileResults.forEach((file) => {
     const category = categorizeFile(file.path);
-    categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+    if (targetCategories.includes(category)) {
+      categorySizes[category] = (categorySizes[category] || 0) + (file.size ?? 0);
+    }
   });
 
-  // Process WhatsApp files
   snapshot.whatsappResults.forEach((file) => {
     const category = categorizeFile(file.path, (file as any).type);
-    categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+    if (targetCategories.includes(category)) {
+      categorySizes[category] = (categorySizes[category] || 0) + (file.size ?? 0);
+    }
   });
 
-  // Process Duplicate images
   snapshot.duplicateResults.forEach((group) => {
     group.files.forEach((file) => {
       const category = categorizeFile(file.path, "Images");
-      categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+      if (targetCategories.includes(category)) {
+        categorySizes[category] = (categorySizes[category] || 0) + (file.size ?? 0);
+      }
     });
   });
 
-  // Calculate progress for target categories
-  const targetCategories = ["Videos", "Images", "Audio", "Other", "Documents"];
-  const categoryCountsArray = targetCategories.map((name) => categoryCounts[name] || 0);
-  const maxCategoryCount = Math.max(...categoryCountsArray, 1);
+  snapshot.apkResults.forEach((file) => {
+    const category = categorizeFile(file.path);
+    if (targetCategories.includes(category)) {
+      categorySizes[category] = (categorySizes[category] || 0) + (file.size ?? 0);
+    }
+  });
 
-  // Set progress for each category feature
+  const categorySizesArray = targetCategories.map((name) => categorySizes[name] || 0);
+  const maxCategorySize = Math.max(...categorySizesArray, 1);
+
+  // Set progress for each category feature based on size
   targetCategories.forEach((categoryName) => {
     const categoryId = `category-${categoryName.toLowerCase()}`;
-    const count = categoryCounts[categoryName] || 0;
-    progress[categoryId] = maxCategoryCount > 0 ? clamp(count / maxCategoryCount) : 0;
+    const size = categorySizes[categoryName] || 0;
+    progress[categoryId] = maxCategorySize > 0 ? clamp(size / maxCategorySize) : 0;
   });
 
   return progress;
 };
+
 
