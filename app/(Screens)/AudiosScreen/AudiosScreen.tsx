@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
+import { FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import { DefaultTheme, useTheme } from "styled-components/native";
@@ -10,31 +10,27 @@ import EmptyState from "../../../components/EmptyState";
 import ScreenWrapper from "../../../components/ScreenWrapper";
 import {
   clearSelections,
-  setLargeFileResults,
-  setOldFileResults,
-  setSelectedItems,
-  setWhatsappResults,
   setAudiosResults,
+  setSelectedItems,
   toggleItemSelection,
 } from "../../../redux-code/action";
 import type { RootState } from "../../../redux-code/store";
+import { saveAudiosResults } from "../../../utils/db";
 import type { CategoryFile } from "../../../utils/fileCategoryCalculator";
-import { initDatabase, loadAudiosResults, saveAudiosResults } from "../../../utils/db";
+import { useAudiosScanner } from "./useAudiosScanner";
 
 const AudiosScreen: React.FC = () => {
   const dispatch = useDispatch();
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   
+  const { isScanning, isRestoring, error, startScan } = useAudiosScanner();
+  
   const audiosResults = useSelector((state: RootState) => state.appState.audiosResults);
-  const largeFileResults = useSelector((state: RootState) => state.appState.largeFileResults);
-  const oldFileResults = useSelector((state: RootState) => state.appState.oldFileResults);
-  const whatsappResults = useSelector((state: RootState) => state.appState.whatsappResults);
   const selectedFilePathsArray = useSelector((state: RootState) => state.appState.selectedItems.audios);
   const selectedFilePaths = useMemo(() => new Set(selectedFilePathsArray), [selectedFilePathsArray]);
   
   const [clearing, setClearing] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
 
   // Use audios results directly from Redux and sort once
   const sortedFiles = useMemo(() => {
@@ -91,25 +87,11 @@ const AudiosScreen: React.FC = () => {
     console.log("Deleting files:", Array.from(selectedFilePaths));
     setClearing(true);
     try {
-      // Remove deleted files from each result set
-      const remainingLargeFiles = largeFileResults.filter(
-        (f) => !selectedFilePaths.has(f.path)
-      );
-      const remainingOldFiles = oldFileResults.filter(
-        (f) => !selectedFilePaths.has(f.path)
-      );
-      const remainingWhatsappFiles = whatsappResults.filter(
-        (f) => !selectedFilePaths.has(f.path)
-      );
-
       // Update category results by removing deleted files
       const remainingAudios = audiosResults.filter(
         (f) => !selectedFilePaths.has(f.path)
       );
 
-      dispatch(setLargeFileResults(remainingLargeFiles));
-      dispatch(setOldFileResults(remainingOldFiles));
-      dispatch(setWhatsappResults(remainingWhatsappFiles));
       dispatch(setAudiosResults(remainingAudios));
       dispatch(clearSelections("audios"));
       
@@ -122,7 +104,7 @@ const AudiosScreen: React.FC = () => {
     } finally {
       setClearing(false);
     }
-  }, [selectedFilePaths, selectedStats.items, clearing, largeFileResults, oldFileResults, whatsappResults, audiosResults, dispatch]);
+  }, [selectedFilePaths, selectedStats.items, clearing, audiosResults, dispatch]);
 
   useEffect(() => {
     if (selectedFilePathsArray.length === 0) return;
@@ -134,17 +116,8 @@ const AudiosScreen: React.FC = () => {
   }, [sortedFiles, selectedFilePathsArray, dispatch]);
 
   const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      await initDatabase();
-      const savedResults = await loadAudiosResults();
-      dispatch(setAudiosResults(savedResults));
-    } catch (error) {
-      console.error("Failed to refresh audios results:", error);
-    } finally {
-      setRefreshing(false);
-    }
-  }, [dispatch]);
+    await startScan();
+  }, [startScan]);
 
   return (
     <ScreenWrapper style={styles.screen}>
@@ -160,6 +133,12 @@ const AudiosScreen: React.FC = () => {
             selectAllDisabled={resultsAvailable ? !sortedFiles.length : undefined}
           />
         </View>
+        {error && (
+          <View style={[styles.errorCard, styles.sectionSpacing]}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
+
         {resultsAvailable ? (
           <FlatList
             data={sortedFiles}
@@ -178,21 +157,21 @@ const AudiosScreen: React.FC = () => {
             windowSize={10}
             refreshControl={
               <RefreshControl
-                refreshing={refreshing}
+                refreshing={isScanning}
                 onRefresh={onRefresh}
                 tintColor={theme.colors.primary}
               />
             }
           />
-        ) : (
+        ) : !isScanning && !isRestoring ? (
           <View style={styles.sectionSpacing}>
             <EmptyState
-              icon="music-outline"
+              icon="music"
               title="No audio files found"
-              description="Run a smart scan to find audio files on your device"
+              description="Pull down to refresh and scan for audio files"
             />
           </View>
-        )}
+        ) : null}
         {selectedStats.items > 0 && resultsAvailable && (
           <View style={styles.fixedDeleteButtonContainer}>
             <DeleteButton
@@ -239,6 +218,19 @@ const createStyles = (theme: DefaultTheme) =>
       backgroundColor: theme.colors.background,
       borderTopWidth: 1,
       borderTopColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}33` : `${theme.colors.surfaceAlt}22`,
+    },
+    errorCard: {
+      backgroundColor: `${theme.colors.error}11`,
+      borderRadius: theme.radii.lg,
+      padding: theme.spacing.md,
+      borderWidth: 1,
+      borderColor: `${theme.colors.error}55`,
+      marginHorizontal: theme.spacing.lg,
+    },
+    errorText: {
+      color: theme.colors.error,
+      fontSize: theme.fontSize.sm,
+      textAlign: "center",
     },
   });
 

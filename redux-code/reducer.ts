@@ -43,6 +43,10 @@ export interface AppState {
     duplicate: boolean;
     apk: boolean;
     caches: boolean;
+    videos: boolean;
+    images: boolean;
+    audios: boolean;
+    documents: boolean;
     smartScan: boolean;
   };
   
@@ -93,6 +97,10 @@ const initialState: AppState = {
     duplicate: false,
     apk: false,
     caches: false,
+    videos: false,
+    images: false,
+    audios: false,
+    documents: false,
     smartScan: false,
   },
   scanProgress: null,

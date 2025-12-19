@@ -16,6 +16,10 @@ type ScanResults = {
   duplicateResults?: DuplicateGroup[];
   apkResults?: APKFileInfo[];
   cachesResults?: CacheItem[];
+  videosResults?: CategoryFile[];
+  imagesResults?: CategoryFile[];
+  audiosResults?: CategoryFile[];
+  documentsResults?: CategoryFile[];
 };
 
 type FileCategoryData = {
@@ -82,64 +86,40 @@ const getCategorySubtitle = (category: string, size: number, count: number): str
 
 /**
  * Calculate file categories from scan results and convert to Feature format
+ * Now uses dedicated scanner results directly instead of categorizing from other results
  */
 export function calculateFileCategoryFeatures(
   scanResults: ScanResults,
   theme: DefaultTheme
 ): Feature[] {
-  const categories: Record<string, FileCategoryData> = {};
+  // Use dedicated scanner results directly
+  const videosResults = scanResults.videosResults || [];
+  const imagesResults = scanResults.imagesResults || [];
+  const audiosResults = scanResults.audiosResults || [];
+  const documentsResults = scanResults.documentsResults || [];
 
-  // Process Large files
-  scanResults.largeFileResults?.forEach((file) => {
-    const category = categorizeFile(file.path, file.category);
-    if (!categories[category]) {
-      categories[category] = { name: category, size: 0, count: 0 };
-    }
-    categories[category].size += file.size || 0;
-    categories[category].count += 1;
-  });
-
-  // Process Old files
-  scanResults.oldFileResults?.forEach((file) => {
-    const category = categorizeFile(file.path);
-    if (!categories[category]) {
-      categories[category] = { name: category, size: 0, count: 0 };
-    }
-    categories[category].size += file.size || 0;
-    categories[category].count += 1;
-  });
-
-  // Process WhatsApp files
-  scanResults.whatsappResults?.forEach((file) => {
-    const category = categorizeFile(file.path, file.type);
-    if (!categories[category]) {
-      categories[category] = { name: category, size: 0, count: 0 };
-    }
-    categories[category].size += file.size || 0;
-    categories[category].count += 1;
-  });
-
-  // Process Duplicate images
-  scanResults.duplicateResults?.forEach((group) => {
-    group.files.forEach((file) => {
-      const category = categorizeFile(file.path, "Images");
-      if (!categories[category]) {
-        categories[category] = { name: category, size: 0, count: 0 };
-      }
-      categories[category].size += file.size || 0;
-      categories[category].count += 1;
-    });
-  });
-
-  // Process APK files
-  scanResults.apkResults?.forEach((file) => {
-    const category = categorizeFile(file.path);
-    if (!categories[category]) {
-      categories[category] = { name: category, size: 0, count: 0 };
-    }
-    categories[category].size += file.size || 0;
-    categories[category].count += 1;
-  });
+  const categories: Record<string, FileCategoryData> = {
+    Videos: {
+      name: "Videos",
+      size: videosResults.reduce((sum, file) => sum + (file.size || 0), 0),
+      count: videosResults.length,
+    },
+    Images: {
+      name: "Images",
+      size: imagesResults.reduce((sum, file) => sum + (file.size || 0), 0),
+      count: imagesResults.length,
+    },
+    Audio: {
+      name: "Audio",
+      size: audiosResults.reduce((sum, file) => sum + (file.size || 0), 0),
+      count: audiosResults.length,
+    },
+    Documents: {
+      name: "Documents",
+      size: documentsResults.reduce((sum, file) => sum + (file.size || 0), 0),
+      count: documentsResults.length,
+    },
+  };
 
   // Filter to only the categories we want: Videos, Images, Audio, Documents
   const targetCategories = ["Videos", "Images", "Audio", "Documents"];

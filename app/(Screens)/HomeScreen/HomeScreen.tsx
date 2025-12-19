@@ -52,6 +52,10 @@ const HomeScreen = () => {
   const duplicateResults = useSelector((state: RootState) => state.appState.duplicateResults);
   const apkResults = useSelector((state: RootState) => state.appState.apkResults);
   const cachesResults = useSelector((state: RootState) => state.appState.cachesResults);
+  const videosResults = useSelector((state: RootState) => state.appState.videosResults);
+  const imagesResults = useSelector((state: RootState) => state.appState.imagesResults);
+  const audiosResults = useSelector((state: RootState) => state.appState.audiosResults);
+  const documentsResults = useSelector((state: RootState) => state.appState.documentsResults);
   
   const [showFeatures, setShowFeatures] = React.useState(false);
   const featureVisibility = useSharedValue(0);
@@ -78,10 +82,14 @@ const HomeScreen = () => {
         duplicateResults,
         apkResults,
         cachesResults,
+        videosResults,
+        imagesResults,
+        audiosResults,
+        documentsResults,
       },
       theme
     );
-  }, [largeFileResults, oldFileResults, whatsappResults, duplicateResults, apkResults, cachesResults, theme]);
+  }, [largeFileResults, oldFileResults, whatsappResults, duplicateResults, apkResults, cachesResults, videosResults, imagesResults, audiosResults, documentsResults, theme]);
 
   // Combine existing features with file category features and apply formatted subtitles
   const features = React.useMemo<Feature[]>(() => {

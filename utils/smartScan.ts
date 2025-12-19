@@ -4,6 +4,10 @@ import { scanOldFiles } from '../app/(Screens)/OldFilesScreen/OldFilesScanner';
 import { scanWhatsApp } from '../app/(Screens)/WhatsAppRemoverScreen/WhatsAppScanner';
 import { scanAPKFiles } from '../app/(Screens)/APKCleanerScreen/APKCleanerScanner';
 import { scanCaches } from '../app/(Screens)/CachesScreen/CachesScanner';
+import { scanVideos } from '../app/(Screens)/VideosScreen/VideosScanner';
+import { scanImages } from '../app/(Screens)/ImagesScreen/ImagesScanner';
+import { scanAudios } from '../app/(Screens)/AudiosScreen/AudiosScanner';
+import { scanDocuments } from '../app/(Screens)/DocumentsScreen/DocumentsScanner';
 import {
   initDatabase,
   saveDuplicateGroups,
@@ -19,7 +23,6 @@ import {
   saveCachesResults,
   type SmartScanStatus,
 } from './db';
-import { filterFilesByCategory } from './fileCategoryCalculator';
 
 export interface SmartScanProgress {
   current: number; // Current scanner index (0-3)
@@ -31,7 +34,7 @@ export interface SmartScanProgress {
 
 export type SmartScanProgressCallback = (progress: SmartScanProgress) => void;
 
-export type ScannerType = 'whatsapp' | 'duplicates' | 'largeFiles' | 'oldFiles' | 'apk' | 'caches';
+export type ScannerType = 'whatsapp' | 'duplicates' | 'largeFiles' | 'oldFiles' | 'apk' | 'caches' | 'videos' | 'images' | 'audios' | 'documents';
 
 export type SmartScanResultsUpdate = {
   scannerType: ScannerType;
@@ -43,6 +46,10 @@ export type SmartScanResultsUpdate = {
     oldFileResults?: any[];
     apkResults?: any[];
     cachesResults?: any[];
+    videosResults?: any[];
+    imagesResults?: any[];
+    audiosResults?: any[];
+    documentsResults?: any[];
   };
 };
 
@@ -55,6 +62,10 @@ const SCANNER_NAMES = [
   'Old Files',
   'APK Files',
   'Caches',
+  'Videos',
+  'Images',
+  'Audios',
+  'Documents',
 ] as const;
 
 /**
@@ -79,6 +90,10 @@ export async function runSmartScan(
       oldFiles: false,
       apk: false,
       caches: false,
+      videos: false,
+      images: false,
+      audios: false,
+      documents: false,
     },
   };
 
@@ -200,37 +215,84 @@ export async function runSmartScan(
       results: { cachesResults },
     });
 
-    // 7. Calculate and save category results
-    updateProgress(6, 'Categorizing files', 0, 'categorizing files by type...');
-    const scanResults = {
-      whatsappResults,
-      duplicateResults: duplicateResults || [],
-      largeFileResults,
-      oldFileResults,
-      apkResults,
-      cachesResults,
-    };
-    
-    const videosResults = filterFilesByCategory('Videos', scanResults);
-    const imagesResults = filterFilesByCategory('Images', scanResults);
-    const audiosResults = filterFilesByCategory('Audio', scanResults);
-    const documentsResults = filterFilesByCategory('Documents', scanResults);
-    
-    await Promise.all([
-      saveVideosResults(videosResults),
-      saveImagesResults(imagesResults),
-      saveAudiosResults(audiosResults),
-      saveDocumentsResults(documentsResults),
-    ]);
-    
-    updateProgress(6, 'Categorizing files', 1, 'categorized files by type');
+    // 7. Videos Scanner
+    updateProgress(6, SCANNER_NAMES[6], 0, 'scanning for video files...');
+    const videosResults = await scanVideos(
+      (progress) => {
+        const ratio = progress.total > 0 ? progress.current / progress.total : 0;
+        updateProgress(6, SCANNER_NAMES[6], ratio, progress.currentFile || 'scanning...');
+      }
+    );
+    await saveVideosResults(videosResults);
+    status.scannerProgress.videos = true;
+    await persistStatus();
+    updateProgress(6, SCANNER_NAMES[6], 1, `found ${videosResults.length} video files`);
+    onResultsUpdate?.({
+      scannerType: 'videos',
+      scannerName: SCANNER_NAMES[6],
+      results: { videosResults },
+    });
+
+    // 8. Images Scanner
+    updateProgress(7, SCANNER_NAMES[7], 0, 'scanning for image files...');
+    const imagesResults = await scanImages(
+      (progress) => {
+        const ratio = progress.total > 0 ? progress.current / progress.total : 0;
+        updateProgress(7, SCANNER_NAMES[7], ratio, progress.currentFile || 'scanning...');
+      }
+    );
+    await saveImagesResults(imagesResults);
+    status.scannerProgress.images = true;
+    await persistStatus();
+    updateProgress(7, SCANNER_NAMES[7], 1, `found ${imagesResults.length} image files`);
+    onResultsUpdate?.({
+      scannerType: 'images',
+      scannerName: SCANNER_NAMES[7],
+      results: { imagesResults },
+    });
+
+    // 9. Audios Scanner
+    updateProgress(8, SCANNER_NAMES[8], 0, 'scanning for audio files...');
+    const audiosResults = await scanAudios(
+      (progress) => {
+        const ratio = progress.total > 0 ? progress.current / progress.total : 0;
+        updateProgress(8, SCANNER_NAMES[8], ratio, progress.currentFile || 'scanning...');
+      }
+    );
+    await saveAudiosResults(audiosResults);
+    status.scannerProgress.audios = true;
+    await persistStatus();
+    updateProgress(8, SCANNER_NAMES[8], 1, `found ${audiosResults.length} audio files`);
+    onResultsUpdate?.({
+      scannerType: 'audios',
+      scannerName: SCANNER_NAMES[8],
+      results: { audiosResults },
+    });
+
+    // 10. Documents Scanner
+    updateProgress(9, SCANNER_NAMES[9], 0, 'scanning for document files...');
+    const documentsResults = await scanDocuments(
+      (progress) => {
+        const ratio = progress.total > 0 ? progress.current / progress.total : 0;
+        updateProgress(9, SCANNER_NAMES[9], ratio, progress.currentFile || 'scanning...');
+      }
+    );
+    await saveDocumentsResults(documentsResults);
+    status.scannerProgress.documents = true;
+    await persistStatus();
+    updateProgress(9, SCANNER_NAMES[9], 1, `found ${documentsResults.length} document files`);
+    onResultsUpdate?.({
+      scannerType: 'documents',
+      scannerName: SCANNER_NAMES[9],
+      results: { documentsResults },
+    });
 
     // Mark as completed
     status.completed = true;
     status.completedAt = Date.now();
     await saveSmartScanStatus(status);
 
-    updateProgress(7, 'Complete', 1, 'smart scan completed');
+    updateProgress(10, 'Complete', 1, 'smart scan completed');
   } catch (error) {
     console.error('Smart scan error:', error);
     // Save partial status

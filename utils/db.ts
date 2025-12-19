@@ -335,6 +335,10 @@ export interface SmartScanStatus {
     oldFiles: boolean;
     apk: boolean;
     caches: boolean;
+    videos: boolean;
+    images: boolean;
+    audios: boolean;
+    documents: boolean;
   };
 }
 

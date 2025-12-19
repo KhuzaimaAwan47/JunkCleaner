@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
+import { FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import { DefaultTheme, useTheme } from "styled-components/native";
@@ -10,33 +10,27 @@ import EmptyState from "../../../components/EmptyState";
 import ScreenWrapper from "../../../components/ScreenWrapper";
 import {
   clearSelections,
-  setDuplicateResults,
-  setLargeFileResults,
-  setOldFileResults,
   setSelectedItems,
-  setWhatsappResults,
   setImagesResults,
   toggleItemSelection,
 } from "../../../redux-code/action";
 import type { RootState } from "../../../redux-code/store";
 import type { CategoryFile } from "../../../utils/fileCategoryCalculator";
-import { initDatabase, loadImagesResults, saveImagesResults } from "../../../utils/db";
+import { saveImagesResults } from "../../../utils/db";
+import { useImagesScanner } from "./useImagesScanner";
 
 const ImagesScreen: React.FC = () => {
   const dispatch = useDispatch();
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   
+  const { isScanning, isRestoring, error, startScan } = useImagesScanner();
+  
   const imagesResults = useSelector((state: RootState) => state.appState.imagesResults);
-  const largeFileResults = useSelector((state: RootState) => state.appState.largeFileResults);
-  const oldFileResults = useSelector((state: RootState) => state.appState.oldFileResults);
-  const whatsappResults = useSelector((state: RootState) => state.appState.whatsappResults);
-  const duplicateResults = useSelector((state: RootState) => state.appState.duplicateResults);
   const selectedFilePathsArray = useSelector((state: RootState) => state.appState.selectedItems.images);
   const selectedFilePaths = useMemo(() => new Set(selectedFilePathsArray), [selectedFilePathsArray]);
   
   const [clearing, setClearing] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
 
   // Use images results directly from Redux and sort once
   const sortedFiles = useMemo(() => {
@@ -93,32 +87,11 @@ const ImagesScreen: React.FC = () => {
     console.log("Deleting files:", Array.from(selectedFilePaths));
     setClearing(true);
     try {
-      // Remove deleted files from each result set
-      const remainingLargeFiles = largeFileResults.filter(
-        (f) => !selectedFilePaths.has(f.path)
-      );
-      const remainingOldFiles = oldFileResults.filter(
-        (f) => !selectedFilePaths.has(f.path)
-      );
-      const remainingWhatsappFiles = whatsappResults.filter(
-        (f) => !selectedFilePaths.has(f.path)
-      );
-      
-      // Remove from duplicate results
-      const remainingDuplicateResults = duplicateResults.map((group) => ({
-        ...group,
-        files: group.files.filter((f) => !selectedFilePaths.has(f.path)),
-      })).filter((group) => group.files.length > 0);
-
       // Update category results by removing deleted files
       const remainingImages = imagesResults.filter(
         (f) => !selectedFilePaths.has(f.path)
       );
 
-      dispatch(setLargeFileResults(remainingLargeFiles));
-      dispatch(setOldFileResults(remainingOldFiles));
-      dispatch(setWhatsappResults(remainingWhatsappFiles));
-      dispatch(setDuplicateResults(remainingDuplicateResults));
       dispatch(setImagesResults(remainingImages));
       dispatch(clearSelections("images"));
       
@@ -131,7 +104,7 @@ const ImagesScreen: React.FC = () => {
     } finally {
       setClearing(false);
     }
-  }, [selectedFilePaths, selectedStats.items, clearing, largeFileResults, oldFileResults, whatsappResults, duplicateResults, imagesResults, dispatch]);
+  }, [selectedFilePaths, selectedStats.items, clearing, imagesResults, dispatch]);
 
   useEffect(() => {
     if (selectedFilePathsArray.length === 0) return;
@@ -143,17 +116,8 @@ const ImagesScreen: React.FC = () => {
   }, [sortedFiles, selectedFilePathsArray, dispatch]);
 
   const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      await initDatabase();
-      const savedResults = await loadImagesResults();
-      dispatch(setImagesResults(savedResults));
-    } catch (error) {
-      console.error("Failed to refresh images results:", error);
-    } finally {
-      setRefreshing(false);
-    }
-  }, [dispatch]);
+    await startScan();
+  }, [startScan]);
 
   return (
     <ScreenWrapper style={styles.screen}>
@@ -169,6 +133,12 @@ const ImagesScreen: React.FC = () => {
             selectAllDisabled={resultsAvailable ? !sortedFiles.length : undefined}
           />
         </View>
+        {error && (
+          <View style={[styles.errorCard, styles.sectionSpacing]}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
+
         {resultsAvailable ? (
           <FlatList
             data={sortedFiles}
@@ -187,21 +157,21 @@ const ImagesScreen: React.FC = () => {
             windowSize={10}
             refreshControl={
               <RefreshControl
-                refreshing={refreshing}
+                refreshing={isScanning}
                 onRefresh={onRefresh}
                 tintColor={theme.colors.primary}
               />
             }
           />
-        ) : (
+        ) : !isScanning && !isRestoring ? (
           <View style={styles.sectionSpacing}>
             <EmptyState
               icon="image-outline"
               title="No images found"
-              description="Run a smart scan to find image files on your device"
+              description="Pull down to refresh and scan for image files"
             />
           </View>
-        )}
+        ) : null}
         {selectedStats.items > 0 && resultsAvailable && (
           <View style={styles.fixedDeleteButtonContainer}>
             <DeleteButton
@@ -248,6 +218,19 @@ const createStyles = (theme: DefaultTheme) =>
       backgroundColor: theme.colors.background,
       borderTopWidth: 1,
       borderTopColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}33` : `${theme.colors.surfaceAlt}22`,
+    },
+    errorCard: {
+      backgroundColor: `${theme.colors.error}11`,
+      borderRadius: theme.radii.lg,
+      padding: theme.spacing.md,
+      borderWidth: 1,
+      borderColor: `${theme.colors.error}55`,
+      marginHorizontal: theme.spacing.lg,
+    },
+    errorText: {
+      color: theme.colors.error,
+      fontSize: theme.fontSize.sm,
+      textAlign: "center",
     },
   });
 

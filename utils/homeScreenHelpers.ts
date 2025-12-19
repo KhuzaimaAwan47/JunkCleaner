@@ -81,55 +81,26 @@ export const calculateProgressFromSnapshot = (snapshot: ScanDataSnapshot): Recor
   ]);
   progress.storage = averaged(["large", "duplicate", "old", "apk"]);
 
-  // Calculate category feature progress (Audio, Images, Videos, etc.) based on size
-  const targetCategories = ["Videos", "Images", "Audio", "Other", "Documents"];
-  const categorySizes: Record<string, number> = {};
+  // Calculate category feature progress (Audio, Images, Videos, Documents) based on size
+  // Use dedicated scanner results directly
+  const videosSize = snapshot.videosResults.reduce((sum, file) => sum + (file.size || 0), 0);
+  const imagesSize = snapshot.imagesResults.reduce((sum, file) => sum + (file.size || 0), 0);
+  const audiosSize = snapshot.audiosResults.reduce((sum, file) => sum + (file.size || 0), 0);
+  const documentsSize = snapshot.documentsResults.reduce((sum, file) => sum + (file.size || 0), 0);
 
-  // Calculate sizes for each category
-  snapshot.largeFileResults.forEach((file) => {
-    const category = categorizeFile(file.path, (file as any).category);
-    if (targetCategories.includes(category)) {
-      categorySizes[category] = (categorySizes[category] || 0) + (file.size ?? 0);
-    }
-  });
+  const categorySizes = {
+    Videos: videosSize,
+    Images: imagesSize,
+    Audio: audiosSize,
+    Documents: documentsSize,
+  };
 
-  snapshot.oldFileResults.forEach((file) => {
-    const category = categorizeFile(file.path);
-    if (targetCategories.includes(category)) {
-      categorySizes[category] = (categorySizes[category] || 0) + (file.size ?? 0);
-    }
-  });
-
-  snapshot.whatsappResults.forEach((file) => {
-    const category = categorizeFile(file.path, (file as any).type);
-    if (targetCategories.includes(category)) {
-      categorySizes[category] = (categorySizes[category] || 0) + (file.size ?? 0);
-    }
-  });
-
-  snapshot.duplicateResults.forEach((group) => {
-    group.files.forEach((file) => {
-      const category = categorizeFile(file.path, "Images");
-      if (targetCategories.includes(category)) {
-        categorySizes[category] = (categorySizes[category] || 0) + (file.size ?? 0);
-      }
-    });
-  });
-
-  snapshot.apkResults.forEach((file) => {
-    const category = categorizeFile(file.path);
-    if (targetCategories.includes(category)) {
-      categorySizes[category] = (categorySizes[category] || 0) + (file.size ?? 0);
-    }
-  });
-
-  const categorySizesArray = targetCategories.map((name) => categorySizes[name] || 0);
+  const categorySizesArray = Object.values(categorySizes);
   const maxCategorySize = Math.max(...categorySizesArray, 1);
 
   // Set progress for each category feature based on size
-  targetCategories.forEach((categoryName) => {
+  Object.entries(categorySizes).forEach(([categoryName, size]) => {
     const categoryId = `category-${categoryName.toLowerCase()}`;
-    const size = categorySizes[categoryName] || 0;
     progress[categoryId] = maxCategorySize > 0 ? clamp(size / maxCategorySize) : 0;
   });
 

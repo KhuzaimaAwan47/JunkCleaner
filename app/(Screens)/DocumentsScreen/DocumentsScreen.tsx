@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
+import { FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import { DefaultTheme, useTheme } from "styled-components/native";
@@ -11,30 +11,26 @@ import ScreenWrapper from "../../../components/ScreenWrapper";
 import {
   clearSelections,
   setDocumentsResults,
-  setLargeFileResults,
-  setOldFileResults,
   setSelectedItems,
-  setWhatsappResults,
   toggleItemSelection,
 } from "../../../redux-code/action";
 import type { RootState } from "../../../redux-code/store";
-import { initDatabase, loadDocumentsResults, saveDocumentsResults } from "../../../utils/db";
+import { saveDocumentsResults } from "../../../utils/db";
 import type { CategoryFile } from "../../../utils/fileCategoryCalculator";
+import { useDocumentsScanner } from "./useDocumentsScanner";
 
 const DocumentsScreen: React.FC = () => {
   const dispatch = useDispatch();
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   
+  const { isScanning, isRestoring, error, startScan } = useDocumentsScanner();
+  
   const documentsResults = useSelector((state: RootState) => state.appState.documentsResults);
-  const largeFileResults = useSelector((state: RootState) => state.appState.largeFileResults);
-  const oldFileResults = useSelector((state: RootState) => state.appState.oldFileResults);
-  const whatsappResults = useSelector((state: RootState) => state.appState.whatsappResults);
   const selectedFilePathsArray = useSelector((state: RootState) => state.appState.selectedItems.documents);
   const selectedFilePaths = useMemo(() => new Set(selectedFilePathsArray), [selectedFilePathsArray]);
   
   const [clearing, setClearing] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
 
   // Use documents results directly from Redux and sort once
   // Filter out APK files (they should not be in documents)
@@ -96,25 +92,11 @@ const DocumentsScreen: React.FC = () => {
     console.log("Deleting files:", Array.from(selectedFilePaths));
     setClearing(true);
     try {
-      // Remove deleted files from each result set
-      const remainingLargeFiles = largeFileResults.filter(
-        (f) => !selectedFilePaths.has(f.path)
-      );
-      const remainingOldFiles = oldFileResults.filter(
-        (f) => !selectedFilePaths.has(f.path)
-      );
-      const remainingWhatsappFiles = whatsappResults.filter(
-        (f) => !selectedFilePaths.has(f.path)
-      );
-
       // Update category results by removing deleted files
       const remainingDocuments = documentsResults.filter(
         (f) => !selectedFilePaths.has(f.path)
       );
 
-      dispatch(setLargeFileResults(remainingLargeFiles));
-      dispatch(setOldFileResults(remainingOldFiles));
-      dispatch(setWhatsappResults(remainingWhatsappFiles));
       dispatch(setDocumentsResults(remainingDocuments));
       dispatch(clearSelections("documents"));
       
@@ -127,7 +109,7 @@ const DocumentsScreen: React.FC = () => {
     } finally {
       setClearing(false);
     }
-  }, [selectedFilePaths, selectedStats.items, clearing, largeFileResults, oldFileResults, whatsappResults, documentsResults, dispatch]);
+  }, [selectedFilePaths, selectedStats.items, clearing, documentsResults, dispatch]);
 
   useEffect(() => {
     if (selectedFilePathsArray.length === 0) return;
@@ -139,17 +121,8 @@ const DocumentsScreen: React.FC = () => {
   }, [sortedFiles, selectedFilePathsArray, dispatch]);
 
   const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      await initDatabase();
-      const savedResults = await loadDocumentsResults();
-      dispatch(setDocumentsResults(savedResults));
-    } catch (error) {
-      console.error("Failed to refresh documents results:", error);
-    } finally {
-      setRefreshing(false);
-    }
-  }, [dispatch]);
+    await startScan();
+  }, [startScan]);
 
   return (
     <ScreenWrapper style={styles.screen}>
@@ -165,6 +138,12 @@ const DocumentsScreen: React.FC = () => {
             selectAllDisabled={resultsAvailable ? !sortedFiles.length : undefined}
           />
         </View>
+        {error && (
+          <View style={[styles.errorCard, styles.sectionSpacing]}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
+
         {resultsAvailable ? (
           <FlatList
             data={sortedFiles}
@@ -183,21 +162,21 @@ const DocumentsScreen: React.FC = () => {
             windowSize={10}
             refreshControl={
               <RefreshControl
-                refreshing={refreshing}
+                refreshing={isScanning}
                 onRefresh={onRefresh}
                 tintColor={theme.colors.primary}
               />
             }
           />
-        ) : (
+        ) : !isScanning && !isRestoring ? (
           <View style={styles.sectionSpacing}>
             <EmptyState
               icon="file-document-outline"
               title="No documents found"
-              description="Run a smart scan to find document files on your device"
+              description="Pull down to refresh and scan for document files"
             />
           </View>
-        )}
+        ) : null}
         {selectedStats.items > 0 && resultsAvailable && (
           <View style={styles.fixedDeleteButtonContainer}>
             <DeleteButton
@@ -244,6 +223,19 @@ const createStyles = (theme: DefaultTheme) =>
       backgroundColor: theme.colors.background,
       borderTopWidth: 1,
       borderTopColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}33` : `${theme.colors.surfaceAlt}22`,
+    },
+    errorCard: {
+      backgroundColor: `${theme.colors.error}11`,
+      borderRadius: theme.radii.lg,
+      padding: theme.spacing.md,
+      borderWidth: 1,
+      borderColor: `${theme.colors.error}55`,
+      marginHorizontal: theme.spacing.lg,
+    },
+    errorText: {
+      color: theme.colors.error,
+      fontSize: theme.fontSize.sm,
+      textAlign: "center",
     },
   });
 
