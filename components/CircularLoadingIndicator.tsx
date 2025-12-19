@@ -1,6 +1,6 @@
 import LottieView from "lottie-react-native";
 import React from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import type { SmartScanProgress } from "../utils/smartScan";
 
@@ -28,15 +28,20 @@ const CircularLoadingIndicator: React.FC<Props> = ({ scanProgress, size = 200 })
   }
 
   return (
-    <View style={[styles.wrapper, { height: size }]}>
-      <LottieView
-        ref={lottieRef}
-        source={require("../assets/lottie/Scanning_Files.json")}
-        style={styles.lottie}
-        autoPlay
-        loop
-      />
-    </View>
+    <>
+      <View style={[styles.wrapper, { height: size, minHeight: size }]}>
+        <LottieView
+          ref={lottieRef}
+          source={require("../assets/lottie/Scanning_Files.json")}
+          style={styles.lottie}
+          autoPlay
+          loop
+        />
+      </View>
+      <Text style={styles.scanningText}>
+        Scanning... {scanProgress.scannerName}
+      </Text>
+    </>
   );
 };
 
@@ -49,10 +54,20 @@ const createStyles = (theme: DefaultTheme) =>
       justifyContent: "center",
       alignSelf: "stretch",
       marginHorizontal: -theme.spacing.lg,
+      flexShrink: 0,
+      flexGrow: 0,
     },
     lottie: {
       width: "100%",
       height: "100%",
+    },
+    scanningText: {
+      marginTop: theme.spacing.md,
+      fontSize: 16,
+      color: theme.colors.textMuted || theme.colors.text,
+      textAlign: "center",
+      fontWeight: "500",
+      alignSelf: "center",
     },
   });
 
