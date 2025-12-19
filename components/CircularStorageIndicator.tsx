@@ -1,5 +1,6 @@
 ﻿import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View, type ViewStyle } from "react-native";
+import Animated from "react-native-reanimated";
 import Svg, { Circle, Defs, Stop, LinearGradient as SvgGradient } from "react-native-svg";
 import { DefaultTheme, useTheme } from "styled-components/native";
 
@@ -8,9 +9,10 @@ type Props = {
   used: number;
   size?: number;
   label?: string;
+  animatedStyle?: ViewStyle;
 };
 
-const CircularStorageIndicator: React.FC<Props> = ({ total, used, size = 200, label = "Used" }) => {
+const CircularStorageIndicator: React.FC<Props> = ({ total, used, size = 200, label = "Used", animatedStyle }) => {
   const strokeWidth = 18;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -50,11 +52,11 @@ const CircularStorageIndicator: React.FC<Props> = ({ total, used, size = 200, la
           strokeLinecap="round"
         />
       </Svg>
-      <View style={[styles.inner, { width: size - 80, height: size - 80 }]}>
-        <Text style={styles.value}>{used} GB</Text>
-        <Text style={styles.caption}>{label}</Text>
-        <Text style={styles.caption}>{remaining.toFixed(1)} GB free</Text>
-      </View>
+      <Animated.View style={[styles.inner, { width: size - 80, height: size - 80 }, animatedStyle]}>
+        <Animated.Text style={styles.value}>{used} GB</Animated.Text>
+        <Animated.Text style={styles.caption}>{label}</Animated.Text>
+        <Animated.Text style={styles.caption}>{remaining.toFixed(1)} GB free</Animated.Text>
+      </Animated.View>
     </View>
   );
 };

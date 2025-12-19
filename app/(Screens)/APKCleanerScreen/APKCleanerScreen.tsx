@@ -138,7 +138,7 @@ const APKCleanerScreen: React.FC = () => {
       <SafeAreaView style={{ flex: 1 }} edges={['bottom', 'left', 'right']}>
         <View style={styles.headerContainer}>
           <AppHeader 
-            title="APK Cleaner" 
+            title="APK's" 
             subtitle="Find and remove APK installers"
             totalSize={resultsAvailable ? totalBytes : undefined}
             totalFiles={resultsAvailable ? sortedFiles.length : undefined}

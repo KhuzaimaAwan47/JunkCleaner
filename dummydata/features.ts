@@ -61,7 +61,7 @@ export const featureCards: Feature[] = [
   },
   {
     id: 'apk',
-    title: 'APK Cleaner',
+    title: 'APK\'s',
     subtitle: 'Remove installers',
     icon: 'android',
     route: appRoutes.apkCleaner,

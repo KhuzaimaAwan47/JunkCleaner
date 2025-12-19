@@ -107,7 +107,20 @@ const HomeScreen = () => {
       return feature;
     });
     
-    return [...updatedFeatures, ...fileCategoryFeatures];
+    const allFeatures = [...updatedFeatures, ...fileCategoryFeatures];
+    
+    // Fixed priority order: Large Files → Old Files → Duplicates → APKs → WhatsApp → rest
+    const priorityOrder = ['large', 'old', 'duplicate', 'apk', 'whatsapp'];
+    const getPriority = (id: string): number => {
+      const index = priorityOrder.indexOf(id);
+      return index === -1 ? 999 : index; // Features not in priority list go to end
+    };
+    
+    return allFeatures.sort((a, b) => {
+      const aPriority = getPriority(a.id);
+      const bPriority = getPriority(b.id);
+      return aPriority - bPriority;
+    });
   }, [fileCategoryFeatures, featureStats]);
 
   const refreshHomeState = React.useCallback(async () => {
