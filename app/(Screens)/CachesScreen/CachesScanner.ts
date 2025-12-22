@@ -18,7 +18,7 @@ export interface CacheItem {
   modifiedDate?: number;
 }
 
-const BATCH_SIZE = 24;
+const BATCH_SIZE = 50;
 
 // Get Android data directories dynamically
 const getAndroidDataPaths = (): string[] => {
@@ -151,47 +151,53 @@ const calculateDirectorySize = async (dirPath: string): Promise<number> => {
 
       const batches = chunkArray(dirEntries, BATCH_SIZE);
       
-      for (const batch of batches) {
+      // Process batches in parallel (up to 2 at a time for size calculation)
+      for (let i = 0; i < batches.length; i += 2) {
+        const batchGroup = batches.slice(i, i + 2);
         await Promise.all(
-          batch.map(async (entryName) => {
-            try {
-              if (!entryName || typeof entryName !== 'string') return;
-              
-              const entryPath = `${currentDir}/${entryName}`;
-              const uriPath = entryPath.startsWith('file://') ? entryPath : `file://${entryPath}`;
-              
-              if (useExpo) {
+          batchGroup.map(async (batch) => {
+            await Promise.all(
+              batch.map(async (entryName) => {
                 try {
-                  const info = await FileSystem.getInfoAsync(uriPath);
-                  if (info.exists) {
-                    if (info.isDirectory) {
-                      if (!visited.has(entryPath)) {
-                        queue.push(entryPath);
+                  if (!entryName || typeof entryName !== 'string') return;
+                  
+                  const entryPath = `${currentDir}/${entryName}`;
+                  const uriPath = entryPath.startsWith('file://') ? entryPath : `file://${entryPath}`;
+                  
+                  if (useExpo) {
+                    try {
+                      const info = await FileSystem.getInfoAsync(uriPath);
+                      if (info.exists) {
+                        if (info.isDirectory) {
+                          if (!visited.has(entryPath)) {
+                            queue.push(entryPath);
+                          }
+                        } else if (typeof info.size === 'number') {
+                          totalSize += info.size;
+                        }
                       }
-                    } else if (typeof info.size === 'number') {
-                      totalSize += info.size;
+                    } catch {
+                      // Skip entries we can't access
+                    }
+                  } else {
+                    try {
+                      const stat = await RNFS.stat(entryPath);
+                      if (stat.isFile() && typeof stat.size === 'number') {
+                        totalSize += stat.size;
+                      } else if (stat.isDirectory() && entryPath) {
+                        if (!visited.has(entryPath)) {
+                          queue.push(entryPath);
+                        }
+                      }
+                    } catch {
+                      // Skip entries we can't access
                     }
                   }
-                } catch {
-                  // Skip entries we can't access
+                } catch (error) {
+                  // Skip files/dirs we can't access
                 }
-              } else {
-                try {
-                  const stat = await RNFS.stat(entryPath);
-                  if (stat.isFile() && typeof stat.size === 'number') {
-                    totalSize += stat.size;
-                  } else if (stat.isDirectory() && entryPath) {
-                    if (!visited.has(entryPath)) {
-                      queue.push(entryPath);
-                    }
-                  }
-                } catch {
-                  // Skip entries we can't access
-                }
-              }
-            } catch (error) {
-              // Skip files/dirs we can't access
-            }
+              })
+            );
           })
         );
       }
@@ -274,75 +280,81 @@ const scanCorpses = async (
     console.log(`[CachesScanner] Found ${dirEntries.length} entries in ${androidDataPath}`);
     
     const batches = chunkArray(dirEntries, BATCH_SIZE);
-    for (const batch of batches) {
+    // Process batches in parallel (up to 3 at a time for better performance)
+    for (let i = 0; i < batches.length; i += 3) {
+      const batchGroup = batches.slice(i, i + 3);
       await Promise.all(
-        batch.map(async (dirName) => {
-          try {
-            if (!dirName || typeof dirName !== 'string') return;
-            
-            const entryPath = `${androidDataPath}/${dirName}`;
-            const uriPath = entryPath.startsWith('file://') ? entryPath : `file://${entryPath}`;
-            
-            // Check if it's a directory
-            let isDir = false;
-            try {
-              const info = await FileSystem.getInfoAsync(uriPath);
-              isDir = info.exists && info.isDirectory;
-            } catch {
+        batchGroup.map(async (batch) => {
+          await Promise.all(
+            batch.map(async (dirName) => {
               try {
-                const stat = await RNFS.stat(entryPath);
-                isDir = stat.isDirectory();
-              } catch {
-                return;
-              }
-            }
-            
-            if (!isDir) return;
-            
-            // Check if this looks like a package name
-            if (!isValidPackageName(dirName)) return;
-            
-            // Check if it's a system package (skip even if uninstalled)
-            if (isSystemPackage(dirName)) return;
-            
-            // Check if package is not installed (corpse)
-            if (installedPackages.has(dirName)) return;
-
-            try {
-              const size = await calculateDirectorySize(entryPath);
-              if (size > 0) {
-                let modifiedDate: number | undefined = undefined;
+                if (!dirName || typeof dirName !== 'string') return;
+                
+                const entryPath = `${androidDataPath}/${dirName}`;
+                const uriPath = entryPath.startsWith('file://') ? entryPath : `file://${entryPath}`;
+                
+                // Check if it's a directory
+                let isDir = false;
                 try {
                   const info = await FileSystem.getInfoAsync(uriPath);
-                  if (info.modificationTime) {
-                    modifiedDate = info.modificationTime * 1000;
-                  }
+                  isDir = info.exists && info.isDirectory;
                 } catch {
                   try {
                     const stat = await RNFS.stat(entryPath);
-                    if (stat.mtime) {
-                      modifiedDate = stat.mtime.getTime ? stat.mtime.getTime() : stat.mtime;
-                    }
+                    isDir = stat.isDirectory();
                   } catch {
-                    // Use undefined if stat fails
+                    return;
                   }
                 }
                 
-                results.push({
-                  path: entryPath,
-                  size,
-                  type: 'corpse',
-                  packageName: dirName,
-                  modifiedDate,
-                });
+                if (!isDir) return;
+                
+                // Check if this looks like a package name
+                if (!isValidPackageName(dirName)) return;
+                
+                // Check if it's a system package (skip even if uninstalled)
+                if (isSystemPackage(dirName)) return;
+                
+                // Check if package is not installed (corpse)
+                if (installedPackages.has(dirName)) return;
+
+                try {
+                  const size = await calculateDirectorySize(entryPath);
+                  if (size > 0) {
+                    let modifiedDate: number | undefined = undefined;
+                    try {
+                      const info = await FileSystem.getInfoAsync(uriPath);
+                      if (info.modificationTime) {
+                        modifiedDate = info.modificationTime * 1000;
+                      }
+                    } catch {
+                      try {
+                        const stat = await RNFS.stat(entryPath);
+                        if (stat.mtime) {
+                          modifiedDate = stat.mtime.getTime ? stat.mtime.getTime() : stat.mtime;
+                        }
+                      } catch {
+                        // Use undefined if stat fails
+                      }
+                    }
+                    
+                    results.push({
+                      path: entryPath,
+                      size,
+                      type: 'corpse',
+                      packageName: dirName,
+                      modifiedDate,
+                    });
+                  }
+                } catch (error) {
+                  console.warn(`[CachesScanner] Failed to process corpse directory ${entryPath}:`, error);
+                }
+              } catch (entryError) {
+                console.warn(`[CachesScanner] Error processing entry:`, entryError);
+                // Continue with next entry
               }
-            } catch (error) {
-              console.warn(`[CachesScanner] Failed to process corpse directory ${entryPath}:`, error);
-            }
-          } catch (entryError) {
-            console.warn(`[CachesScanner] Error processing entry:`, entryError);
-            // Continue with next entry
-          }
+            })
+          );
         })
       );
     }
@@ -409,92 +421,98 @@ const scanAppCaches = async (
     let processedCount = 0;
     let cacheFoundCount = 0;
     
-    for (const batch of batches) {
+    // Process batches in parallel (up to 3 at a time)
+    for (let i = 0; i < batches.length; i += 3) {
+      const batchGroup = batches.slice(i, i + 3);
       await Promise.all(
-        batch.map(async (dirName) => {
-          try {
-            if (!dirName || typeof dirName !== 'string') return;
-            
-            const entryPath = `${androidDataPath}/${dirName}`;
-            const uriPath = entryPath.startsWith('file://') ? entryPath : `file://${entryPath}`;
-            
-            // Check if it's a directory using expo-file-system
-            let isDir = false;
-            try {
-              const info = await FileSystem.getInfoAsync(uriPath);
-              isDir = info.exists && info.isDirectory;
-            } catch {
-              // Fallback to RNFS
+        batchGroup.map(async (batch) => {
+          await Promise.all(
+            batch.map(async (dirName) => {
               try {
-                const stat = await RNFS.stat(entryPath);
-                isDir = stat.isDirectory();
-              } catch {
-                return; // Skip if we can't determine
-              }
-            }
-            
-            if (!isDir) return;
-            
-            // In fallback mode, scan all valid package names
-            // Otherwise, only scan installed packages
-            if (!fallbackMode && !installedPackages.has(dirName)) return;
-            
-            // Skip if not a valid package name
-            if (!isValidPackageName(dirName)) return;
-            
-            // Skip system packages
-            if (isSystemPackage(dirName)) return;
-
-            processedCount++;
-
-            // Look for cache subdirectory
-            const cachePath = `${entryPath}/cache`;
-            const cacheUriPath = cachePath.startsWith('file://') ? cachePath : `file://${cachePath}`;
-            
-            try {
-              // Check if cache directory exists using expo-file-system
-              let cacheExists = false;
-              let cacheInfo: FileSystem.FileInfo | null = null;
-              
-              try {
-                cacheInfo = await FileSystem.getInfoAsync(cacheUriPath);
-                cacheExists = cacheInfo.exists && cacheInfo.isDirectory;
-              } catch {
-                // Fallback to RNFS
+                if (!dirName || typeof dirName !== 'string') return;
+                
+                const entryPath = `${androidDataPath}/${dirName}`;
+                const uriPath = entryPath.startsWith('file://') ? entryPath : `file://${entryPath}`;
+                
+                // Check if it's a directory using expo-file-system
+                let isDir = false;
                 try {
-                  const cacheStat = await RNFS.stat(cachePath);
-                  cacheExists = cacheStat.isDirectory();
+                  const info = await FileSystem.getInfoAsync(uriPath);
+                  isDir = info.exists && info.isDirectory;
                 } catch {
-                  // Cache doesn't exist, skip
-                  return;
+                  // Fallback to RNFS
+                  try {
+                    const stat = await RNFS.stat(entryPath);
+                    isDir = stat.isDirectory();
+                  } catch {
+                    return; // Skip if we can't determine
+                  }
                 }
-              }
-              
-              if (cacheExists) {
-                const size = await calculateDirectorySize(cachePath);
-                if (size > 0) {
-                  cacheFoundCount++;
-                  const modifiedDate = cacheInfo?.modificationTime 
-                    ? cacheInfo.modificationTime * 1000 
-                    : undefined;
+                
+                if (!isDir) return;
+                
+                // In fallback mode, scan all valid package names
+                // Otherwise, only scan installed packages
+                if (!fallbackMode && !installedPackages.has(dirName)) return;
+                
+                // Skip if not a valid package name
+                if (!isValidPackageName(dirName)) return;
+                
+                // Skip system packages
+                if (isSystemPackage(dirName)) return;
+
+                processedCount++;
+
+                // Look for cache subdirectory
+                const cachePath = `${entryPath}/cache`;
+                const cacheUriPath = cachePath.startsWith('file://') ? cachePath : `file://${cachePath}`;
+                
+                try {
+                  // Check if cache directory exists using expo-file-system
+                  let cacheExists = false;
+                  let cacheInfo: FileSystem.FileInfo | null = null;
                   
-                  results.push({
-                    path: cachePath,
-                    size,
-                    type: 'cache',
-                    packageName: dirName,
-                    modifiedDate,
-                  });
+                  try {
+                    cacheInfo = await FileSystem.getInfoAsync(cacheUriPath);
+                    cacheExists = cacheInfo.exists && cacheInfo.isDirectory;
+                  } catch {
+                    // Fallback to RNFS
+                    try {
+                      const cacheStat = await RNFS.stat(cachePath);
+                      cacheExists = cacheStat.isDirectory();
+                    } catch {
+                      // Cache doesn't exist, skip
+                      return;
+                    }
+                  }
+                  
+                  if (cacheExists) {
+                    const size = await calculateDirectorySize(cachePath);
+                    if (size > 0) {
+                      cacheFoundCount++;
+                      const modifiedDate = cacheInfo?.modificationTime 
+                        ? cacheInfo.modificationTime * 1000 
+                        : undefined;
+                      
+                      results.push({
+                        path: cachePath,
+                        size,
+                        type: 'cache',
+                        packageName: dirName,
+                        modifiedDate,
+                      });
+                    }
+                  }
+                } catch (cacheError) {
+                  // Cache directory doesn't exist or can't be accessed
+                  // This is normal, skip silently
                 }
+              } catch (entryError) {
+                console.warn(`[CachesScanner] Error processing entry:`, entryError);
+                // Continue with next entry
               }
-            } catch (cacheError) {
-              // Cache directory doesn't exist or can't be accessed
-              // This is normal, skip silently
-            }
-          } catch (entryError) {
-            console.warn(`[CachesScanner] Error processing entry:`, entryError);
-            // Continue with next entry
-          }
+            })
+          );
         })
       );
     }

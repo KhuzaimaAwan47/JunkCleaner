@@ -1,4 +1,5 @@
 import RNFS from "react-native-fs";
+import { createExtensionFilter, fastScan } from '../../../utils/fastScanner';
 
 export interface APKFileInfo {
   path: string;
@@ -9,7 +10,6 @@ export interface APKFileInfo {
 }
 
 const APK_EXTENSIONS = ['.apk', '.apks', '.xapk'];
-const BATCH_SIZE = 24;
 
 const buildRootDirectories = (): string[] => {
   const base = RNFS.ExternalStorageDirectoryPath;
@@ -32,80 +32,43 @@ const buildRootDirectories = (): string[] => {
   return directories.filter(Boolean) as string[];
 };
 
-const ROOT_DIRECTORIES = buildRootDirectories();
-
-const SKIP_PATH_PATTERNS = [
-  /\/Android\/(data|obb)(\/|$)/i,
-  /\/DCIM\/\.thumbnails(\/|$)/i,
-  /\/WhatsApp\/\.Shared(\/|$)/i,
-  /\/\.Trash(\/|$)/i,
-  /\/\.RecycleBin(\/|$)/i,
-];
-
-const chunkArray = <T>(items: T[], chunkSize: number): T[][] => {
-  const chunks: T[][] = [];
-  for (let i = 0; i < items.length; i += chunkSize) {
-    chunks.push(items.slice(i, i + chunkSize));
-  }
-  return chunks;
-};
-
-const shouldSkipPath = (path: string): boolean => SKIP_PATH_PATTERNS.some((pattern) => pattern.test(path));
-
-const isAPKFile = (path: string): boolean => {
-  const lower = path.toLowerCase();
-  return APK_EXTENSIONS.some((ext) => lower.endsWith(ext));
-};
-
 export const scanAPKFiles = async (): Promise<APKFileInfo[]> => {
+  const startedAt = Date.now();
   const now = Date.now();
   const MS_PER_DAY = 24 * 60 * 60 * 1000;
-  const results: APKFileInfo[] = [];
+  const rootPaths = buildRootDirectories();
+  const apkFilter = createExtensionFilter(APK_EXTENSIONS);
   const seenPaths = new Set<string>();
-  const queue: string[] = [...new Set(ROOT_DIRECTORIES)];
 
-  while (queue.length) {
-    const currentDir = queue.shift();
-    if (!currentDir || shouldSkipPath(currentDir)) continue;
+  const entries = await fastScan<RNFS.ReadDirItem>({
+    rootPaths,
+    fileFilter: apkFilter,
+    maxConcurrentDirs: 10,
+    batchSize: 100,
+  });
 
-    let dirEntries: RNFS.ReadDirItem[] = [];
-    try {
-      dirEntries = await RNFS.readDir(currentDir);
-    } catch {
+  const results: APKFileInfo[] = [];
+  for (const entry of entries) {
+    // Deduplicate by path to avoid duplicate entries
+    if (seenPaths.has(entry.path)) {
       continue;
     }
+    seenPaths.add(entry.path);
 
-    const batches = chunkArray(dirEntries, BATCH_SIZE);
-    for (const batch of batches) {
-      await Promise.all(
-        batch.map(async (entry) => {
-          if (shouldSkipPath(entry.path)) return;
-
-          if (entry.isFile() && isAPKFile(entry.path)) {
-            // Deduplicate by path to avoid duplicate entries
-            if (seenPaths.has(entry.path)) {
-              return;
-            }
-            seenPaths.add(entry.path);
-            
-            const modifiedMs = entry.mtime ? entry.mtime.getTime() : now;
-            const ageMs = now - modifiedMs;
-            results.push({
-              path: entry.path,
-              size: entry.size,
-              modifiedDate: modifiedMs,
-              ageDays: Math.floor(ageMs / MS_PER_DAY),
-            });
-            return;
-          }
-
-          if (entry.isDirectory()) {
-            queue.push(entry.path);
-          }
-        })
-      );
-    }
+    const modifiedMs = entry.mtime ? entry.mtime.getTime() : now;
+    const ageMs = now - modifiedMs;
+    results.push({
+      path: entry.path,
+      size: entry.size,
+      modifiedDate: modifiedMs,
+      ageDays: Math.floor(ageMs / MS_PER_DAY),
+    });
   }
+
+  const finishedAt = Date.now();
+  console.log(
+    `[APKScan] files=${results.length} durationMs=${finishedAt - startedAt}`,
+  );
 
   return results.sort((a, b) => b.size - a.size);
 };

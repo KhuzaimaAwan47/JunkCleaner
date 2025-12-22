@@ -1,4 +1,4 @@
-import { scanForDuplicates } from '../app/(Screens)/DuplicateImagesScreen/DuplicateImageScanner';
+import { scanForDuplicates, scanForDuplicatesFromImages } from '../app/(Screens)/DuplicateImagesScreen/DuplicateImageScanner';
 import { scanLargeFiles } from '../app/(Screens)/LargeFilesScreen/LargeFileScanner';
 import { scanOldFiles } from '../app/(Screens)/OldFilesScreen/OldFilesScanner';
 import { scanWhatsApp } from '../app/(Screens)/WhatsAppRemoverScreen/WhatsAppScanner';
@@ -8,6 +8,7 @@ import { scanVideos } from '../app/(Screens)/VideosScreen/VideosScanner';
 import { scanImages } from '../app/(Screens)/ImagesScreen/ImagesScanner';
 import { scanAudios } from '../app/(Screens)/AudiosScreen/AudiosScanner';
 import { scanDocuments } from '../app/(Screens)/DocumentsScreen/DocumentsScanner';
+import { unifiedFileScan } from './unifiedFileScanner';
 import {
   initDatabase,
   saveDuplicateGroups,
@@ -126,22 +127,88 @@ export async function runSmartScan(
   };
 
   try {
-    // 1. WhatsApp Scanner
-    updateProgress(0, SCANNER_NAMES[0], 0, 'scanning WhatsApp files...');
-    const whatsappResults = await scanWhatsApp();
-    await saveWhatsAppResults(whatsappResults);
-    status.scannerProgress.whatsapp = true;
-    await persistStatus();
-    updateProgress(0, SCANNER_NAMES[0], 1, `found ${whatsappResults.length} WhatsApp files`);
-    onResultsUpdate?.({
-      scannerType: 'whatsapp',
-      scannerName: SCANNER_NAMES[0],
-      results: { whatsappResults },
-    });
+    // Run scanners in parallel groups for maximum speed
+    // Group 1: Fast scanners that can run in parallel (different directories)
+    const [whatsappResults, apkResults, cachesResults] = await Promise.all([
+      (async () => {
+        updateProgress(0, SCANNER_NAMES[0], 0, 'scanning WhatsApp files...');
+        const results = await scanWhatsApp();
+        await saveWhatsAppResults(results);
+        status.scannerProgress.whatsapp = true;
+        await persistStatus();
+        updateProgress(0, SCANNER_NAMES[0], 1, `found ${results.length} WhatsApp files`);
+        onResultsUpdate?.({ scannerType: 'whatsapp', scannerName: SCANNER_NAMES[0], results: { whatsappResults: results } });
+        return results;
+      })(),
+      (async () => {
+        updateProgress(4, SCANNER_NAMES[4], 0, 'scanning for APK files...');
+        const results = await scanAPKFiles();
+        await saveAPKResults(results);
+        status.scannerProgress.apk = true;
+        await persistStatus();
+        updateProgress(4, SCANNER_NAMES[4], 1, `found ${results.length} APK files`);
+        onResultsUpdate?.({ scannerType: 'apk', scannerName: SCANNER_NAMES[4], results: { apkResults: results } });
+        return results;
+      })(),
+      (async () => {
+        updateProgress(5, SCANNER_NAMES[5], 0, 'scanning for cache files...');
+        const results = await scanCaches();
+        await saveCachesResults(results);
+        status.scannerProgress.caches = true;
+        await persistStatus();
+        updateProgress(5, SCANNER_NAMES[5], 1, `found ${results.length} cache items`);
+        onResultsUpdate?.({ scannerType: 'caches', scannerName: SCANNER_NAMES[5], results: { cachesResults: results } });
+        return results;
+      })(),
+    ]);
 
-    // 2. Duplicate Images Scanner
+    // Group 2: Unified scan - ONE filesystem walk for media, large files, and old files
+    // This is MUCH faster than 3 separate scans hitting the same storage
+    updateProgress(6, 'Unified Scan', 0, 'scanning all files...');
+    const unifiedResults = await unifiedFileScan(
+      (progress) => {
+        const ratio = progress.total > 0 ? progress.current / progress.total : 0;
+        updateProgress(6, 'Unified Scan', ratio, progress.currentFile || 'scanning...');
+      }
+    );
+
+    // Save all results
+    await saveVideosResults(unifiedResults.videos);
+    status.scannerProgress.videos = true;
+    updateProgress(6, SCANNER_NAMES[6], 1, `found ${unifiedResults.videos.length} video files`);
+    onResultsUpdate?.({ scannerType: 'videos', scannerName: SCANNER_NAMES[6], results: { videosResults: unifiedResults.videos } });
+
+    await saveImagesResults(unifiedResults.images);
+    status.scannerProgress.images = true;
+    updateProgress(7, SCANNER_NAMES[7], 1, `found ${unifiedResults.images.length} image files`);
+    onResultsUpdate?.({ scannerType: 'images', scannerName: SCANNER_NAMES[7], results: { imagesResults: unifiedResults.images } });
+
+    await saveAudiosResults(unifiedResults.audios);
+    status.scannerProgress.audios = true;
+    updateProgress(8, SCANNER_NAMES[8], 1, `found ${unifiedResults.audios.length} audio files`);
+    onResultsUpdate?.({ scannerType: 'audios', scannerName: SCANNER_NAMES[8], results: { audiosResults: unifiedResults.audios } });
+
+    await saveDocumentsResults(unifiedResults.documents);
+    status.scannerProgress.documents = true;
+    updateProgress(9, SCANNER_NAMES[9], 1, `found ${unifiedResults.documents.length} document files`);
+    onResultsUpdate?.({ scannerType: 'documents', scannerName: SCANNER_NAMES[9], results: { documentsResults: unifiedResults.documents } });
+
+    await saveLargeFileResults(unifiedResults.largeFiles);
+    status.scannerProgress.largeFiles = true;
+    updateProgress(2, SCANNER_NAMES[2], 1, `found ${unifiedResults.largeFiles.length} large files`);
+    onResultsUpdate?.({ scannerType: 'largeFiles', scannerName: SCANNER_NAMES[2], results: { largeFileResults: unifiedResults.largeFiles } });
+
+    await saveOldFileResults(unifiedResults.oldFiles);
+    status.scannerProgress.oldFiles = true;
+    updateProgress(3, SCANNER_NAMES[3], 1, `found ${unifiedResults.oldFiles.length} old files`);
+    onResultsUpdate?.({ scannerType: 'oldFiles', scannerName: SCANNER_NAMES[3], results: { oldFileResults: unifiedResults.oldFiles } });
+
+    await persistStatus();
+
+    // Duplicate scanner - use images from unified scan (no need to scan again!)
     updateProgress(1, SCANNER_NAMES[1], 0, 'scanning for duplicate images...');
-    const duplicateResults = await scanForDuplicates(
+    const duplicateResults = await scanForDuplicatesFromImages(
+      unifiedResults.images.map(img => ({ path: img.path, size: img.size, modifiedDate: img.modified })),
       (progress) => {
         const ratio = progress.total > 0 ? progress.current / progress.total : 0;
         updateProgress(1, SCANNER_NAMES[1], ratio, progress.currentFile || 'scanning...');
@@ -156,135 +223,6 @@ export async function runSmartScan(
       scannerType: 'duplicates',
       scannerName: SCANNER_NAMES[1],
       results: { duplicateResults: duplicateResults || [] },
-    });
-
-    // 3. Large Files Scanner
-    updateProgress(2, SCANNER_NAMES[2], 0, 'scanning for large files...');
-    const largeFileResults = await scanLargeFiles(
-      512 * 1024 * 1024, // 512 MB threshold
-      (snapshot) => {
-        updateProgress(2, SCANNER_NAMES[2], snapshot.ratio, snapshot.detail);
-      }
-    );
-    await saveLargeFileResults(largeFileResults);
-    status.scannerProgress.largeFiles = true;
-    await persistStatus();
-    updateProgress(2, SCANNER_NAMES[2], 1, `found ${largeFileResults.length} large files`);
-    onResultsUpdate?.({
-      scannerType: 'largeFiles',
-      scannerName: SCANNER_NAMES[2],
-      results: { largeFileResults },
-    });
-
-    // 4. Old Files Scanner
-    updateProgress(3, SCANNER_NAMES[3], 0, 'scanning for old files...');
-    const oldFileResults = await scanOldFiles(90); // 90 days threshold
-    await saveOldFileResults(oldFileResults);
-    status.scannerProgress.oldFiles = true;
-    await persistStatus();
-    updateProgress(3, SCANNER_NAMES[3], 1, `found ${oldFileResults.length} old files`);
-    onResultsUpdate?.({
-      scannerType: 'oldFiles',
-      scannerName: SCANNER_NAMES[3],
-      results: { oldFileResults },
-    });
-
-    // 5. APK Files Scanner
-    updateProgress(4, SCANNER_NAMES[4], 0, 'scanning for APK files...');
-    const apkResults = await scanAPKFiles();
-    await saveAPKResults(apkResults);
-    status.scannerProgress.apk = true;
-    await persistStatus();
-    updateProgress(4, SCANNER_NAMES[4], 1, `found ${apkResults.length} APK files`);
-    onResultsUpdate?.({
-      scannerType: 'apk',
-      scannerName: SCANNER_NAMES[4],
-      results: { apkResults },
-    });
-
-    // 6. Caches Scanner
-    updateProgress(5, SCANNER_NAMES[5], 0, 'scanning for cache files...');
-    const cachesResults = await scanCaches();
-    await saveCachesResults(cachesResults);
-    status.scannerProgress.caches = true;
-    await persistStatus();
-    updateProgress(5, SCANNER_NAMES[5], 1, `found ${cachesResults.length} cache items`);
-    onResultsUpdate?.({
-      scannerType: 'caches',
-      scannerName: SCANNER_NAMES[5],
-      results: { cachesResults },
-    });
-
-    // 7. Videos Scanner
-    updateProgress(6, SCANNER_NAMES[6], 0, 'scanning for video files...');
-    const videosResults = await scanVideos(
-      (progress) => {
-        const ratio = progress.total > 0 ? progress.current / progress.total : 0;
-        updateProgress(6, SCANNER_NAMES[6], ratio, progress.currentFile || 'scanning...');
-      }
-    );
-    await saveVideosResults(videosResults);
-    status.scannerProgress.videos = true;
-    await persistStatus();
-    updateProgress(6, SCANNER_NAMES[6], 1, `found ${videosResults.length} video files`);
-    onResultsUpdate?.({
-      scannerType: 'videos',
-      scannerName: SCANNER_NAMES[6],
-      results: { videosResults },
-    });
-
-    // 8. Images Scanner
-    updateProgress(7, SCANNER_NAMES[7], 0, 'scanning for image files...');
-    const imagesResults = await scanImages(
-      (progress) => {
-        const ratio = progress.total > 0 ? progress.current / progress.total : 0;
-        updateProgress(7, SCANNER_NAMES[7], ratio, progress.currentFile || 'scanning...');
-      }
-    );
-    await saveImagesResults(imagesResults);
-    status.scannerProgress.images = true;
-    await persistStatus();
-    updateProgress(7, SCANNER_NAMES[7], 1, `found ${imagesResults.length} image files`);
-    onResultsUpdate?.({
-      scannerType: 'images',
-      scannerName: SCANNER_NAMES[7],
-      results: { imagesResults },
-    });
-
-    // 9. Audios Scanner
-    updateProgress(8, SCANNER_NAMES[8], 0, 'scanning for audio files...');
-    const audiosResults = await scanAudios(
-      (progress) => {
-        const ratio = progress.total > 0 ? progress.current / progress.total : 0;
-        updateProgress(8, SCANNER_NAMES[8], ratio, progress.currentFile || 'scanning...');
-      }
-    );
-    await saveAudiosResults(audiosResults);
-    status.scannerProgress.audios = true;
-    await persistStatus();
-    updateProgress(8, SCANNER_NAMES[8], 1, `found ${audiosResults.length} audio files`);
-    onResultsUpdate?.({
-      scannerType: 'audios',
-      scannerName: SCANNER_NAMES[8],
-      results: { audiosResults },
-    });
-
-    // 10. Documents Scanner
-    updateProgress(9, SCANNER_NAMES[9], 0, 'scanning for document files...');
-    const documentsResults = await scanDocuments(
-      (progress) => {
-        const ratio = progress.total > 0 ? progress.current / progress.total : 0;
-        updateProgress(9, SCANNER_NAMES[9], ratio, progress.currentFile || 'scanning...');
-      }
-    );
-    await saveDocumentsResults(documentsResults);
-    status.scannerProgress.documents = true;
-    await persistStatus();
-    updateProgress(9, SCANNER_NAMES[9], 1, `found ${documentsResults.length} document files`);
-    onResultsUpdate?.({
-      scannerType: 'documents',
-      scannerName: SCANNER_NAMES[9],
-      results: { documentsResults },
     });
 
     // Mark as completed

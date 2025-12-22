@@ -77,7 +77,10 @@ const statPath = async (path: string) => {
 };
 
 export async function scanWhatsApp(): Promise<WhatsAppScanResult[]> {
+  const startedAt = Date.now();
   const results: WhatsAppScanResult[] = [];
+  
+  // Check all bases in parallel
   const existingBases = await Promise.all(
     BASES.map(async (base) => {
       const info = await statPath(base);
@@ -90,39 +93,58 @@ export async function scanWhatsApp(): Promise<WhatsAppScanResult[]> {
     throw new Error('whatsapp storage folder not found or inaccessible');
   }
 
+  // Process all bases and targets in parallel batches
+  const allTargetPaths: Array<{ base: string; target: string }> = [];
   for (const base of activeBases) {
     for (const target of TARGETS) {
-      const targetPath = joinPath(base, target);
-      const entries = await listFiles(targetPath);
-      if (!entries.length) {
-        continue;
-      }
-
-      const snapshots = await Promise.all(
-        entries.map(async (entry) => {
-          const fullPath = joinPath(targetPath, entry);
-          const info = await statPath(fullPath);
-          return { fullPath, info };
-        }),
-      );
-
-      for (const { fullPath, info } of snapshots) {
-        if (!info.exists || info.isDirectory) {
-          continue;
-        }
-        const type = classify(fullPath);
-        if (target.includes('Media') && type === 'Other') {
-          continue;
-        }
-        results.push({
-          path: fullPath,
-          size: info.size ?? 0,
-          modified: info.modificationTime ?? null,
-          type,
-        });
-      }
+      allTargetPaths.push({ base, target });
     }
   }
+
+  // Process targets in parallel batches (up to 6 at a time)
+  const BATCH_SIZE = 6;
+  for (let i = 0; i < allTargetPaths.length; i += BATCH_SIZE) {
+    const batch = allTargetPaths.slice(i, i + BATCH_SIZE);
+    await Promise.all(
+      batch.map(async ({ base, target }) => {
+        const targetPath = joinPath(base, target);
+        const entries = await listFiles(targetPath);
+        if (!entries.length) {
+          return;
+        }
+
+        // Batch stat operations
+        const snapshots = await Promise.all(
+          entries.map(async (entry) => {
+            const fullPath = joinPath(targetPath, entry);
+            const info = await statPath(fullPath);
+            return { fullPath, info };
+          }),
+        );
+
+        for (const { fullPath, info } of snapshots) {
+          if (!info.exists || info.isDirectory) {
+            continue;
+          }
+          const type = classify(fullPath);
+          if (target.includes('Media') && type === 'Other') {
+            continue;
+          }
+          results.push({
+            path: fullPath,
+            size: info.size ?? 0,
+            modified: info.modificationTime ?? null,
+            type,
+          });
+        }
+      }),
+    );
+  }
+
+  const finishedAt = Date.now();
+  console.log(
+    `[WhatsAppScan] files=${results.length} durationMs=${finishedAt - startedAt}`,
+  );
 
   return results.sort((a, b) => b.size - a.size);
 }

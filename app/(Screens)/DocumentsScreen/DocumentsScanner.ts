@@ -2,17 +2,8 @@ import type { Permission } from 'react-native';
 import { PermissionsAndroid, Platform } from 'react-native';
 import RNFS from 'react-native-fs';
 import type { CategoryFile } from '../../../utils/fileCategoryCalculator';
+import { fastScan, createExtensionFilter, type ScanProgress } from '../../../utils/fastScanner';
 
-export interface ScanProgress {
-  total: number;
-  current: number;
-  scannedFiles?: number;
-  currentFile?: string;
-  stage?: string;
-}
-
-const BATCH_SIZE = 20;
-const PROGRESS_THROTTLE_MS = 120;
 const DOCUMENT_EXTENSIONS = [
   '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt', '.rtf',
   '.odt', '.ods', '.odp', '.csv', '.pages', '.numbers', '.key', '.epub',
@@ -33,49 +24,6 @@ const buildDocumentRootPaths = (): string[] => {
     `${base}/WhatsApp/Media/WhatsApp Documents`,
     `${base}/Android/media`,
   ].filter(Boolean);
-};
-
-const SKIP_PATH_PATTERNS = [
-  /\/\.thumbnails(\/|$)/i,
-  /\/\.cache(\/|$)/i,
-  /\/\.trash(\/|$)/i,
-  /\/proc(\/|$)/i,
-  /\/system(\/|$)/i,
-  /\/dev(\/|$)/i,
-  /\/Android\/data(\/|$)/i,
-  /\/Android\/obb(\/|$)/i,
-];
-
-const shouldSkipPath = (path: string): boolean => {
-  return SKIP_PATH_PATTERNS.some((pattern) => pattern.test(path));
-};
-
-const isDocumentFile = (name: string): boolean => {
-  const lower = name.toLowerCase();
-  // Exclude APK files (handled by APK scanner)
-  if (lower.endsWith('.apk') || lower.endsWith('.apks') || lower.endsWith('.xapk')) {
-    return false;
-  }
-  return DOCUMENT_EXTENSIONS.some((ext) => lower.endsWith(ext));
-};
-
-const safeReadDir = async (directory: string): Promise<RNFS.ReadDirItem[]> => {
-  try {
-    return await RNFS.readDir(directory);
-  } catch {
-    return [];
-  }
-};
-
-const createThrottledProgress = (onProgress?: (progress: ScanProgress) => void) => {
-  let lastEmit = 0;
-  return (progress: ScanProgress) => {
-    const now = Date.now();
-    if (now - lastEmit >= PROGRESS_THROTTLE_MS) {
-      lastEmit = now;
-      onProgress?.(progress);
-    }
-  };
 };
 
 const ensurePerms = async (): Promise<boolean> => {
@@ -111,81 +59,47 @@ export const scanDocuments = async (
   cancelRef?: { current: boolean },
 ): Promise<CategoryFile[]> => {
   const startedAt = Date.now();
-  const emitProgress = createThrottledProgress(onProgress);
   const hasAccess = await ensurePerms();
   if (!hasAccess) {
     return [];
   }
 
   const rootPaths = buildDocumentRootPaths();
-  const results: CategoryFile[] = [];
-  const queue = [...rootPaths];
-  const visited = new Set<string>();
-  let processed = 0;
-
-  emitProgress({ total: 0, current: 0, stage: 'scanning', currentFile: 'initializing' });
-
-  while (queue.length > 0) {
-    if (cancelRef?.current) {
-      break;
+  const documentFilter = createExtensionFilter(DOCUMENT_EXTENSIONS);
+  
+  // Exclude APK files (handled by APK scanner)
+  const combinedFilter = (entry: RNFS.ReadDirItem) => {
+    if (!documentFilter(entry)) {
+      return false;
     }
-
-    const currentDir = queue.shift();
-    if (!currentDir || visited.has(currentDir) || shouldSkipPath(currentDir)) {
-      continue;
+    const lower = entry.name.toLowerCase();
+    // Exclude APK files
+    if (lower.endsWith('.apk') || lower.endsWith('.apks') || lower.endsWith('.xapk')) {
+      return false;
     }
-    visited.add(currentDir);
+    return true;
+  };
 
-    const entries = await safeReadDir(currentDir);
-    processed += 1;
+  const entries = await fastScan<RNFS.ReadDirItem>({
+    rootPaths,
+    fileFilter: combinedFilter,
+    maxConcurrentDirs: 10,
+    batchSize: 100,
+    onProgress,
+    cancelRef,
+  });
 
-    const batches: RNFS.ReadDirItem[][] = [];
-    for (let i = 0; i < entries.length; i += BATCH_SIZE) {
-      batches.push(entries.slice(i, i + BATCH_SIZE));
-    }
+  const results: CategoryFile[] = entries.map((entry) => {
+    const size = typeof entry.size === 'number' && !Number.isNaN(entry.size) ? entry.size : 0;
+    const modifiedDate = entry.mtime ? entry.mtime.getTime() : Date.now();
 
-    for (const batch of batches) {
-      if (cancelRef?.current) {
-        break;
-      }
-
-      await Promise.allSettled(
-        batch.map(async (entry) => {
-          if (shouldSkipPath(entry.path)) {
-            return;
-          }
-
-          if (entry.isDirectory()) {
-            if (!visited.has(entry.path)) {
-              queue.push(entry.path);
-            }
-            return;
-          }
-
-          if (entry.isFile() && isDocumentFile(entry.name)) {
-            const size = typeof entry.size === 'number' && !Number.isNaN(entry.size) ? entry.size : 0;
-            const modifiedDate = entry.mtime ? entry.mtime.getTime() : Date.now();
-
-            results.push({
-              path: entry.path,
-              size,
-              modified: modifiedDate,
-              category: 'Documents',
-            });
-          }
-        }),
-      );
-    }
-
-    const total = processed + queue.length || 1;
-    emitProgress({
-      total,
-      current: processed,
-      scannedFiles: results.length,
-      stage: 'scanning',
-      currentFile: currentDir.split('/').pop() || currentDir,
-    });
-  }
+    return {
+      path: entry.path,
+      size,
+      modified: modifiedDate,
+      category: 'Documents',
+    };
+  });
 
   const finishedAt = Date.now();
   console.log(

@@ -1,18 +1,9 @@
 import type { Permission } from 'react-native';
 import { PermissionsAndroid, Platform } from 'react-native';
 import RNFS from 'react-native-fs';
+import { createExtensionFilter, fastScan, type ScanProgress } from '../../../utils/fastScanner';
 import type { CategoryFile } from '../../../utils/fileCategoryCalculator';
 
-export interface ScanProgress {
-  total: number;
-  current: number;
-  scannedFiles?: number;
-  currentFile?: string;
-  stage?: string;
-}
-
-const BATCH_SIZE = 20;
-const PROGRESS_THROTTLE_MS = 120;
 const VIDEO_EXTENSIONS = [
   '.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.3gp', '.m4v',
   '.mpg', '.mpeg', '.ts', '.m2ts', '.vob', '.asf', '.rm', '.rmvb', '.divx',
@@ -35,45 +26,6 @@ const buildVideoRootPaths = (): string[] => {
     `${base}/Android/media`,
     `${base}/Pictures`,
   ].filter(Boolean);
-};
-
-const SKIP_PATH_PATTERNS = [
-  /\/\.thumbnails(\/|$)/i,
-  /\/\.cache(\/|$)/i,
-  /\/\.trash(\/|$)/i,
-  /\/proc(\/|$)/i,
-  /\/system(\/|$)/i,
-  /\/dev(\/|$)/i,
-  /\/Android\/data(\/|$)/i,
-  /\/Android\/obb(\/|$)/i,
-];
-
-const shouldSkipPath = (path: string): boolean => {
-  return SKIP_PATH_PATTERNS.some((pattern) => pattern.test(path));
-};
-
-const isVideoFile = (name: string): boolean => {
-  const lower = name.toLowerCase();
-  return VIDEO_EXTENSIONS.some((ext) => lower.endsWith(ext));
-};
-
-const safeReadDir = async (directory: string): Promise<RNFS.ReadDirItem[]> => {
-  try {
-    return await RNFS.readDir(directory);
-  } catch {
-    return [];
-  }
-};
-
-const createThrottledProgress = (onProgress?: (progress: ScanProgress) => void) => {
-  let lastEmit = 0;
-  return (progress: ScanProgress) => {
-    const now = Date.now();
-    if (now - lastEmit >= PROGRESS_THROTTLE_MS) {
-      lastEmit = now;
-      onProgress?.(progress);
-    }
-  };
 };
 
 const ensurePerms = async (): Promise<boolean> => {
@@ -109,81 +61,34 @@ export const scanVideos = async (
   cancelRef?: { current: boolean },
 ): Promise<CategoryFile[]> => {
   const startedAt = Date.now();
-  const emitProgress = createThrottledProgress(onProgress);
   const hasAccess = await ensurePerms();
   if (!hasAccess) {
     return [];
   }
 
   const rootPaths = buildVideoRootPaths();
-  const results: CategoryFile[] = [];
-  const queue = [...rootPaths];
-  const visited = new Set<string>();
-  let processed = 0;
+  const videoFilter = createExtensionFilter(VIDEO_EXTENSIONS);
 
-  emitProgress({ total: 0, current: 0, stage: 'scanning', currentFile: 'initializing' });
+  const entries = await fastScan<RNFS.ReadDirItem>({
+    rootPaths,
+    fileFilter: videoFilter,
+    maxConcurrentDirs: 10,
+    batchSize: 100,
+    onProgress,
+    cancelRef,
+  });
 
-  while (queue.length > 0) {
-    if (cancelRef?.current) {
-      break;
-    }
+  const results: CategoryFile[] = entries.map((entry) => {
+    const size = typeof entry.size === 'number' && !Number.isNaN(entry.size) ? entry.size : 0;
+    const modifiedDate = entry.mtime ? entry.mtime.getTime() : Date.now();
 
-    const currentDir = queue.shift();
-    if (!currentDir || visited.has(currentDir) || shouldSkipPath(currentDir)) {
-      continue;
-    }
-    visited.add(currentDir);
-
-    const entries = await safeReadDir(currentDir);
-    processed += 1;
-
-    const batches: RNFS.ReadDirItem[][] = [];
-    for (let i = 0; i < entries.length; i += BATCH_SIZE) {
-      batches.push(entries.slice(i, i + BATCH_SIZE));
-    }
-
-    for (const batch of batches) {
-      if (cancelRef?.current) {
-        break;
-      }
-
-      await Promise.allSettled(
-        batch.map(async (entry) => {
-          if (shouldSkipPath(entry.path)) {
-            return;
-          }
-
-          if (entry.isDirectory()) {
-            if (!visited.has(entry.path)) {
-              queue.push(entry.path);
-            }
-            return;
-          }
-
-          if (entry.isFile() && isVideoFile(entry.name)) {
-            const size = typeof entry.size === 'number' && !Number.isNaN(entry.size) ? entry.size : 0;
-            const modifiedDate = entry.mtime ? entry.mtime.getTime() : Date.now();
-
-            results.push({
-              path: entry.path,
-              size,
-              modified: modifiedDate,
-              category: 'Videos',
-            });
-          }
-        }),
-      );
-    }
-
-    const total = processed + queue.length || 1;
-    emitProgress({
-      total,
-      current: processed,
-      scannedFiles: results.length,
-      stage: 'scanning',
-      currentFile: currentDir.split('/').pop() || currentDir,
-    });
-  }
+    return {
+      path: entry.path,
+      size,
+      modified: modifiedDate,
+      category: 'Videos',
+    };
+  });
 
   const finishedAt = Date.now();
   console.log(

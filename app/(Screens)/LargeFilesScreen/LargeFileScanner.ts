@@ -1,6 +1,7 @@
 import type { Permission } from 'react-native';
 import { PermissionsAndroid, Platform } from 'react-native';
 import RNFS from 'react-native-fs';
+import { createSizeFilter, fastScan } from '../../../utils/fastScanner';
 
 export type LargeFileSource = 'recursive' | 'media' | 'extension' | 'old-large';
 
@@ -39,7 +40,6 @@ const PHASE_OFFSETS = PHASE_ORDER.reduce<Record<ScanPhase, number>>((acc, phase,
 }, {} as Record<ScanPhase, number>);
 
 const DEFAULT_THRESHOLD = 10 * 1024 * 1024; // 10 MB
-const BATCH_SIZE = 24;
 const clamp = (value: number) => Math.min(Math.max(value, 0), 1);
 
 const ROOT_DIRECTORIES = [
@@ -48,14 +48,6 @@ const ROOT_DIRECTORIES = [
   RNFS.ExternalDirectoryPath,
   RNFS.DocumentDirectoryPath,
 ].filter(Boolean) as string[];
-
-const SKIP_PATH_PATTERNS = [
-  /\/Android(\/|$)/i,
-  /\/DCIM\/\.thumbnails(\/|$)/i,
-  /\/WhatsApp\/\.Shared(\/|$)/i,
-  /\/\.Trash(\/|$)/i,
-  /\/\.RecycleBin(\/|$)/i,
-];
 
 export const scanLargeFiles = async (
   threshold: number = DEFAULT_THRESHOLD,
@@ -92,65 +84,29 @@ const scanFileSystem = async (
   threshold: number,
   reportProgress?: (progress: number, detail?: string) => void,
 ): Promise<LargeFileResult[]> => {
-  const results: LargeFileResult[] = [];
-  const queue = [...new Set(ROOT_DIRECTORIES)];
-  const visited = new Set<string>();
-  let processed = 0;
-
-  while (queue.length > 0) {
-    const currentDir = queue.shift();
-    if (!currentDir || visited.has(currentDir) || shouldSkipPath(currentDir)) {
-      continue;
+  let lastProgress = 0;
+  const onProgress = (progress: { current: number; total: number; currentFile?: string }) => {
+    const ratio = progress.total > 0 ? Math.min(progress.current / progress.total, 0.99) : 0;
+    if (ratio > lastProgress + 0.01) {
+      lastProgress = ratio;
+      reportProgress?.(ratio, progress.currentFile);
     }
-    visited.add(currentDir);
+  };
 
-    const entries = await readDirSafe(currentDir);
-    processed += 1;
-    const detail = currentDir.split('/').pop() ?? currentDir;
-    const total = processed + queue.length || 1;
-    reportProgress?.(Math.min(processed / total, 0.99), detail);
+  const sizeFilter = createSizeFilter(threshold);
+  const entries = await fastScan<RNFS.ReadDirItem>({
+    rootPaths: ROOT_DIRECTORIES,
+    fileFilter: sizeFilter,
+    maxConcurrentDirs: 10,
+    batchSize: 100,
+    onProgress,
+  });
 
-    const batches = chunkArray(entries, BATCH_SIZE);
-    for (const batch of batches) {
-      await Promise.all(
-        batch.map(async (entry) => {
-          if (shouldSkipPath(entry.path)) {
-            return;
-          }
-
-          if (entry.isFile() && entry.size >= threshold) {
-            results.push(createResult(entry.path, entry.size, entry.mtime ? entry.mtime.getTime() / 1000 : null));
-            return;
-          }
-
-          if (entry.isDirectory()) {
-            queue.push(entry.path);
-          }
-        }),
-      );
-    }
-  }
-
-  return results;
+  return entries.map((entry) => 
+    createResult(entry.path, entry.size, entry.mtime ? entry.mtime.getTime() / 1000 : null)
+  );
 };
 
-const chunkArray = <T>(items: T[], chunkSize: number): T[][] => {
-  const chunks: T[][] = [];
-  for (let i = 0; i < items.length; i += chunkSize) {
-    chunks.push(items.slice(i, i + chunkSize));
-  }
-  return chunks;
-};
-
-const readDirSafe = async (directory: string): Promise<RNFS.ReadDirItem[]> => {
-  try {
-    return await RNFS.readDir(directory);
-  } catch {
-    return [];
-  }
-};
-
-const shouldSkipPath = (path: string): boolean => SKIP_PATH_PATTERNS.some((pattern) => pattern.test(path));
 
 const dedupeResults = (items: LargeFileResult[]): LargeFileResult[] => {
   const seen = new Map<string, LargeFileResult>();

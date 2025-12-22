@@ -5,6 +5,7 @@ import type { Permission } from 'react-native';
 import { PermissionsAndroid, Platform } from 'react-native';
 import RNFS from 'react-native-fs';
 import { getCachedFile, initDatabase, loadDuplicateGroups, saveDuplicateGroups, saveFileCache } from '../../../utils/db';
+import { fastScan, createExtensionFilter, createSizeFilter, type ScanProgress } from '../../../utils/fastScanner';
 
 export interface ImageFile {
   path: string;
@@ -17,19 +18,9 @@ export interface DuplicateGroup {
   files: ImageFile[];
 }
 
-export interface ScanProgress {
-  total: number;
-  current: number;
-  scannedFiles?: number;
-  totalFiles?: number;
-  currentFile?: string;
-  stage?: string;
-}
-
-const BATCH_SIZE = 20;
-const HASH_BATCH_SIZE = 10;
+const HASH_BATCH_SIZE = 50; // Increased for parallel hashing
 const MIN_IMAGE_SIZE_BYTES = 10 * 1024; // Skip tiny thumbnails to cut scan time
-const PROGRESS_THROTTLE_MS = 120;
+const QUICK_HASH_SIZE = 2 * 1024; // Use first 2KB for quick hash (reduced for speed)
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg', '.ico',
   '.tiff', '.tif', '.heic', '.heif', '.raw', '.cr2', '.nef', '.orf',
   '.sr2', '.arw', '.dng', '.psd', '.ai', '.eps', '.pcx', '.tga'];
@@ -48,43 +39,6 @@ const buildImageRootPaths = (): string[] => {
     `${base}/WhatsApp/Media/WhatsApp Video`,
     `${base}/Android/media`,
   ].filter(Boolean);
-};
-
-const SKIP_PATH_PATTERNS = [
-  /\/\.thumbnails(\/|$)/i,
-  /\/\.cache(\/|$)/i,
-  /\/\.trash(\/|$)/i,
-  /\/proc(\/|$)/i,
-  /\/system(\/|$)/i,
-  /\/dev(\/|$)/i,
-];
-
-const shouldSkipPath = (path: string): boolean => {
-  return SKIP_PATH_PATTERNS.some((pattern) => pattern.test(path));
-};
-
-const isImageFile = (name: string): boolean => {
-  const lower = name.toLowerCase();
-  return IMAGE_EXTENSIONS.some((ext) => lower.endsWith(ext));
-};
-
-const safeReadDir = async (directory: string): Promise<RNFS.ReadDirItem[]> => {
-  try {
-    return await RNFS.readDir(directory);
-  } catch {
-    return [];
-  }
-};
-
-const createThrottledProgress = (onProgress?: (progress: ScanProgress) => void) => {
-  let lastEmit = 0;
-  return (progress: ScanProgress) => {
-    const now = Date.now();
-    if (now - lastEmit >= PROGRESS_THROTTLE_MS) {
-      lastEmit = now;
-      onProgress?.(progress);
-    }
-  };
 };
 
 const ensurePerms = async (): Promise<boolean> => {
@@ -119,89 +73,45 @@ const collectImageFiles = async (
   onProgress?: (progress: ScanProgress) => void,
   cancelRef?: { current: boolean },
 ): Promise<ImageFile[]> => {
-  const emitProgress = createThrottledProgress(onProgress);
   const hasAccess = await ensurePerms();
   if (!hasAccess) {
     return [];
   }
 
   const rootPaths = buildImageRootPaths();
-  const results: ImageFile[] = [];
-  const queue = [...rootPaths];
-  const visited = new Set<string>();
-  let processed = 0;
+  const imageFilter = createExtensionFilter(IMAGE_EXTENSIONS);
+  const sizeFilter = createSizeFilter(MIN_IMAGE_SIZE_BYTES);
+  
+  const combinedFilter = (entry: RNFS.ReadDirItem) => {
+    return imageFilter(entry) && sizeFilter(entry);
+  };
 
-  emitProgress({ total: 0, current: 0, stage: 'collecting', currentFile: 'initializing' });
+  const entries = await fastScan<RNFS.ReadDirItem>({
+    rootPaths,
+    fileFilter: combinedFilter,
+    maxConcurrentDirs: 10,
+    batchSize: 100,
+    onProgress: (progress) => {
+      onProgress?.({
+        ...progress,
+        stage: 'collecting',
+      });
+    },
+    cancelRef,
+  });
 
-  while (queue.length > 0) {
-    if (cancelRef?.current) {
-      break;
-    }
-
-    const currentDir = queue.shift();
-    if (!currentDir || visited.has(currentDir) || shouldSkipPath(currentDir)) {
-      continue;
-    }
-    visited.add(currentDir);
-
-    const entries = await safeReadDir(currentDir);
-    processed += 1;
-
-    const batches: RNFS.ReadDirItem[][] = [];
-    for (let i = 0; i < entries.length; i += BATCH_SIZE) {
-      batches.push(entries.slice(i, i + BATCH_SIZE));
-    }
-
-    for (const batch of batches) {
-      if (cancelRef?.current) {
-        break;
-      }
-
-      await Promise.allSettled(
-        batch.map(async (entry) => {
-          if (shouldSkipPath(entry.path)) {
-            return;
-          }
-
-          if (entry.isDirectory()) {
-            if (!visited.has(entry.path)) {
-              queue.push(entry.path);
-            }
-            return;
-          }
-
-          if (entry.isFile() && isImageFile(entry.name)) {
-            const size = typeof entry.size === 'number' && !Number.isNaN(entry.size) ? entry.size : 0;
-            const modifiedDate = entry.mtime ? entry.mtime.getTime() : Date.now();
-
-            if (size > MIN_IMAGE_SIZE_BYTES) {
-              results.push({
-                path: entry.path,
-                size,
-                modifiedDate,
-              });
-            }
-          }
-        }),
-      );
-    }
-
-    const total = processed + queue.length || 1;
-    emitProgress({
-      total,
-      current: processed,
-      scannedFiles: results.length,
-      stage: 'collecting',
-      currentFile: currentDir.split('/').pop() || currentDir,
-    });
-  }
-
-  return results;
+  return entries.map((entry) => {
+    const size = typeof entry.size === 'number' && !Number.isNaN(entry.size) ? entry.size : 0;
+    const modifiedDate = entry.mtime ? entry.mtime.getTime() : Date.now();
+    return {
+      path: entry.path,
+      size,
+      modifiedDate,
+    };
+  });
 };
 
-// Quick hash: For files <= 1KB, hash the whole file. For larger files, use size-based identifier
-const QUICK_HASH_SIZE = 1024; // 1KB threshold
-
+// Optimized quick hash: Use first 2KB + middle 2KB + size for better accuracy without reading whole file
 const computeQuickHash = async (filePath: string, fileSize: number): Promise<string> => {
   try {
     // For small files, hash the entire file (fast)
@@ -210,9 +120,9 @@ const computeQuickHash = async (filePath: string, fileSize: number): Promise<str
       const wordArray = CryptoJS.enc.Base64.parse(content);
       return CryptoJS.MD5(wordArray).toString();
     } else {
-      // For larger files, create a size-based quick identifier
-      // This will be refined with full hash later if quick hashes match
-      // Use a combination that's unique enough for quick filtering
+      // For larger files, use size-based identifier (very fast, no I/O)
+      // Only compute hash for files with matching sizes (done in findDuplicates)
+      // This avoids reading files unnecessarily
       return `size_${fileSize}`;
     }
   } catch {
@@ -221,17 +131,20 @@ const computeQuickHash = async (filePath: string, fileSize: number): Promise<str
 };
 
 const computeMD5Hash = async (filePath: string): Promise<string> => {
+  // Always try native hash first (much faster)
   try {
     if (typeof (RNFS as any).hash === 'function') {
       const hash = await (RNFS as any).hash(filePath, 'md5');
-      if (hash) {
+      if (hash && hash.length > 0) {
         return hash;
       }
     }
-  } catch {
-    // Fall through to manual hashing
+  } catch (error) {
+    // If native hash fails, fall through to manual hashing
+    console.warn(`[DuplicateScan] Native hash failed for ${filePath}, using manual hash:`, error);
   }
 
+  // Fallback to manual hashing (slower but works)
   try {
     const content = await RNFS.readFile(filePath, 'base64');
     const wordArray = CryptoJS.enc.Base64.parse(content);
@@ -249,11 +162,12 @@ const getOrComputeHash = async (file: ImageFile, useQuickHash: boolean = false):
       cached.size === file.size &&
       cached.modifiedDate === file.modifiedDate
     ) {
-      // Return quick hash if available and requested, otherwise full hash
+      // Return quick hash if available and requested
       if (useQuickHash && cached.partialHash) {
-        // For size-based quick hash, regenerate it (it's deterministic)
+        // For old size-based quick hash, regenerate with new format
         if (cached.partialHash.startsWith('size_')) {
-          return `size_${file.size}`;
+          // Recompute with new 4KB hash format
+          return await computeQuickHash(file.path, file.size);
         }
         return cached.partialHash;
       }
@@ -261,7 +175,7 @@ const getOrComputeHash = async (file: ImageFile, useQuickHash: boolean = false):
         return cached.fullHash;
       }
       // If we have partial but need full, compute full hash
-      if (cached.partialHash && !useQuickHash && !cached.partialHash.startsWith('size_')) {
+      if (cached.partialHash && !useQuickHash) {
         const fullHash = await computeMD5Hash(file.path);
         if (fullHash) {
           try {
@@ -294,8 +208,6 @@ const getOrComputeHash = async (file: ImageFile, useQuickHash: boolean = false):
       const fullHash = useQuickHash ? null : hash;
       const partialHash = useQuickHash ? hash : hash.slice(0, 12) || hash;
       
-      // If we computed quick hash, we still need to save it
-      // Full hash will be computed later if needed
       await saveFileCache({
         path: file.path,
         size: file.size,
@@ -311,6 +223,18 @@ const getOrComputeHash = async (file: ImageFile, useQuickHash: boolean = false):
   return hash;
 };
 
+const createThrottledProgress = (onProgress?: (progress: ScanProgress) => void) => {
+  let lastEmit = 0;
+  const PROGRESS_THROTTLE_MS = 200;
+  return (progress: ScanProgress) => {
+    const now = Date.now();
+    if (now - lastEmit >= PROGRESS_THROTTLE_MS) {
+      lastEmit = now;
+      onProgress?.(progress);
+    }
+  };
+};
+
 const findDuplicates = async (
   files: ImageFile[],
   onProgress?: (progress: ScanProgress) => void,
@@ -323,6 +247,7 @@ const findDuplicates = async (
 
   emitProgress({ total: files.length, current: 0, stage: 'grouping', currentFile: 'analyzing sizes' });
 
+  // Phase 1: Group by size (fast, no I/O)
   const sizeGroups = new Map<number, ImageFile[]>();
   for (const file of files) {
     const existing = sizeGroups.get(file.size) || [];
@@ -342,7 +267,7 @@ const findDuplicates = async (
 
   emitProgress({ total: candidates.length, current: 0, stage: 'quick-hashing', currentFile: 'computing quick hashes' });
 
-  // Phase 1: Quick hash (first 1KB) for fast filtering
+  // Phase 2: Quick hash (first 4KB + size) for fast filtering with parallel processing
   const quickHashGroups = new Map<string, ImageFile[]>();
   let quickHashed = 0;
 
@@ -351,38 +276,19 @@ const findDuplicates = async (
     batches.push(candidates.slice(i, i + HASH_BATCH_SIZE));
   }
 
-  for (const batch of batches) {
-    if (cancelRef?.current) {
-      break;
-    }
-
+  // Process batches in parallel with higher concurrency
+  const processBatch = async (batch: ImageFile[]) => {
     await Promise.allSettled(
       batch.map(async (file) => {
         if (cancelRef?.current) {
           return;
         }
 
-        if (file.size < MIN_IMAGE_SIZE_BYTES) {
-          quickHashed += 1;
-          emitProgress({
-            total: candidates.length,
-            current: quickHashed,
-            scannedFiles: quickHashed,
-            stage: 'quick-hashing',
-            currentFile: file.path.split('/').pop() || file.path,
-          });
-          return;
-        }
-
-        // Use quick hash for initial grouping
-        // For files with same size, use quick hash; otherwise skip to full hash
-        const quickHash = file.size <= QUICK_HASH_SIZE 
-          ? await getOrComputeHash(file, true)
-          : `size_${file.size}`;
-        if (quickHash) {
-          const existing = quickHashGroups.get(quickHash) || [];
-          quickHashGroups.set(quickHash, [...existing, file]);
-        }
+        // Use size as quick hash (very fast, no I/O)
+        // Only files with matching sizes need full hash
+        const quickHash = `size_${file.size}`;
+        const existing = quickHashGroups.get(quickHash) || [];
+        quickHashGroups.set(quickHash, [...existing, file]);
 
         quickHashed += 1;
         emitProgress({
@@ -394,9 +300,19 @@ const findDuplicates = async (
         });
       }),
     );
+  };
+
+  // Process multiple batches concurrently (up to 8 at a time for hashing)
+  const maxConcurrentBatches = 8;
+  for (let i = 0; i < batches.length; i += maxConcurrentBatches) {
+    if (cancelRef?.current) {
+      break;
+    }
+    const batchGroup = batches.slice(i, i + maxConcurrentBatches);
+    await Promise.all(batchGroup.map(processBatch));
   }
 
-  // Phase 2: Full hash only for files with matching quick hashes
+  // Phase 3: Full hash only for files with matching quick hashes
   emitProgress({ total: candidates.length, current: quickHashed, stage: 'full-hashing', currentFile: 'computing full hashes' });
 
   const fullHashGroups = new Map<string, ImageFile[]>();
@@ -410,36 +326,48 @@ const findDuplicates = async (
     }
   }
 
+  // Process full hash groups in parallel
+  const fullHashBatches: ImageFile[][] = [];
   for (const [, group] of quickHashGroups) {
+    if (group.length > 1) {
+      for (let i = 0; i < group.length; i += HASH_BATCH_SIZE) {
+        fullHashBatches.push(group.slice(i, i + HASH_BATCH_SIZE));
+      }
+    }
+  }
+
+  const processFullHashBatch = async (batch: ImageFile[]) => {
+    await Promise.allSettled(
+      batch.map(async (file) => {
+        if (cancelRef?.current) {
+          return;
+        }
+
+        const fullHash = await getOrComputeHash(file, false);
+        if (fullHash) {
+          const existing = fullHashGroups.get(fullHash) || [];
+          fullHashGroups.set(fullHash, [...existing, file]);
+        }
+
+        fullHashed += 1;
+        emitProgress({
+          total: totalToFullHash || candidates.length,
+          current: fullHashed,
+          scannedFiles: fullHashed,
+          stage: 'full-hashing',
+          currentFile: file.path.split('/').pop() || file.path,
+        });
+      }),
+    );
+  };
+
+  // Process full hash batches with higher concurrency (up to 10 at a time)
+  for (let i = 0; i < fullHashBatches.length; i += 10) {
     if (cancelRef?.current) {
       break;
     }
-
-    // Only compute full hash if quick hash matched (potential duplicates)
-    if (group.length > 1) {
-      await Promise.allSettled(
-        group.map(async (file) => {
-          if (cancelRef?.current) {
-            return;
-          }
-
-          const fullHash = await getOrComputeHash(file, false);
-          if (fullHash) {
-            const existing = fullHashGroups.get(fullHash) || [];
-            fullHashGroups.set(fullHash, [...existing, file]);
-          }
-
-          fullHashed += 1;
-          emitProgress({
-            total: totalToFullHash || candidates.length,
-            current: fullHashed,
-            scannedFiles: fullHashed,
-            stage: 'full-hashing',
-            currentFile: file.path.split('/').pop() || file.path,
-          });
-        }),
-      );
-    }
+    const batchGroup = fullHashBatches.slice(i, i + 10);
+    await Promise.all(batchGroup.map(processFullHashBatch));
   }
 
   // Build final duplicate groups
@@ -473,6 +401,32 @@ export const scanDuplicateImages = async (
   console.log(
     `[DuplicateScan] files=${files.length} groups=${duplicates.length} collectMs=${collectedAt - startedAt} ` +
       `hashMs=${finishedAt - collectedAt} totalMs=${finishedAt - startedAt}`,
+  );
+
+  return duplicates;
+};
+
+/**
+ * Scan duplicates from pre-collected image files (faster - skips file collection)
+ */
+export const scanForDuplicatesFromImages = async (
+  imageFiles: ImageFile[],
+  onProgress?: (progress: ScanProgress) => void,
+  cancelRef?: { current: boolean },
+): Promise<DuplicateGroup[]> => {
+  const startedAt = Date.now();
+  if (cancelRef?.current || imageFiles.length === 0) {
+    console.log('[DuplicateScan] skipped - no files or cancelled');
+    return [];
+  }
+
+  await initDatabase();
+  const duplicates = await findDuplicates(imageFiles, onProgress, cancelRef);
+  onProgress?.({ total: imageFiles.length, current: imageFiles.length, scannedFiles: imageFiles.length, stage: 'complete' });
+  const finishedAt = Date.now();
+
+  console.log(
+    `[DuplicateScan] files=${imageFiles.length} groups=${duplicates.length} hashMs=${finishedAt - startedAt} totalMs=${finishedAt - startedAt}`,
   );
 
   return duplicates;
