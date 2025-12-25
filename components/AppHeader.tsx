@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import React, { useMemo } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { DefaultTheme, useTheme } from "styled-components/native";
+import { withOpacity } from "../theme/theme";
 import formatBytes from "../constants/formatBytes";
 import DebouncedTouchableOpacity from "./DebouncedTouchableOpacity";
 
@@ -168,7 +169,7 @@ const createStyles = (theme: DefaultTheme) =>
       borderRadius: 16,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}88` : `${theme.colors.surfaceAlt}99`,
+      backgroundColor: theme.mode === "dark" ? withOpacity(theme.colors.surfaceAlt, 0.533) : withOpacity(theme.colors.surfaceAlt, 0.6),
     },
     selectAllButton: {
       flexDirection: "row",
@@ -178,12 +179,12 @@ const createStyles = (theme: DefaultTheme) =>
       paddingHorizontal: theme.spacing.sm,
       borderRadius: 999,
       borderWidth: 1,
-      borderColor: theme.mode === "dark" ? `${theme.colors.surfaceAlt}99` : `${theme.colors.surfaceAlt}77`,
+      borderColor: theme.mode === "dark" ? withOpacity(theme.colors.surfaceAlt, 0.6) : withOpacity(theme.colors.surfaceAlt, 0.467),
       backgroundColor: theme.colors.surface,
     },
     selectAllButtonActive: {
       borderColor: theme.colors.primary,
-      backgroundColor: `${theme.colors.primary}22`,
+      backgroundColor: withOpacity(theme.colors.primary, 0.133),
     },
     selectAllLabel: {
       color: theme.colors.text,

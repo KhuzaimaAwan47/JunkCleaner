@@ -2,6 +2,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { DefaultTheme, useTheme } from 'styled-components/native';
+import { withOpacity } from '../theme/theme';
 
 type ErrorBannerProps = {
   error: string;
@@ -16,7 +17,7 @@ const ErrorBanner: React.FC<ErrorBannerProps> = ({ error, onDismiss }) => {
 
   return (
     <View style={styles.errorBanner}>
-      <MaterialCommunityIcons name="alert-circle-outline" size={18} color="#ff8484" />
+      <MaterialCommunityIcons name="alert-circle-outline" size={18} color={theme.colors.error} />
       <Text style={styles.errorText}>{error}</Text>
     </View>
   );
@@ -27,16 +28,17 @@ const createStyles = (theme: DefaultTheme) =>
     errorBanner: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: theme.spacing.xs,
       padding: theme.spacing.sm,
       borderRadius: theme.radii.lg,
-      backgroundColor: 'rgba(255, 77, 79, 0.1)',
+      backgroundColor: withOpacity(theme.colors.error, 0.1),
       borderWidth: 1,
-      borderColor: 'rgba(255, 77, 79, 0.4)',
+      borderColor: withOpacity(theme.colors.error, 0.4),
     },
     errorText: {
-      color: '#ff8a8a',
+      color: theme.colors.error,
       flex: 1,
+      fontSize: theme.fontSize.sm,
     },
   });
 

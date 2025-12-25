@@ -1,7 +1,9 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import React from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { DefaultTheme, useTheme } from 'styled-components/native';
+import { withOpacity } from '../theme/theme';
 import formatBytes from '../constants/formatBytes';
 import NeumorphicContainer from './NeumorphicContainer';
 
@@ -77,9 +79,10 @@ export default function DuplicateCard({ file, isSelected, onToggleSelect, onPrev
             >
               <Image
                 source={{ uri: imageUri }}
-                resizeMode="cover"
+                contentFit="cover"
                 onError={() => setLoadError(true)}
                 style={styles.thumbnailImage}
+                cachePolicy="memory-disk"
               />
             </Pressable>
           ) : (
@@ -122,9 +125,9 @@ export default function DuplicateCard({ file, isSelected, onToggleSelect, onPrev
                       elevation: 4,
                     }
                   : {
-                      borderColor: `${theme.colors.primary}66`,
+                      borderColor: withOpacity(theme.colors.primary, 0.4),
                       backgroundColor: theme.colors.surface,
-                      shadowColor: `${theme.colors.primary}aa`,
+                      shadowColor: withOpacity(theme.colors.primary, 0.67),
                       shadowOpacity: 0.45,
                       shadowRadius: 10,
                       elevation: 8,
@@ -140,7 +143,7 @@ export default function DuplicateCard({ file, isSelected, onToggleSelect, onPrev
                     {
                       width: isSelected ? 12 : 6,
                       height: isSelected ? 12 : 6,
-                      backgroundColor: isSelected ? '#ffffff' : `${theme.colors.surfaceAlt}aa`,
+                      backgroundColor: isSelected ? theme.colors.white : withOpacity(theme.colors.surfaceAlt, 0.67),
                     },
                   ]}
                 />
@@ -171,7 +174,7 @@ const createStyles = (theme: DefaultTheme) =>
       overflow: 'hidden',
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: `${theme.colors.surfaceAlt}cc`,
+      backgroundColor: withOpacity(theme.colors.surfaceAlt, 0.8),
     },
     thumbnailImage: {
       width: '100%',

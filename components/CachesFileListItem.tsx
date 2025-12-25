@@ -2,6 +2,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { DefaultTheme, useTheme } from "styled-components/native";
+import { withOpacity } from "../theme/theme";
 import type { CacheItem } from "../app/(Screens)/CachesScreen/CachesScanner";
 import formatBytes from "../constants/formatBytes";
 import { formatTimestamp } from "../utils/fileUtils";
@@ -23,7 +24,7 @@ const CachesFileListItem: React.FC<CachesFileListItemProps> = ({
 
   const displayName = item.packageName || item.path.split("/").pop() || item.path;
   const typeLabel = item.type === 'corpse' ? 'CORPSE' : 'CACHE';
-  const typeColor = item.type === 'corpse' ? '#EF4444' : '#F59E0B';
+  const typeColor = item.type === 'corpse' ? theme.colors.error : theme.colors.warning;
 
   return (
     <TouchableOpacity
@@ -41,7 +42,7 @@ const CachesFileListItem: React.FC<CachesFileListItemProps> = ({
               <MaterialCommunityIcons
                 name={item.type === 'corpse' ? 'delete-outline' : 'cached'}
                 size={24}
-                color={item.type === 'corpse' ? '#EF4444' : '#F59E0B'}
+                color={item.type === 'corpse' ? theme.colors.error : theme.colors.warning}
               />
             </View>
             {selected && (
@@ -62,7 +63,7 @@ const CachesFileListItem: React.FC<CachesFileListItemProps> = ({
               <Text style={styles.fileSize}>{formatBytes(item.size)}</Text>
             </View>
             <View style={styles.badgeRow}>
-              <View style={[styles.typeBadge, { backgroundColor: `${typeColor}22` }]}>
+              <View style={[styles.typeBadge, { backgroundColor: withOpacity(typeColor, 0.133) }]}>
                 <Text style={[styles.typeBadgeText, { color: typeColor }]}>
                   {typeLabel}
                 </Text>
@@ -105,7 +106,7 @@ const createStyles = (theme: DefaultTheme) =>
       height: 56,
       borderRadius: 18,
       overflow: "hidden",
-      backgroundColor: `${theme.colors.surfaceAlt}cc`,
+      backgroundColor: withOpacity(theme.colors.surfaceAlt, 0.8),
       alignItems: "center",
       justifyContent: "center",
       position: "relative",
@@ -115,7 +116,7 @@ const createStyles = (theme: DefaultTheme) =>
       height: "100%",
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: `${theme.colors.primary}18`,
+      backgroundColor: withOpacity(theme.colors.primary, 0.094),
     },
     selectionBadge: {
       position: "absolute",

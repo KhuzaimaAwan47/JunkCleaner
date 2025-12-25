@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import React from 'react';
-import { Image, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { DefaultTheme, useTheme } from 'styled-components/native';
 import formatBytes from '../constants/formatBytes';
 import { DuplicateFileItem } from './DuplicateCard';
@@ -29,23 +30,22 @@ export default function DuplicateFileItemComponent({
   const showImage = !!imageUri && !hasLoadError;
 
   return (
-    <TouchableOpacity style={styles.fileItem} onPress={onToggleSelect} activeOpacity={0.85}>
+    <TouchableOpacity 
+      style={styles.fileItem} 
+      onPress={() => onPreview(file)} 
+      activeOpacity={0.85}
+    >
       <View style={styles.fileItemContent}>
         {showImage ? (
-          <Pressable
-            onPress={(e) => {
-              e.stopPropagation();
-              onPreview(file);
-            }}
-            style={styles.fileThumbnail}
-          >
+          <View style={styles.fileThumbnail}>
             <Image
               source={{ uri: imageUri }}
-              resizeMode="cover"
+              contentFit="cover"
               onError={onImageError}
               style={styles.fileThumbnailImage}
+              cachePolicy="memory-disk"
             />
-          </Pressable>
+          </View>
         ) : (
           <View style={styles.fileIcon}>
             <MaterialCommunityIcons name="image-outline" size={24} color={theme.colors.primary} />
@@ -60,9 +60,16 @@ export default function DuplicateFileItemComponent({
           </Text>
           <Text style={styles.fileSource}>{getFileSource(file.path)}</Text>
         </View>
-        <View style={[styles.fileCheckbox, isSelected && styles.fileCheckboxSelected]}>
+        <Pressable
+          style={[styles.fileCheckbox, isSelected && styles.fileCheckboxSelected]}
+          onPress={(e) => {
+            e.stopPropagation();
+            onToggleSelect();
+          }}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
           {isSelected && <MaterialCommunityIcons name="check" size={16} color={theme.colors.white} />}
-        </View>
+        </Pressable>
       </View>
     </TouchableOpacity>
   );

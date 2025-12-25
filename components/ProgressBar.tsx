@@ -1,10 +1,11 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
+import { DefaultTheme, useTheme } from 'styled-components/native';
 
 interface ProgressBarProps {
   progress: number; // 0-100
@@ -12,13 +13,9 @@ interface ProgressBarProps {
   stage?: string;
 }
 
-const neumorphicStyles = {
-  shadowColorLight: 'rgba(255, 255, 255, 0.1)',
-  shadowColorDark: 'rgba(0, 0, 0, 0.5)',
-  backgroundColor: '#2d2d2d',
-};
-
 export default function ProgressBar({ progress, currentFile, stage }: ProgressBarProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const animatedProgress = useSharedValue(0);
 
   useEffect(() => {
@@ -58,53 +55,54 @@ export default function ProgressBar({ progress, currentFile, stage }: ProgressBa
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    width: '100%',
-    padding: 16,
-  },
-  barContainer: {
-    width: '100%',
-    height: 12,
-    backgroundColor: '#1a1a1a',
-    borderRadius: 6,
-    overflow: 'hidden',
-    shadowColor: neumorphicStyles.shadowColorDark,
-    shadowOffset: { width: 2, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 2,
-    elevation: 3,
-  },
-  progressBar: {
-    height: '100%',
-    backgroundColor: '#4a9eff',
-    borderRadius: 6,
-  },
-  infoContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 12,
-    paddingHorizontal: 4,
-  },
-  text: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '700',
-    textAlign: 'left',
-  },
-  fileText: {
-    color: '#aaaaaa',
-    fontSize: 13,
-    marginTop: 8,
-    textAlign: 'center',
-    paddingHorizontal: 8,
-  },
-  stageText: {
-    color: '#888888',
-    fontSize: 12,
-    textAlign: 'right',
-    fontWeight: '500',
-  },
-});
+const createStyles = (theme: DefaultTheme) =>
+  StyleSheet.create({
+    container: {
+      width: '100%',
+      padding: theme.spacing.md,
+    },
+    barContainer: {
+      width: '100%',
+      height: 12,
+      backgroundColor: theme.colors.surfaceAlt,
+      borderRadius: theme.radii.sm,
+      overflow: 'hidden',
+      shadowColor: theme.mode === 'dark' ? '#000000' : 'rgba(0, 0, 0, 0.1)',
+      shadowOffset: { width: 2, height: 2 },
+      shadowOpacity: theme.mode === 'dark' ? 0.5 : 0.1,
+      shadowRadius: 2,
+      elevation: 3,
+    },
+    progressBar: {
+      height: '100%',
+      backgroundColor: theme.colors.primary,
+      borderRadius: theme.radii.sm,
+    },
+    infoContainer: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: theme.spacing.sm,
+      paddingHorizontal: theme.spacing.xxs,
+    },
+    text: {
+      color: theme.colors.text,
+      fontSize: theme.fontSize.md,
+      fontWeight: theme.fontWeight.bold,
+      textAlign: 'left',
+    },
+    fileText: {
+      color: theme.colors.textMuted,
+      fontSize: theme.fontSize.sm,
+      marginTop: theme.spacing.xs,
+      textAlign: 'center',
+      paddingHorizontal: theme.spacing.xs,
+    },
+    stageText: {
+      color: theme.colors.textMuted,
+      fontSize: theme.fontSize.xs,
+      textAlign: 'right',
+      fontWeight: theme.fontWeight.medium,
+    },
+  });
 

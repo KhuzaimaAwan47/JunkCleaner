@@ -1,13 +1,6 @@
-import { scanForDuplicates, scanForDuplicatesFromImages } from '../app/(Screens)/DuplicateImagesScreen/DuplicateImageScanner';
-import { scanLargeFiles } from '../app/(Screens)/LargeFilesScreen/LargeFileScanner';
-import { scanOldFiles } from '../app/(Screens)/OldFilesScreen/OldFilesScanner';
+import { scanForDuplicatesFromImages } from '../app/(Screens)/DuplicateImagesScreen/DuplicateImageScanner';
 import { scanWhatsApp } from '../app/(Screens)/WhatsAppRemoverScreen/WhatsAppScanner';
-import { scanAPKFiles } from '../app/(Screens)/APKCleanerScreen/APKCleanerScanner';
 import { scanCaches } from '../app/(Screens)/CachesScreen/CachesScanner';
-import { scanVideos } from '../app/(Screens)/VideosScreen/VideosScanner';
-import { scanImages } from '../app/(Screens)/ImagesScreen/ImagesScanner';
-import { scanAudios } from '../app/(Screens)/AudiosScreen/AudiosScanner';
-import { scanDocuments } from '../app/(Screens)/DocumentsScreen/DocumentsScanner';
 import { unifiedFileScan } from './unifiedFileScanner';
 import {
   initDatabase,
@@ -129,7 +122,7 @@ export async function runSmartScan(
   try {
     // Run scanners in parallel groups for maximum speed
     // Group 1: Fast scanners that can run in parallel (different directories)
-    const [whatsappResults, apkResults, cachesResults] = await Promise.all([
+    await Promise.all([
       (async () => {
         updateProgress(0, SCANNER_NAMES[0], 0, 'scanning WhatsApp files...');
         const results = await scanWhatsApp();
@@ -138,16 +131,6 @@ export async function runSmartScan(
         await persistStatus();
         updateProgress(0, SCANNER_NAMES[0], 1, `found ${results.length} WhatsApp files`);
         onResultsUpdate?.({ scannerType: 'whatsapp', scannerName: SCANNER_NAMES[0], results: { whatsappResults: results } });
-        return results;
-      })(),
-      (async () => {
-        updateProgress(4, SCANNER_NAMES[4], 0, 'scanning for APK files...');
-        const results = await scanAPKFiles();
-        await saveAPKResults(results);
-        status.scannerProgress.apk = true;
-        await persistStatus();
-        updateProgress(4, SCANNER_NAMES[4], 1, `found ${results.length} APK files`);
-        onResultsUpdate?.({ scannerType: 'apk', scannerName: SCANNER_NAMES[4], results: { apkResults: results } });
         return results;
       })(),
       (async () => {
@@ -171,6 +154,11 @@ export async function runSmartScan(
         updateProgress(6, 'Unified Scan', ratio, progress.currentFile || 'scanning...');
       }
     );
+
+    await saveAPKResults(unifiedResults.apkFiles);
+    status.scannerProgress.apk = true;
+    updateProgress(4, SCANNER_NAMES[4], 1, `found ${unifiedResults.apkFiles.length} APK files`);
+    onResultsUpdate?.({ scannerType: 'apk', scannerName: SCANNER_NAMES[4], results: { apkResults: unifiedResults.apkFiles } });
 
     // Save all results
     await saveVideosResults(unifiedResults.videos);

@@ -14,7 +14,7 @@ export const allColors = {
   secondary: "#10B981",
   accent: "#F97316",
   text: "#171717",
-  textMuted: "#6B7280",
+  textMuted: "#525252", // Improved contrast: changed from #6B7280 to meet WCAG AA (4.5:1)
   black: "#000000",
   white: "#FFFFFF",
   grey: "#666666",
@@ -31,11 +31,15 @@ export const allColors = {
   success: "#10B981",
   warning: "#F59E0B",
   error: "#EF4444",
+  errorLight: "#FEE2E2", // Light variant for error backgrounds
+  errorDark: "#DC2626", // Darker variant for error emphasis
   info: "#3B82F6",
   background: "#F5F7FA",
   surface: "#FFFFFF",
   surfaceAlt: "#E8EAED",
   border: "#E0E0E0",
+  divider: "#E5E5E5", // Dedicated divider color
+  overlay: "rgba(0, 0, 0, 0.5)", // Overlay for modals
 };
 
 export const darkColors = {
@@ -45,7 +49,7 @@ export const darkColors = {
   secondary: "#34D399",
   accent: "#FB923C",
   text: "#F5F5F5",
-  textMuted: "#A1A1AA",
+  textMuted: "#D4D4D4", // Improved contrast: changed from #A1A1AA to meet WCAG AA (4.5:1)
   black: "#FFFFFF",
   white: "#000000",
   grey: "#999999",
@@ -62,11 +66,15 @@ export const darkColors = {
   success: "#10B981",
   warning: "#F59E0B",
   error: "#EF4444",
+  errorLight: "#7F1D1D", // Dark variant for error backgrounds
+  errorDark: "#FCA5A5", // Lighter variant for error emphasis in dark mode
   info: "#3B82F6",
   background: "#171717",
   surface: "#1C1C1E",
   surfaceAlt: "#2C2C2E",
   border: "#3A3A3C",
+  divider: "#404040", // Dedicated divider color for dark mode
+  overlay: "rgba(0, 0, 0, 0.7)", // Overlay for modals in dark mode
 };
 
 export const Colors = {
@@ -106,11 +114,13 @@ export const spacingY = { ...spacingX };
 
 export const spacing = {
   xxs: 4,
-  xs: spacingX._10,
-  sm: spacingX._15,
-  md: spacingX._20,
-  lg: spacingX._25,
-  xl: spacingX._30,
+  xs: 8, // Refined from 10 for better granularity
+  sm: 12, // Refined from 15 for better granularity
+  md: 16, // Refined from 20 for better granularity
+  lg: spacingX._20,
+  xl: spacingX._25,
+  xxl: spacingX._30,
+  xxxl: 40, // Added for larger gaps
 };
 
 export type SpacingKey = keyof typeof spacing;
@@ -155,6 +165,18 @@ export const fontWeight = {
   bold: "700" as const,
 };
 
+// Line heights ---------------------------------------------------------------
+
+export const lineHeight = {
+  xs: 16,
+  sm: 20,
+  md: 24,
+  lg: 28,
+  xl: 32,
+  xxl: 36,
+  xxxl: 40,
+};
+
 // Theme factory ------------------------------------------------------------
 
 const baseTheme = {
@@ -162,6 +184,7 @@ const baseTheme = {
   radii,
   fontSize,
   fontWeight,
+  lineHeight,
 };
 
 const buildTheme = (mode: ThemeMode): DefaultTheme => ({
@@ -212,7 +235,83 @@ export function useThemeColor(
   return Colors[theme][colorName];
 }
 
-// Shared shadows ----------------------------------------------------------
+// Opacity utility ----------------------------------------------------------
+
+/**
+ * Converts a hex color to rgba format with specified opacity
+ * @param color - Hex color string (with or without #)
+ * @param opacity - Opacity value between 0 and 1
+ * @returns rgba color string
+ */
+export function withOpacity(color: string, opacity: number): string {
+  // Remove # if present
+  const hex = color.replace("#", "");
+  
+  // Handle 3-digit hex colors
+  if (hex.length === 3) {
+    const r = parseInt(hex[0] + hex[0], 16);
+    const g = parseInt(hex[1] + hex[1], 16);
+    const b = parseInt(hex[2] + hex[2], 16);
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+  }
+  
+  // Handle 6-digit hex colors
+  if (hex.length === 6) {
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+  }
+  
+  // If already rgba, return as is
+  if (color.startsWith("rgba")) {
+    return color;
+  }
+  
+  // Fallback
+  return color;
+}
+
+// Shadow system ----------------------------------------------------------
+
+type ShadowPreset = {
+  shadowColor: string;
+  shadowOffset: { width: number; height: number };
+  shadowOpacity: number;
+  shadowRadius: number;
+  elevation: number;
+};
+
+export const shadows = {
+  sm: (isDark: boolean): ShadowPreset => ({
+    shadowColor: isDark ? "#000000" : "rgba(0, 0, 0, 0.1)",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: isDark ? 0.3 : 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  }),
+  md: (isDark: boolean): ShadowPreset => ({
+    shadowColor: isDark ? "#000000" : "rgba(0, 0, 0, 0.15)",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: isDark ? 0.4 : 0.15,
+    shadowRadius: 4,
+    elevation: 4,
+  }),
+  lg: (isDark: boolean): ShadowPreset => ({
+    shadowColor: isDark ? "#000000" : "rgba(0, 0, 0, 0.2)",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: isDark ? 0.5 : 0.2,
+    shadowRadius: 8,
+    elevation: 8,
+  }),
+  xl: (isDark: boolean): ShadowPreset => ({
+    shadowColor: isDark ? "#000000" : "rgba(0, 0, 0, 0.25)",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: isDark ? 0.6 : 0.25,
+    shadowRadius: 16,
+    elevation: 12,
+  }),
+};
 
 type ShadowSet = {
   soft: ViewStyle;
@@ -250,6 +349,7 @@ declare module "styled-components" {
     radii: typeof radii;
     fontSize: typeof fontSize;
     fontWeight: typeof fontWeight;
+    lineHeight: typeof lineHeight;
   }
 }
 
@@ -261,6 +361,7 @@ declare module "styled-components/native" {
     radii: typeof radii;
     fontSize: typeof fontSize;
     fontWeight: typeof fontWeight;
+    lineHeight: typeof lineHeight;
   }
 }
 

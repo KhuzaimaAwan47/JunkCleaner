@@ -2,6 +2,7 @@
 import React, { ReactNode, useMemo } from "react";
 import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 import { DefaultTheme, useTheme } from "styled-components/native";
+import { withOpacity } from "../theme/theme";
 import DebouncedTouchableOpacity from "./DebouncedTouchableOpacity";
 
 type Props = {
@@ -23,7 +24,7 @@ const NeumorphicContainer: React.FC<Props> = ({
   const styles = useMemo(() => createStyles(theme), [theme]);
   const shadowStyle = useMemo(
     () => ({
-      shadowColor: theme.mode === 'dark' ? '#05070E' : `${theme.colors.surfaceAlt}aa`,
+      shadowColor: theme.mode === 'dark' ? '#05070E' : withOpacity(theme.colors.surfaceAlt, 0.67),
       shadowOffset: { width: 6, height: 6 },
       shadowOpacity: glass ? 0.3 : 0.45,
       shadowRadius: glass ? 18 : 24,
@@ -54,7 +55,7 @@ const NeumorphicContainer: React.FC<Props> = ({
         styles.base,
         {
           padding: padding ?? theme.spacing.lg,
-          backgroundColor: glass ? `${theme.colors.surface}11` : theme.colors.surface,
+          backgroundColor: glass ? withOpacity(theme.colors.surface, 0.067) : theme.colors.surface,
           borderWidth: glass ? 1 : 0,
         },
         shadowStyle,
@@ -83,7 +84,7 @@ const createStyles = (theme: DefaultTheme) =>
   StyleSheet.create({
     base: {
       borderRadius: theme.radii.xl,
-      borderColor: `${theme.colors.surfaceAlt}66`,
+      borderColor: withOpacity(theme.colors.surfaceAlt, 0.4),
       overflow: "hidden",
     },
     glassOverlay: {

@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import React, { useState } from "react";
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import type { LargeFileResult } from "../app/(Screens)/LargeFilesScreen/LargeFileScanner";
 import formatBytes from "../constants/formatBytes";
@@ -56,9 +57,10 @@ const LargeFileListItem: React.FC<LargeFileListItemProps> = ({
             {showThumbnail && imageUri ? (
               <Image
                 source={{ uri: imageUri }}
-                resizeMode="cover"
+                contentFit="cover"
                 style={styles.thumbnailImage}
                 onError={handleThumbnailError}
+                cachePolicy="memory-disk"
               />
             ) : (
               <View style={styles.thumbnailFallback}>

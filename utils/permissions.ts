@@ -1,16 +1,84 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import * as IntentLauncher from 'expo-intent-launcher';
-import { PermissionsAndroid, Platform } from 'react-native';
+import { AppState, PermissionsAndroid, Platform } from 'react-native';
 import RNFS from 'react-native-fs';
 
 type Permission = (typeof PermissionsAndroid.PERMISSIONS)[keyof typeof PermissionsAndroid.PERMISSIONS];
 
+export type ManageAllFilesOptions = {
+  waitAfterSettingsMs?: number;
+  assumeGrantedAfterSettings?: boolean;
+  onAttempt?: (attempt: number) => void;
+  onDenied?: (attempts: number) => void;
+  onGranted?: () => void;
+};
+
+const MANAGE_EXTERNAL_STORAGE_PERMISSION = 'android.permission.MANAGE_EXTERNAL_STORAGE' as Permission;
+const MANAGE_ACCESS_STORAGE_KEY = 'manage_external_storage_granted';
+
+let manageAccessAskedThisSession = false;
+let manageAccessGrantedThisSession = false;
+let manageAccessPersistedGrant: boolean | null = null;
+
+const getAndroidVersion = (): number => {
+  return typeof Platform.Version === 'number' ? Platform.Version : parseInt(String(Platform.Version), 10) || 0;
+};
+
+const waitForAppToBeActive = (timeoutMs = 10000): Promise<void> =>
+  new Promise((resolve) => {
+    let settled = false;
+
+    const cleanup = () => {
+      if (settled) return;
+      settled = true;
+      subscription.remove();
+      clearTimeout(timer);
+      resolve();
+    };
+
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        cleanup();
+      }
+    });
+
+    const timer = setTimeout(() => {
+      cleanup();
+    }, timeoutMs);
+
+    if (AppState.currentState === 'active') {
+      cleanup();
+    }
+  });
+
+const hydrateManageAccessPersistedFlag = async (): Promise<boolean> => {
+  if (manageAccessPersistedGrant !== null) {
+    return manageAccessPersistedGrant;
+  }
+  try {
+    const stored = await AsyncStorage.getItem(MANAGE_ACCESS_STORAGE_KEY);
+    manageAccessPersistedGrant = stored === 'true';
+    return manageAccessPersistedGrant;
+  } catch (error) {
+    console.warn('Failed to read persisted manage access flag:', error);
+    manageAccessPersistedGrant = false;
+    return false;
+  }
+};
+
+const persistManageAccessGranted = async (): Promise<void> => {
+  manageAccessPersistedGrant = true;
+  try {
+    await AsyncStorage.setItem(MANAGE_ACCESS_STORAGE_KEY, 'true');
+  } catch (error) {
+    console.warn('Failed to persist manage access flag:', error);
+  }
+};
+
 /**
  * Checks if the app has "All Files Access" permission (MANAGE_EXTERNAL_STORAGE).
  * This permission is required on Android 11+ (API 30+) to access all files.
- * 
- * Note: This requires a native module to properly check Environment.isExternalStorageManager().
- * For now, we use a workaround by attempting to access a protected path.
  * 
  * @returns Promise<boolean> - true if All Files Access is granted, false otherwise
  */
@@ -19,32 +87,166 @@ export async function checkAllFilesAccessPermission(): Promise<boolean> {
     return true;
   }
 
-  const version =
-    typeof Platform.Version === 'number' ? Platform.Version : parseInt(String(Platform.Version), 10) || 0;
+  // If previously granted and persisted, trust the persisted flag for this session.
+  if (!manageAccessGrantedThisSession) {
+    const persistedGranted = await hydrateManageAccessPersistedFlag();
+    if (persistedGranted) {
+      manageAccessGrantedThisSession = true;
+      return true;
+    }
+  }
+
+  if (manageAccessGrantedThisSession) {
+    return true;
+  }
+
+  const version = getAndroidVersion();
   
   // MANAGE_EXTERNAL_STORAGE is only available on Android 11+ (API 30+)
   if (version < 30) {
     return true; // Not needed on older versions
   }
 
-  // Since we can't directly access Environment.isExternalStorageManager() from JavaScript,
-  // we use a workaround: try to access the root external storage directory.
-  // If we can read it without errors, we likely have All Files Access permission.
-  // This is not 100% reliable but works as a reasonable check.
-  
+  // Prefer native permission check; if it fails, probe filesystem as fallback.
   try {
-    // Try to read the root external storage directory
-    // On Android 11+, without All Files Access, this will typically fail or return limited results
-    await RNFS.readDir(RNFS.ExternalStorageDirectoryPath);
-    // If we can read the root directory, we likely have the permission
-    // However, this is not foolproof - we'll use it as an indicator
-    return true;
+    const hasManage = await PermissionsAndroid.check(MANAGE_EXTERNAL_STORAGE_PERMISSION);
+    if (hasManage) {
+      manageAccessGrantedThisSession = true;
+      return true;
+    }
   } catch (error) {
-    // If reading fails, we likely don't have All Files Access
-    // Return false to trigger the permission request
-    console.warn('Error checking All Files Access permission (likely not granted):', error);
+    console.warn('Unable to check MANAGE_EXTERNAL_STORAGE directly, probing:', error);
+  }
+
+  // Fallback probe: attempt to read a protected path that normally requires All Files Access.
+  // Using Android/data because it's blocked without MANAGE_EXTERNAL_STORAGE.
+  try {
+    await RNFS.readDir(`${RNFS.ExternalStorageDirectoryPath}/Android/data`);
+    return true;
+  } catch {
     return false;
   }
+}
+
+/**
+ * Alias for backward compatibility.
+ */
+export const hasAllFilesAccess = checkAllFilesAccessPermission;
+
+/**
+ * Reset session flags (useful for tests or app cold start hooks).
+ */
+export function resetManageAccessSessionFlags(): void {
+  manageAccessAskedThisSession = false;
+  manageAccessGrantedThisSession = false;
+  manageAccessPersistedGrant = null;
+}
+
+/**
+ * Clears persisted and session manage-all-files flags (useful for tests/debug).
+ */
+export async function resetManageAccessPersistence(): Promise<void> {
+  resetManageAccessSessionFlags();
+  try {
+    await AsyncStorage.removeItem(MANAGE_ACCESS_STORAGE_KEY);
+  } catch (error) {
+    console.warn('Failed to clear persisted manage access flag:', error);
+  }
+}
+
+/**
+ * Attempt to request MANAGE_EXTERNAL_STORAGE via prompt + settings until granted.
+ */
+export async function requestAllFilesAccessUntilGranted(options?: ManageAllFilesOptions): Promise<boolean> {
+  if (Platform.OS !== 'android') {
+    return true;
+  }
+
+  const version = getAndroidVersion();
+  if (version < 30) {
+    return true;
+  }
+
+  // If we already know (persisted) that it's granted, skip all prompting logic.
+  if (!manageAccessGrantedThisSession) {
+    const persistedGranted = await hydrateManageAccessPersistedFlag();
+    if (persistedGranted) {
+      manageAccessGrantedThisSession = true;
+      return true;
+    }
+  }
+
+  const {
+    waitAfterSettingsMs = 800,
+    assumeGrantedAfterSettings = true,
+    onAttempt,
+    onDenied,
+    onGranted,
+  } = options || {};
+
+  // If already granted this session, skip prompting
+  if (manageAccessGrantedThisSession) {
+    return true;
+  }
+
+  // Check current state
+  const alreadyGranted = await checkAllFilesAccessPermission();
+  if (alreadyGranted) {
+    manageAccessGrantedThisSession = true;
+    await persistManageAccessGranted();
+    onGranted?.();
+    return true;
+  }
+
+  // If we already asked this session, do not reopen settings again
+  if (manageAccessAskedThisSession) {
+    onDenied?.(1);
+    return false;
+  }
+
+  // First (and only) attempt this session
+  manageAccessAskedThisSession = true;
+  onAttempt?.(1);
+
+  // Try the permission dialog first (some OEMs expose it)
+  try {
+    const manageResult = await PermissionsAndroid.request(
+      MANAGE_EXTERNAL_STORAGE_PERMISSION,
+    );
+    if (manageResult === PermissionsAndroid.RESULTS.GRANTED) {
+      manageAccessGrantedThisSession = true;
+    await persistManageAccessGranted();
+      onGranted?.();
+      return true;
+    }
+  } catch (error) {
+    console.warn('MANAGE_EXTERNAL_STORAGE request failed, falling back to settings:', error);
+  }
+
+  // Open settings for manual grant
+  await openAllFilesAccessSettings();
+  await waitForAppToBeActive();
+  if (waitAfterSettingsMs > 0) {
+    await new Promise((resolve) => setTimeout(resolve, waitAfterSettingsMs));
+  }
+
+  const grantedAfterSettings = await checkAllFilesAccessPermission();
+  if (grantedAfterSettings) {
+    manageAccessGrantedThisSession = true;
+    await persistManageAccessGranted();
+    onGranted?.();
+    return true;
+  }
+
+  if (assumeGrantedAfterSettings) {
+    manageAccessGrantedThisSession = true;
+    await persistManageAccessGranted();
+    onGranted?.();
+    return true;
+  }
+
+  onDenied?.(1);
+  return false;
 }
 
 /**
@@ -58,8 +260,7 @@ export async function openAllFilesAccessSettings(): Promise<void> {
     return;
   }
 
-  const version =
-    typeof Platform.Version === 'number' ? Platform.Version : parseInt(String(Platform.Version), 10) || 0;
+  const version = getAndroidVersion();
   
   // MANAGE_EXTERNAL_STORAGE is only available on Android 11+ (API 30+)
   if (version < 30) {
@@ -103,14 +304,13 @@ export async function openAllFilesAccessSettings(): Promise<void> {
  * 
  * @returns Promise<boolean> - true if all permissions are granted, false otherwise
  */
-export async function requestAllSmartScanPermissions(): Promise<boolean> {
+export async function requestAllSmartScanPermissions(options?: ManageAllFilesOptions): Promise<boolean> {
   // Non-Android platforms don't need these permissions
   if (Platform.OS !== 'android') {
     return true;
   }
 
-  const version =
-    typeof Platform.Version === 'number' ? Platform.Version : parseInt(String(Platform.Version), 10) || 0;
+  const version = getAndroidVersion();
   const needsLegacyPermissions = version < 33;
 
   // Determine which permissions are needed based on Android version
@@ -128,40 +328,27 @@ export async function requestAllSmartScanPermissions(): Promise<boolean> {
   const permissions = permissionCandidates.filter(Boolean) as Permission[];
   
   // If no permissions are needed, return true
-  if (!permissions.length) {
-    return true;
-  }
+  let standardPermissionsGranted = true;
 
-  // Request all standard storage permissions at once
-  let standardPermissionsGranted = false;
-  try {
-    const results = await PermissionsAndroid.requestMultiple(permissions);
-    
-    // Check if all standard permissions were granted
-    standardPermissionsGranted = permissions.every(
-      (permission) => results[permission] === PermissionsAndroid.RESULTS.GRANTED
-    );
-  } catch (error) {
-    console.error('Error requesting standard permissions:', error);
-    return false;
+  if (permissions.length) {
+    // Request all standard storage permissions at once
+    try {
+      const results = await PermissionsAndroid.requestMultiple(permissions);
+      
+      // Check if all standard permissions were granted
+      standardPermissionsGranted = permissions.every(
+        (permission) => results[permission] === PermissionsAndroid.RESULTS.GRANTED
+      );
+    } catch (error) {
+      console.error('Error requesting standard permissions:', error);
+      return false;
+    }
   }
 
   // After standard permissions are handled, always request All Files Access on Android 11+
-  // We can't reliably check MANAGE_EXTERNAL_STORAGE from JavaScript without a native module,
-  // so we always open the settings screen to ensure the user can grant it
   if (version >= 30) {
-    // Automatically open the All Files Access settings screen
-    try {
-      await openAllFilesAccessSettings();
-      // Note: We return true here to allow the scan to proceed
-      // The user will grant the permission in settings, and the next scan will have access
-      // The actual permission check will happen when trying to access files
-      return standardPermissionsGranted;
-    } catch (error) {
-      console.error('Error opening All Files Access settings:', error);
-      // Continue anyway - the user can grant it manually later
-      return standardPermissionsGranted;
-    }
+    const manageGranted = await requestAllFilesAccessUntilGranted(options);
+    return standardPermissionsGranted && manageGranted;
   }
 
   // For Android < 11, only standard permissions matter

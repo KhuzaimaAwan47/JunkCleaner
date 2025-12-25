@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import React from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { DefaultTheme, useTheme } from 'styled-components/native';
 import formatBytes from '../constants/formatBytes';
 import type { WhatsAppFileType, WhatsAppScanResult } from '../app/(Screens)/WhatsAppRemoverScreen/WhatsAppScanner';
@@ -87,9 +88,10 @@ const WhatsAppFileListItem: React.FC<WhatsAppFileListItemProps> = ({
         {showThumbnail ? (
           <Image
             source={{ uri: item.path }}
-            resizeMode="cover"
+            contentFit="cover"
             style={styles.thumbnailImage}
             onError={onThumbnailError}
+            cachePolicy="memory-disk"
           />
         ) : (
           <View style={styles.thumbnailFallback}>

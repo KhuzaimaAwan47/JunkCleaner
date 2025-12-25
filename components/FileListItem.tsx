@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import React from "react";
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { DefaultTheme, useTheme } from "styled-components/native";
 import formatBytes from "../constants/formatBytes";
 
@@ -50,6 +51,8 @@ const FileListItem: React.FC<FileListItemProps> = ({
             source={{ uri: thumbnailUri ?? undefined }}
             style={styles.thumbnail}
             onError={() => setThumbError(true)}
+            contentFit="cover"
+            cachePolicy="memory-disk"
           />
         ) : (
           <View style={styles.iconWrapper}>
@@ -125,7 +128,6 @@ const createStyles = (theme: DefaultTheme) =>
       width: 44,
       height: 44,
       borderRadius: 12,
-      resizeMode: "cover",
       backgroundColor: theme.colors.surface,
     },
     selectionBadge: {
@@ -147,12 +149,12 @@ const createStyles = (theme: DefaultTheme) =>
     },
     title: {
       color: theme.colors.text,
-      fontWeight: "700",
-      fontSize: 14,
+      fontWeight: theme.fontWeight.bold,
+      fontSize: theme.fontSize.sm,
     },
     subtitle: {
       color: theme.colors.textMuted,
-      fontSize: 13,
+      fontSize: theme.fontSize.sm,
     },
     metaRow: {
       flexDirection: "row",
@@ -161,7 +163,7 @@ const createStyles = (theme: DefaultTheme) =>
     },
     meta: {
       color: theme.colors.textMuted,
-      fontSize: 12,
+      fontSize: theme.fontSize.xs,
     },
     trailing: {
       marginLeft: theme.spacing.sm,

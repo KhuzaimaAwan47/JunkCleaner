@@ -1,17 +1,13 @@
 import { useRouter } from "expo-router";
 import React from "react";
-import { ScrollView, StyleSheet, View, type ViewStyle } from "react-native";
-import { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import { Alert, ScrollView, StyleSheet, View } from "react-native";
+
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import { DefaultTheme, useTheme } from "styled-components/native";
-import CircularLoadingIndicator from "../../../components/CircularLoadingIndicator";
-import HomeFeatureSections from "../../../components/HomeFeatureSections";
-import ScanButton from "../../../components/ScanButton";
+import ModuleCard from "../../../components/ModuleCard";
 import ScreenWrapper from "../../../components/ScreenWrapper";
 import StorageIndicatorCard from "../../../components/StorageIndicatorCard";
-import type { Feature } from "../../../dummydata/features";
-import { featureCards } from "../../../dummydata/features";
 import {
   setAPKResults,
   setAudiosResults,
@@ -27,15 +23,27 @@ import {
   setWhatsappResults,
 } from "../../../redux-code/action";
 import type { RootState } from "../../../redux-code/store";
+import { appRoutes } from "../../../routes";
 import {
   initDatabase,
   loadAllScanResults,
+  saveAPKResults,
+  saveAudiosResults,
+  saveDocumentsResults,
+  saveDuplicateGroups,
+  saveImagesResults,
+  saveLargeFileResults,
+  saveOldFileResults,
+  saveVideosResults,
+  saveWhatsAppResults,
 } from "../../../utils/db";
-import { calculateFeatureStats, formatFeatureSubtitle } from "../../../utils/featureStatsCalculator";
-import { calculateFileCategoryFeatures } from "../../../utils/fileCategoryCalculator";
+import { calculateFeatureStats } from "../../../utils/featureStatsCalculator";
 import { calculateProgressFromSnapshot } from "../../../utils/homeScreenHelpers";
+import { requestAllSmartScanPermissions } from "../../../utils/permissions";
 import { getStorageInfo } from "../../../utils/storage";
-import { useSmartScan } from "./useSmartScan";
+import { unifiedFileScan } from "../../../utils/unifiedFileScanner";
+import { scanDuplicateImages } from "../DuplicateImagesScreen/DuplicateImageScanner";
+import { scanWhatsApp } from "../WhatsAppRemoverScreen/WhatsAppScanner";
 
 const HomeScreen = () => {
   const router = useRouter();
@@ -43,7 +51,6 @@ const HomeScreen = () => {
   const theme = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   
-  const scanProgress = useSelector((state: RootState) => state.appState.scanProgress);
   const featureProgress = useSelector((state: RootState) => state.appState.featureProgress);
   const storageInfo = useSelector((state: RootState) => state.appState.storageInfo);
   const largeFileResults = useSelector((state: RootState) => state.appState.largeFileResults);
@@ -57,9 +64,6 @@ const HomeScreen = () => {
   const audiosResults = useSelector((state: RootState) => state.appState.audiosResults);
   const documentsResults = useSelector((state: RootState) => state.appState.documentsResults);
   
-  const [showFeatures, setShowFeatures] = React.useState(false);
-  const featureVisibility = useSharedValue(0);
-
   // Calculate feature stats from scan results
   const featureStats = React.useMemo(() => {
     return calculateFeatureStats({
@@ -72,56 +76,61 @@ const HomeScreen = () => {
     });
   }, [whatsappResults, duplicateResults, largeFileResults, oldFileResults, apkResults, cachesResults]);
 
-  // Calculate file category features
-  const fileCategoryFeatures = React.useMemo<Feature[]>(() => {
-    return calculateFileCategoryFeatures(
-      {
-        largeFileResults,
-        oldFileResults,
-        whatsappResults,
-        duplicateResults,
-        apkResults,
-        cachesResults,
-        videosResults,
-        imagesResults,
-        audiosResults,
-        documentsResults,
-      },
-      theme
-    );
-  }, [largeFileResults, oldFileResults, whatsappResults, duplicateResults, apkResults, cachesResults, videosResults, imagesResults, audiosResults, documentsResults, theme]);
+  // Calculate Storage Analyzer stats (aggregate all file categories)
+  const storageAnalyzerStats = React.useMemo(() => {
+    let totalCount = 0;
+    let totalSize = 0;
 
-  // Combine existing features with file category features and apply formatted subtitles
-  const features = React.useMemo<Feature[]>(() => {
-    const existingFeatures = featureCards.filter((f) => f.id !== "smart");
-    
-    // Update existing features with calculated stats and formatted subtitles
-    const updatedFeatures = existingFeatures.map((feature) => {
-      const stats = featureStats[feature.id];
-      if (stats) {
-        return {
-          ...feature,
-          subtitle: formatFeatureSubtitle(stats.size, stats.count),
-        };
-      }
-      return feature;
-    });
-    
-    const allFeatures = [...updatedFeatures, ...fileCategoryFeatures];
-    
-    // Fixed priority order: Large Files → Old Files → Duplicates → APKs → WhatsApp → rest
-    const priorityOrder = ['large', 'old', 'duplicate', 'apk', 'whatsapp'];
-    const getPriority = (id: string): number => {
-      const index = priorityOrder.indexOf(id);
-      return index === -1 ? 999 : index; // Features not in priority list go to end
+    // Add counts and sizes from all categories
+    if (largeFileResults) {
+      totalCount += largeFileResults.length;
+      totalSize += largeFileResults.reduce((sum, f) => sum + f.size, 0);
+    }
+    if (oldFileResults) {
+      totalCount += oldFileResults.length;
+      totalSize += oldFileResults.reduce((sum, f) => sum + f.size, 0);
+    }
+    if (videosResults) {
+      totalCount += videosResults.length;
+      totalSize += videosResults.reduce((sum, f) => sum + f.size, 0);
+    }
+    if (imagesResults) {
+      totalCount += imagesResults.length;
+      totalSize += imagesResults.reduce((sum, f) => sum + f.size, 0);
+    }
+    if (audiosResults) {
+      totalCount += audiosResults.length;
+      totalSize += audiosResults.reduce((sum, f) => sum + f.size, 0);
+    }
+    if (documentsResults) {
+      totalCount += documentsResults.length;
+      totalSize += documentsResults.reduce((sum, f) => sum + f.size, 0);
+    }
+    if (apkResults) {
+      totalCount += apkResults.length;
+      totalSize += apkResults.reduce((sum, f) => sum + f.size, 0);
+    }
+
+    return { count: totalCount, size: totalSize };
+  }, [largeFileResults, oldFileResults, videosResults, imagesResults, audiosResults, documentsResults, apkResults]);
+
+  // Calculate Duplicate Images stats
+  const duplicateStats = React.useMemo(() => {
+    const stats = featureStats.duplicate;
+    return {
+      count: stats?.count ?? 0,
+      size: stats?.size ?? 0,
     };
-    
-    return allFeatures.sort((a, b) => {
-      const aPriority = getPriority(a.id);
-      const bPriority = getPriority(b.id);
-      return aPriority - bPriority;
-    });
-  }, [fileCategoryFeatures, featureStats]);
+  }, [featureStats.duplicate]);
+
+  // Calculate WhatsApp Cleaner stats
+  const whatsappStats = React.useMemo(() => {
+    const stats = featureStats.whatsapp;
+    return {
+      count: stats?.count ?? 0,
+      size: stats?.size ?? 0,
+    };
+  }, [featureStats.whatsapp]);
 
   const refreshHomeState = React.useCallback(async () => {
     try {
@@ -142,8 +151,6 @@ const HomeScreen = () => {
       dispatch(setAPKResults(snapshot.apkResults));
       dispatch(setCachesResults(snapshot.cachesResults));
 
-      // Always render feature cards; fall back to zeroed progress when no data yet.
-      setShowFeatures(true);
       dispatch(
         setFeatureProgress(
           calculateProgressFromSnapshot(snapshot)
@@ -155,21 +162,120 @@ const HomeScreen = () => {
     }
   }, [dispatch]);
 
-  const isScanning = useSelector((state: RootState) => state.appState.loadingStates.smartScan);
-  const { isScanning: localIsScanning, handleSmartScan, handleStopScan } = useSmartScan(refreshHomeState);
+
+  const [scanningStates, setScanningStates] = React.useState({
+    storage: false,
+    duplicate: false,
+    whatsapp: false,
+  });
 
   React.useEffect(() => {
     refreshHomeState();
-  }, [refreshHomeState, isScanning, dispatch]);
+  }, [refreshHomeState, dispatch]);
 
-  React.useEffect(() => {
-    featureVisibility.value = withTiming(showFeatures ? 1 : 0, { duration: 450 });
-  }, [featureVisibility, showFeatures]);
+  const handleStorageScan = React.useCallback(async () => {
+    if (scanningStates.storage) return;
 
-  const featureRevealStyle = useAnimatedStyle<ViewStyle>(() => ({
-    opacity: featureVisibility.value,
-    transform: [{ translateY: (1 - featureVisibility.value) * 14 }],
-  }));
+    const hasPermissions = await requestAllSmartScanPermissions();
+    if (!hasPermissions) {
+      Alert.alert(
+        "Permissions Required",
+        "Storage permissions are required to scan files. Please grant the permissions and try again.",
+      );
+      return;
+    }
+
+    setScanningStates((prev) => ({ ...prev, storage: true }));
+    try {
+      await initDatabase();
+      const results = await unifiedFileScan();
+      
+      // Save all results
+      await Promise.all([
+        saveLargeFileResults(results.largeFiles),
+        saveOldFileResults(results.oldFiles),
+        saveVideosResults(results.videos),
+        saveImagesResults(results.images),
+        saveAudiosResults(results.audios),
+        saveDocumentsResults(results.documents),
+        saveAPKResults(results.apkFiles),
+      ]);
+
+      // Dispatch results
+      dispatch(setLargeFileResults(results.largeFiles));
+      dispatch(setOldFileResults(results.oldFiles));
+      dispatch(setVideosResults(results.videos));
+      dispatch(setImagesResults(results.images));
+      dispatch(setAudiosResults(results.audios));
+      dispatch(setDocumentsResults(results.documents));
+      dispatch(setAPKResults(results.apkFiles));
+
+      await refreshHomeState();
+    } catch (error) {
+      console.error("Storage scan error:", error);
+      Alert.alert("Scan Error", (error as Error).message || "An error occurred during the scan.");
+    } finally {
+      setScanningStates((prev) => ({ ...prev, storage: false }));
+    }
+  }, [scanningStates.storage, dispatch, refreshHomeState]);
+
+  const handleDuplicateScan = React.useCallback(async () => {
+    if (scanningStates.duplicate) return;
+
+    const hasPermissions = await requestAllSmartScanPermissions();
+    if (!hasPermissions) {
+      Alert.alert(
+        "Permissions Required",
+        "Storage permissions are required to scan for duplicates. Please grant the permissions and try again.",
+      );
+      return;
+    }
+
+    setScanningStates((prev) => ({ ...prev, duplicate: true }));
+    try {
+      await initDatabase();
+      const results = await scanDuplicateImages(
+        () => {}, // Progress callback
+        { current: false } // Cancel ref
+      );
+      
+      await saveDuplicateGroups(results);
+      dispatch(setDuplicateResults(results));
+      await refreshHomeState();
+    } catch (error) {
+      console.error("Duplicate scan error:", error);
+      Alert.alert("Scan Error", (error as Error).message || "An error occurred during the scan.");
+    } finally {
+      setScanningStates((prev) => ({ ...prev, duplicate: false }));
+    }
+  }, [scanningStates.duplicate, dispatch, refreshHomeState]);
+
+  const handleWhatsAppScan = React.useCallback(async () => {
+    if (scanningStates.whatsapp) return;
+
+    const hasPermissions = await requestAllSmartScanPermissions();
+    if (!hasPermissions) {
+      Alert.alert(
+        "Permissions Required",
+        "Storage permissions are required to scan WhatsApp files. Please grant the permissions and try again.",
+      );
+      return;
+    }
+
+    setScanningStates((prev) => ({ ...prev, whatsapp: true }));
+    try {
+      await initDatabase();
+      const results = await scanWhatsApp();
+      await saveWhatsAppResults(results);
+      dispatch(setWhatsappResults(results));
+      await refreshHomeState();
+    } catch (error) {
+      console.error("WhatsApp scan error:", error);
+      Alert.alert("Scan Error", (error as Error).message || "An error occurred during the scan.");
+    } finally {
+      setScanningStates((prev) => ({ ...prev, whatsapp: false }));
+    }
+  }, [scanningStates.whatsapp, dispatch, refreshHomeState]);
 
   return (
     <ScreenWrapper style={styles.screen}>
@@ -179,26 +285,49 @@ const HomeScreen = () => {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.indicatorCard}>
-            {localIsScanning ? (
-              <CircularLoadingIndicator scanProgress={scanProgress} />
-            ) : (
-              <StorageIndicatorCard storageInfo={storageInfo} />
-            )}
-            <ScanButton
-              onPress={localIsScanning ? handleStopScan : handleSmartScan}
-              label={localIsScanning ? "Stop Scan" : "Smart Scan"}
-              style={[styles.scanButton, localIsScanning && { backgroundColor: "#EF4444" }]}
-              disabled={false}
+            <StorageIndicatorCard storageInfo={storageInfo} />
+          </View>
+
+          <View style={styles.moduleCardsContainer}>
+            <ModuleCard
+              title="Storage Analyzer"
+              icon="harddisk"
+              itemsCount={storageAnalyzerStats.count}
+              sizeCanFree={storageAnalyzerStats.size}
+              itemsLabel="items found"
+              iconAccent={theme.colors.info}
+              onView={() => router.push(appRoutes.storageAnalyzer)}
+              onScan={handleStorageScan}
+              isScanning={scanningStates.storage}
+              description="Find out what taking up space on your device."
+            />
+
+            <ModuleCard
+              title="Duplicate Images"
+              icon="image-multiple-outline"
+              itemsCount={duplicateStats.count}
+              sizeCanFree={duplicateStats.size}
+              itemsLabel="duplicate images found"
+              iconAccent="#7E57C2"
+              onView={() => router.push(appRoutes.duplicates)}
+              onScan={handleDuplicateScan}
+              isScanning={scanningStates.duplicate}
+              description="Find and remove duplicate images."
+            />
+
+            <ModuleCard
+              title="WhatsApp Cleaner"
+              icon="whatsapp"
+              itemsCount={whatsappStats.count}
+              sizeCanFree={whatsappStats.size}
+              itemsLabel="expendable items found"
+              iconAccent="#25D366"
+              onView={() => router.push(appRoutes.whatsapp)}
+              onScan={handleWhatsAppScan}
+              isScanning={scanningStates.whatsapp}
+              description="Clean up WhatsApp media files."
             />
           </View>
-          {showFeatures && (
-            <HomeFeatureSections
-              features={features}
-              featureProgress={featureProgress}
-              featureRevealStyle={featureRevealStyle}
-              onNavigate={(route) => router.push(route)}
-            />
-          )}
         </ScrollView>
       </SafeAreaView>
     </ScreenWrapper>
@@ -228,8 +357,7 @@ const createStyles = (theme: DefaultTheme) =>
       shadowOffset: { width: 0, height: 8 },
       elevation: 12,
     },
-    scanButton: {
-      marginTop: theme.spacing.lg,
-      width: "100%",
+    moduleCardsContainer: {
+      marginTop: theme.spacing.md,
     },
   });

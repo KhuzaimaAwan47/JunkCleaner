@@ -3,6 +3,7 @@ import { fastScan, type ScanProgress } from './fastScanner';
 import type { CategoryFile } from './fileCategoryCalculator';
 import type { LargeFileResult } from '../app/(Screens)/LargeFilesScreen/LargeFileScanner';
 import type { OldFileInfo } from '../app/(Screens)/OldFilesScreen/OldFilesScanner';
+import type { APKFileInfo } from '../app/(Screens)/APKCleanerScreen/APKCleanerScanner';
 
 const VIDEO_EXTENSIONS = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.3gp', '.m4v', '.mpg', '.mpeg', '.ts', '.m2ts', '.vob', '.asf', '.rm', '.rmvb', '.divx', '.xvid', '.mp4v', '.m4p', '.m4b', '.f4v', '.f4p', '.f4a', '.f4b'];
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg', '.ico', '.tiff', '.tif', '.heic', '.heif', '.raw', '.cr2', '.nef', '.orf', '.sr2', '.arw', '.dng', '.psd', '.ai', '.eps', '.pcx', '.tga', '.bpg'];
@@ -13,6 +14,7 @@ const MIN_IMAGE_SIZE_BYTES = 10 * 1024;
 const LARGE_FILE_THRESHOLD = 512 * 1024 * 1024; // 512 MB
 const OLD_FILE_THRESHOLD_DAYS = 90;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const APK_EXTENSIONS = ['.apk', '.apks', '.xapk'];
 
 const buildRootPaths = (): string[] => {
   const base = RNFS.ExternalStorageDirectoryPath;
@@ -45,6 +47,7 @@ export interface UnifiedScanResults {
   documents: CategoryFile[];
   largeFiles: LargeFileResult[];
   oldFiles: OldFileInfo[];
+  apkFiles: APKFileInfo[];
 }
 
 /**
@@ -64,6 +67,8 @@ export async function unifiedFileScan(
   const documents: CategoryFile[] = [];
   const largeFiles: LargeFileResult[] = [];
   const oldFiles: OldFileInfo[] = [];
+  const apkFiles: APKFileInfo[] = [];
+  const seenAPKPaths = new Set<string>();
 
   const now = Date.now();
   const oldFileThresholdMs = OLD_FILE_THRESHOLD_DAYS * MS_PER_DAY;
@@ -87,6 +92,20 @@ export async function unifiedFileScan(
     const lower = entry.name.toLowerCase();
     const ageMs = now - modifiedDate;
     const ageDays = Math.floor(ageMs / MS_PER_DAY);
+
+    // Capture APK files
+    const isAPK = APK_EXTENSIONS.some(ext => lower.endsWith(ext));
+    if (isAPK) {
+      if (!seenAPKPaths.has(entry.path)) {
+        seenAPKPaths.add(entry.path);
+        apkFiles.push({
+          path: entry.path,
+          size,
+          modifiedDate,
+          ageDays,
+        });
+      }
+    }
 
     // Check for large files
     if (size >= LARGE_FILE_THRESHOLD) {
@@ -145,14 +164,15 @@ export async function unifiedFileScan(
   documents.sort((a, b) => b.size - a.size);
   largeFiles.sort((a, b) => b.size - a.size);
   oldFiles.sort((a, b) => b.ageDays - a.ageDays);
+  apkFiles.sort((a, b) => b.size - a.size);
 
   const finishedAt = Date.now();
   console.log(
     `[UnifiedScan] videos=${videos.length} images=${images.length} audios=${audios.length} documents=${documents.length} ` +
-    `large=${largeFiles.length} old=${oldFiles.length} durationMs=${finishedAt - startedAt}`,
+    `large=${largeFiles.length} old=${oldFiles.length} apk=${apkFiles.length} durationMs=${finishedAt - startedAt}`,
   );
 
-  return { videos, images, audios, documents, largeFiles, oldFiles };
+  return { videos, images, audios, documents, largeFiles, oldFiles, apkFiles };
 }
 
 // Category inference for large files

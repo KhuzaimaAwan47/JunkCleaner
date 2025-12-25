@@ -4,6 +4,7 @@ import React, { useEffect, useMemo } from "react";
 import { StyleSheet, View } from "react-native";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { DefaultTheme, useTheme } from "styled-components/native";
+import { withOpacity } from "../theme/theme";
 import type { Feature } from "../dummydata/features";
 import NeumorphicContainer from "./NeumorphicContainer";
 
@@ -81,7 +82,7 @@ const FeatureCard: React.FC<Props> = ({ feature, onPress, progress }) => {
     <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }}>
       <NeumorphicContainer onPress={onPress} padding={20}>
         <View style={styles.cardContent}>
-          <View style={[styles.iconWrap, { backgroundColor: `${feature.accent}22` }]}>
+          <View style={[styles.iconWrap, { backgroundColor: withOpacity(feature.accent, 0.133) }]}>
             <MaterialCommunityIcons name={feature.icon as any} size={24} color={feature.accent} />
           </View>
           <Animated.Text style={styles.title}>{feature.title}</Animated.Text>
@@ -122,13 +123,13 @@ const createStyles = (theme: DefaultTheme) =>
     },
     title: {
       color: theme.colors.text,
-      fontSize: 16,
-      fontWeight: "600",
+      fontSize: theme.fontSize.md,
+      fontWeight: theme.fontWeight.semibold,
       textAlign: "center",
     },
     subtitle: {
       color: theme.colors.textMuted,
-      fontSize: 13,
+      fontSize: theme.fontSize.sm,
       marginTop: 2,
       textAlign: "center",
     },
@@ -136,7 +137,7 @@ const createStyles = (theme: DefaultTheme) =>
       width: "100%",
       height: 8,
       borderRadius: 20,
-      backgroundColor: `${theme.colors.surfaceAlt}aa`,
+      backgroundColor: withOpacity(theme.colors.surfaceAlt, 0.67),
       marginTop: theme.spacing.md,
     },
     progressFill: {

@@ -15,6 +15,7 @@
   documents: "/(Screens)/DocumentsScreen/DocumentsScreen",
   apkCleaner: "/(Screens)/APKCleanerScreen/APKCleanerScreen",
   caches: "/(Screens)/CachesScreen/CachesScreen",
+  storageAnalyzer: "/(Screens)/StorageAnalyzerScreen/StorageAnalyzerScreen",
 } as const;
 
 export type AppRoute = (typeof appRoutes)[keyof typeof appRoutes];

@@ -1,5 +1,6 @@
+import { Image } from 'expo-image';
 import React from 'react';
-import { Dimensions, Image, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Dimensions, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { DefaultTheme, useTheme } from 'styled-components/native';
 import { ensurePreviewUri } from '../utils/fileUtils';
 
@@ -19,7 +20,12 @@ export default function ImagePreviewModal({ visible, imagePath, onClose }: Image
       <View style={styles.backdrop}>
         <TouchableOpacity style={styles.touchArea} activeOpacity={1} onPress={onClose}>
           {previewUri ? (
-            <Image source={{ uri: previewUri }} resizeMode="contain" style={styles.image} />
+            <Image 
+              source={{ uri: previewUri }} 
+              contentFit="contain" 
+              style={styles.image}
+              cachePolicy="memory-disk"
+            />
           ) : (
             <View style={styles.fallbackContainer}>
               <Text style={styles.fallback}>cannot load preview</Text>
